@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#06b6d4">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title> 건강 관리 체크 </title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--accent:#06b6d4;--red:#fa6464;--muted:#555;}
+*{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;}
+body{margin:0;background:#fff;color:#000;padding:24px;}
+.wrap{max-width:980px;margin:0 auto;}
+header{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+header h1{font-size:20px;margin:0;}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:18px;}
+.card{background:#f8f8f8;border:1px solid #ddd;padding:14px;border-radius:12px;margin-bottom:18px;}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
+input[type=text], input[type=number], textarea, select{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc;background:transparent;color:inherit;}
+.row{display:flex;gap:10px;align-items:center}
+.row > *{flex:1}
+.small{font-size:13px}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+button{background:var(--accent);border:none;padding:9px 12px;border-radius:10px;color:#fff;font-weight:600;cursor:pointer}
+.muted{color:var(--muted);font-size:13px}
+.summary{position:sticky;top:20px;display:flex;flex-direction:column;justify-content:flex-start;position:relative;}
+.summary-footer{position:absolute;bottom:6px;right:10px;font-size:11px;color:var(--muted);}
+.pill{display:inline-block;padding:6px 8px;border-radius:999px;background:#eee;font-size:12px;color:var(--muted)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px dashed #ddd;text-align:left;font-size:13px;vertical-align:top}
+canvas{background:#fff;border-radius:12px}
+@media(max-width:900px){.grid{grid-template-columns:1fr;}.summary{position:static}}
+.mealRow{display:grid;grid-template-columns:1fr 2fr 1fr auto;gap:8px;align-items:center;margin-top:6px}
+#calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-top:8px}
+.day{background:#eee;padding:8px;border-radius:8px;cursor:pointer;user-select:none}
+.day.selected{background:var(--accent);color:#fff;font-weight:600}
+.month-selector{display:flex;gap:8px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div style="width:48px;height:48px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:1000;color:#fff">H</div>
+<div>
+<h1>건강 관리 체크</h1>
+<div class="muted">운동과 식단을 하루 단위로 기록하고 간단한 요약을 확인합니다.</div>
+</div>
+</header>
+
+<div class="grid">
+<main>
+  <!-- 기본정보 -->
+  <div class="card" id="weightCard">
+    <div class="section-title"><strong>기본정보</strong><span class="pill" id="datePill"></span></div>
+    <div class="row">
+      <label style="flex:0 0 auto">체중(kg)</label>
+      <input type="number" id="weight" min="30" max="250" step="0.1" />
+    </div>
+    <canvas id="weightChart" height="110"></canvas>
+  </div>
+
+  <!-- 식단 -->
+  <div class="card" id="mealCard">
+    <div class="section-title"><strong>식단</strong><span class="muted">오늘 식단</span></div>
+    <div id="meals"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button type="button" id="addMeal">식사 추가</button>
+      <button type="button" id="calcNutrition">칼로리 합계 계산</button>
+    </div>
+    <div id="nutritionSummary" style="margin-top:10px" class="muted"></div>
+  </div>
+
+  <!-- WOD -->
+  <div class="card" id="wodCard">
+    <div class="section-title"><strong>WOD</strong></div>
+    <label>WOD 내용</label>
+    <textarea id="wodNotes" rows="5" placeholder="예: 21-15-9&#10;Thruster&#10;Pull up&#10;9분"></textarea>
+  </div>
+</main>
+
+<aside class="card summary">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <strong style="color:#000;">건강관리 요약</strong>
+    <button type="button" id="saveBtn">저장 (Local)</button>
+  </div>
+
+  <div class="month-selector">
+    <select id="yearSelect"></select>
+    <select id="monthSelect"></select>
+  </div>
+  <div id="calendar"></div>
+  <div id="selectedDateRecords" style="margin-top:10px"></div>
+
+  <div style="margin-top:10px">
+    <table>
+      <tbody>
+        <tr><th>이름</th><td id="s_name">최승연</td></tr>
+        <tr><th>체중</th><td id="s_weight">-</td></tr>
+        <tr><th>식단</th><td id="s_meals">-</td></tr>
+        <tr><th>WOD</th><td id="s_wod">-</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="summary-footer">Made by @Ruci</div>
+</aside>
+</div>
+</div>
+
+<script>
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      console.log('Service Worker registered.', reg);
+    });
+  });
+}
+
+const datePill = document.getElementById('datePill');
+const now = new Date();
+datePill.textContent = now.toISOString().slice(0,10);
+
+const ctx = document.getElementById('weightChart').getContext('2d');
+let weightChart;
+
+const mealsDiv = document.getElementById('meals');
+function addMealRow(){
+  const row = document.createElement('div');
+  row.className='mealRow';
+  row.innerHTML=`
+    <select class="mealType"><option>아침</option><option>점심</option><option>저녁</option><option>간식</option></select>
+    <input type="text" class="mealName" placeholder="식사명" />
+    <input type="number" class="mealKcal" placeholder="칼로리" min="0" />
+    <button type="button" class="removeMeal" style="margin-left:4px;">삭제</button>`;
+  mealsDiv.appendChild(row);
+  row.querySelector('.removeMeal').addEventListener('click',()=>row.remove());
+}
+document.getElementById('addMeal').addEventListener('click', addMealRow);
+
+function gather(){
+  const data = {};
+  data.date = datePill.textContent;
+  data.name = '최승연';
+  data.weight = document.getElementById('weight').value || '';
+  data.wodNotes = document.getElementById('wodNotes').value || '';
+  data.meals = [...document.querySelectorAll('.mealRow')].map(m=>({
+    type: m.querySelector('.mealType').value || '',
+    name: m.querySelector('.mealName').value || '',
+    kcal: m.querySelector('.mealKcal').value || ''
+  }));
+  return data;
+}
+
+function showSummary(d){
+  document.getElementById('s_name').textContent = d.name;
+  document.getElementById('s_weight').textContent = d.weight? d.weight+' kg':'-';
+ if (d.meals && d.meals.length > 0) {
+    const validMeals = d.meals.filter(m => m.name || m.kcal);
+    if (validMeals.length > 0) {
+        document.getElementById('s_meals').innerHTML =
+            validMeals.map(m => `${m.type} : ${m.name} (${m.kcal}kcal)`).join('<br>');
+    } else {
+        document.getElementById('s_meals').textContent = '-';
+    }
+} else {
+    document.getElementById('s_meals').textContent = '-';
+}
+  document.getElementById('s_wod').innerHTML = d.wodNotes.replace(/\n/g,'<br>')||'-';
+}
+
+function loadData(dateStr){
+  const key = 'cf_health_'+dateStr;
+  const record = localStorage.getItem(key);
+  if(record){
+    const data = JSON.parse(record);
+    document.getElementById('weight').value = data.weight||'';
+    document.getElementById('wodNotes').value = data.wodNotes||'';
+    mealsDiv.innerHTML='';
+    if(data.meals){
+      data.meals.forEach(m=>{
+        addMealRow();
+        const last = mealsDiv.lastElementChild;
+        last.querySelector('.mealType').value=m.type;
+        last.querySelector('.mealName').value=m.name;
+        last.querySelector('.mealKcal').value=m.kcal;
+      });
+    }
+    showSummary(data);
+  } else {
+    document.getElementById('weight').value='';
+    document.getElementById('wodNotes').value='';
+    mealsDiv.innerHTML=''; 
+    showSummary({name:'최승연'});
+  }
+  drawWeightGraph(dateStr.slice(0,7));
+}
+
+function drawWeightGraph(monthStr){
+  const labels=[], wData=[], kData=[];
+  let maxW=0,maxK=0;
+  for(let i=1;i<=31;i++){
+    const day=i.toString().padStart(2,'0');
+    labels.push(day);
+    const key='cf_health_'+monthStr+'-'+day;
+    const record=localStorage.getItem(key);
+    if(record){
+      const d=JSON.parse(record);
+      const w = d.weight ? Number(d.weight) : null;
+      const k = d.meals ? d.meals.map(m=>Number(m.kcal)||0).reduce((a,b)=>a+b,0) : null;
+      wData.push(w);
+      kData.push(k);
+      if(w>maxW) maxW=w;
+      if(k>maxK) maxK=k;
+    } else { wData.push(null); kData.push(null);}
+  }
+
+  const maxWeight = Math.ceil(maxW*1.1/10)*10||100;
+  const leftSteps = maxWeight/10;
+  const maxKcal = maxK ? maxK*1.1 : 500;
+
+  if(weightChart) weightChart.destroy();
+  weightChart = new Chart(ctx,{
+    data:{
+      labels,
+      datasets:[
+        {type:'line',label:'체중(kg)',data:wData,borderColor:'#06b6d4',backgroundColor:'rgba(6,182,212,0.2)',yAxisID:'yW',fill:true},
+        {type:'bar',label:'칼로리(kcal)',data:kData,backgroundColor:'#fa6464',yAxisID:'yK'}
+      ]
+    },
+    options:{
+      responsive:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{tooltip:{
+        callbacks:{
+          title:()=>'', 
+          beforeBody:(ctx)=>{
+            const day = ctx[0].dataIndex+1;
+            const [y,m] = monthStr.split('-');
+            return y+'.'+String(m).padStart(2,'0')+'.'+String(day).padStart(2,'0');
+          },
+          label:(ctx)=>{
+            if(ctx.dataset.label==='체중(kg)' && ctx.parsed.y != null) return '체중: '+ctx.parsed.y+' kg';
+            if(ctx.dataset.label==='칼로리(kcal)' && ctx.parsed.y != null) return '식단: '+ctx.parsed.y+' kcal';
+            return null;
+          },
+          labelTextColor:()=> '#fff'
+        },
+        displayColors:false,
+        bodySpacing:4,
+        titleMarginBottom:4
+      }},
+      scales:{
+        yW:{type:'linear',position:'left',beginAtZero:true,max:maxWeight,ticks:{stepSize:10}},
+        yK:{type:'linear',position:'right',beginAtZero:true,max:maxKcal,grid:{drawTicks:false},ticks:{
+          stepSize:maxKcal/leftSteps,
+          callback: function(value){ return Math.round(value); } // 소수점 제거
+        }}
+      }
+    }
+  });
+}
+
+document.getElementById('saveBtn').addEventListener('click',()=>{
+  const data=gather();
+  const key='cf_health_'+data.date;
+  localStorage.setItem(key,JSON.stringify(data));
+  showSummary(data);
+  drawWeightGraph(data.date.slice(0,7));
+  alert('저장 완료');
+});
+
+document.getElementById('calcNutrition').addEventListener('click',()=>{
+  const kcals=[...document.querySelectorAll('.mealKcal')].map(i=>Number(i.value)||0).reduce((a,b)=>a+b,0);
+  document.getElementById('nutritionSummary').textContent=`총 칼로리: ${kcals} kcal`;
+});
+
+const yearSelect=document.getElementById('yearSelect');
+const monthSelect=document.getElementById('monthSelect');
+const currentYear=now.getFullYear();
+for(let y=2024;y<=2034;y++) yearSelect.appendChild(new Option(y,y));
+for(let m=1;m<=12;m++) monthSelect.appendChild(new Option(m,m));
+yearSelect.value=currentYear; monthSelect.value=now.getMonth()+1;
+
+function renderCalendar(){
+  calendar.innerHTML='';
+  const y=yearSelect.value, m=monthSelect.value;
+  const daysInMonth=new Date(y,m,0).getDate();
+  for(let i=1;i<=daysInMonth;i++){
+    const day=document.createElement('div');
+    day.className='day';
+    day.textContent=i;
+    day.addEventListener('click',()=>{
+      document.querySelectorAll('.day').forEach(d=>d.classList.remove('selected'));
+      day.classList.add('selected');
+      const dateStr=y+'-'+String(m).padStart(2,'0')+'-'+String(i).padStart(2,'0');
+      datePill.textContent=dateStr;
+      loadData(dateStr);
+    });
+    calendar.appendChild(day);
+  }
+  drawWeightGraph(y+'-'+String(m).padStart(2,'0'));
+}
+yearSelect.addEventListener('change',renderCalendar);
+monthSelect.addEventListener('change',renderCalendar);
+
+renderCalendar();
+loadData(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'));
+</script>
+</body>
+</html>
