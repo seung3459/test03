@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<script src="../../js/supabase-config.js"></script>
+	<script src="../../js/auth-guard.js"></script>
+	<script src="../../js/himec-supabase-sync.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>절수형 위생기구 분석 - HIMEC</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  html,body { height:100%; }
+  body { background:#fff; color:#222; padding:0 100px; overflow:hidden; display:flex; flex-direction:column; }
+  /* Header (Tool-201 CSS 이식) */
+  .header {
+    background:#fff; padding:8px 20px; border-bottom:1px solid #ddd; flex-shrink:0;
+    margin-left:-100px; margin-right:-100px;
+    padding-left:120px; padding-right:120px;
+  }
+  .header h1 { font-size:20px; font-weight:700; color:#222; }
+  .header .sub { font-size:11px; color:#888; margin-top:2px; }
+  .header h2 { font-size:15px; font-weight:600; color:#333; margin-top:4px; }
+  .header-right { position:absolute; bottom:8px; right:20px; display:flex; gap:8px; }
+  .header-right button {
+    padding:8px 0; width:90px; border:none; border-radius:4px;
+    font-size:10px; font-weight:600; cursor:pointer; text-align:center;
+  }
+  .btn-save, .btn-file { background:#e85d24; color:#fff; }
+  .btn-main { background:#555f; color:#fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity:.85; }
+  /* page (탭 삭제 → 단일 페이지, 전 모서리 둥글게) */
+  .page { display:none; background:#fff; padding:14px 18px; margin-top:12px; }
+  .page.active { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; }
+  /* layout */
+  .layout { display:grid; grid-template-columns:1.08fr 1fr; gap:24px; flex:1 1 auto; min-height:0; align-items:stretch; }
+  .left, .right { display:flex; flex-direction:column; min-height:0; }
+  /* section head (■) */
+  .sec-head { font-size:13px; font-weight:700; color:#222; margin:0 0 8px; }
+  /* input tables : 모서리 둥글게 / 좌우 테두리 없음 / 구분선 흰색 */
+  table { width:100%; font-size:11px; }
+  .inputtbl { border-collapse:separate; border-spacing:0; border-radius:8px; overflow:hidden; }
+  .inputtbl th, .inputtbl td { border-bottom:1px solid #fff; border-right:1px solid #fff; padding:7px 5px; text-align:center; }
+  .inputtbl tr th:last-child, .inputtbl tr td:last-child { border-right:none; }
+  .inputtbl tr:last-child th, .inputtbl tr:last-child td { border-bottom:none; }
+  .inputtbl th { background:#B1B6B7; font-weight:700; color:#fff; }
+  .inputtbl td { background:#fff; }
+  .inputtbl input, .inputtbl select { width:100%; border:1px solid #c2c7cb; border-radius:3px; padding:3px; font-size:11px; text-align:center; }
+  .inputtbl input[readonly] { background:#f3f5f6; color:#00838f; font-weight:700; border:none; }
+  .topin td { height:42px; vertical-align:top; padding:5px; }
+  .topin .u { display:block; text-align:right; font-size:10px; color:#999; margin-top:4px; }
+  .sub-title { font-size:12px; font-weight:600; color:#444; margin:10px 0 5px; }
+  /* 적용 기준 Data 박스 */
+  .refbox { background:#e9ebed; border-radius:8px; padding:12px 12px; margin-top:12px; flex:1 1 auto; display:flex; flex-direction:column; justify-content:space-between; min-height:0; }
+  .ref-group { }
+  .ref-title { font-size:12px; font-weight:700; color:#444; margin-bottom:4px; }
+  .ref-sub { font-size:11px; font-weight:600; color:#555; margin:8px 0 4px; }
+  .reftbl { border-collapse:separate; border-spacing:0; border-radius:8px; overflow:hidden; table-layout:fixed; }
+  .reftbl th, .reftbl td { border-bottom:1px solid #fff; border-right:1px solid #fff; padding:9px 5px; text-align:center; }
+  .reftbl tr th:last-child, .reftbl tr td:last-child { border-right:none; }
+  .reftbl tr:last-child th, .reftbl tr:last-child td { border-bottom:none; }
+  .reftbl th { background:#ccd0d3; font-weight:500; color:#444; }
+  .reftbl td { background:#fff; }
+  .reftbl td.l { text-align:center; }
+  .ref-note { font-size:9px; color:#8a8f93; line-height:1.5; margin-top:8px; }
+  .ref-note b { color:#666; }
+  /* result metric blocks */
+  .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .m-block { border-left:3px solid #ccc; padding:1px 0 1px 10px; }
+  .m-block.orange { border-left-color:#e85d24; }
+  .m-block.teal   { border-left-color:#00838f; }
+  .m-block.green  { border-left-color:#2e9e5b; }
+  .m-lbl { font-size:11px; color:#8a8f93; }
+  .m-val { font-size:22px; font-weight:700; margin-top:8px; }
+  .m-block.orange .m-val { color:#e85d24; }
+  .m-block.teal   .m-val { color:#00838f; }
+  .m-block.green  .m-val { color:#2e9e5b; }
+  .m-val small { font-size:11px; font-weight:600; color:#999; }
+  /* 산정식 / 절감률 row */
+  .midrow { display:flex; justify-content:space-between; align-items:flex-end; margin:16px 0 8px; }
+  .formula { font-size:10px; color:#9a9fa3; line-height:1.6; }
+  .formula .f-title { font-weight:700; color:#888; margin-bottom:3px; font-size:11px; }
+  .rate { text-align:right; white-space:nowrap; }
+  .rate .r-lbl { font-size:11px; color:#8a8f93; margin-bottom:6px; }
+  .rate .r-val { font-size:20px; font-weight:700; color:#2e9e5b; }
+  .rate .r-val small { font-size:11px; color:#999; font-weight:600; }
+  /* chart */
+  canvas { width:100%; max-width:100%; flex:1 1 auto; min-height:140px; display:block; margin-top:26px; }
+  /* Copyright (Tool-201 CSS 이식) */
+  .copyright {
+    background:#fff; border-top:1px solid #ddd; padding:6px 20px;
+    margin-left:-100px; margin-right:-100px;
+    padding-left:120px; padding-right:120px;
+    text-align:center; font-size:10px; color:#888; flex-shrink:0;
+  }
+  /* ===== 반응형 (오토 사이즈) : 화면 비율에 따라 레이아웃 자동 조정 ===== */
+
+  /* === Tool-002 Baseline 좌/우 여백 반응형 (page-container=body 매핑) === */
+  @media (max-width: 1600px) {
+    body { padding:0 60px; }
+    .header { margin-left:-60px; margin-right:-60px; padding-left:80px; padding-right:80px; }
+    .copyright { padding:6px 80px; margin-left:-60px; margin-right:-60px; }
+  }
+  @media (max-width: 1300px) {
+    body { padding:0 30px; }
+    .header { margin-left:-30px; margin-right:-30px; padding-left:50px; padding-right:50px; }
+    .copyright { padding:6px 50px; margin-left:-30px; margin-right:-30px; }
+  }
+  @media (max-width: 1100px) {
+    body { padding:0 15px; }
+    .header { margin-left:-15px; margin-right:-15px; padding-left:35px; padding-right:35px; }
+    .copyright { padding:6px 35px; margin-left:-15px; margin-right:-15px; }
+  }
+  @media (max-width: 700px) {
+    body { padding:0 10px; }
+    .header { margin-left:-10px; margin-right:-10px; padding-left:30px; padding-right:30px; }
+    .copyright { padding:6px 30px; margin-left:-10px; margin-right:-10px; }
+  }
+
+    @media (max-width: 1024px) {
+    body { overflow:auto; }
+    .layout { grid-template-columns:1fr; gap:18px; }
+    .page.active { min-height:0; }
+    canvas { min-height:240px; }
+  }
+  @media (max-width: 640px) {
+    body { padding:0 10px; }
+    .header { margin-left:-10px; margin-right:-10px; padding-left:30px; padding-right:30px; }
+    .header h1 { font-size:15px; }
+    .header h2 { font-size:12px; }
+    .metrics { grid-template-columns:1fr; gap:8px; }
+    .m-val { font-size:20px; }
+    .midrow { flex-direction:column; align-items:flex-start; gap:10px; }
+    .rate { text-align:left; }
+    .copyright { padding:6px 30px; margin-left:-10px; margin-right:-10px; }
+  }
+  /* ===== [v4 ADD] 세로형(포트레이트) 모니터 대응 - 항상 기본 규칙 뒤에 위치 ===== */
+  @media (orientation: portrait){
+    html, body{ height:auto !important; overflow:visible !important; }
+    body .page.active{ overflow:visible !important; height:auto !important; flex:0 1 auto !important; min-height:0 !important; }
+    body .layout{ grid-template-columns:1fr !important; align-items:start !important; height:auto !important; min-height:0 !important; }
+    body .left, body .right{ overflow:visible !important; height:auto !important; min-height:0 !important; }
+    body canvas{ min-height:240px !important; }
+    body .layout, body .layout *{ overflow-wrap:anywhere !important; word-break:keep-all !important; }
+  }
+</style>
+
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+
+<style id="himec-unify-portrait">
+
+/* ===== [TABLE UNIFY → Tool-09 .info-table 규격] .inputtbl, .reftbl, .topin
+   헤더색/테두리/라운드/폰트만 통일. 숫자정렬·의미색(빨강·파랑·합계행 등)은 보존 ===== */
+.inputtbl, .reftbl, .topin { border-collapse:separate !important; border-spacing:0 !important; }
+.inputtbl th, .inputtbl td, .reftbl th, .reftbl td, .topin th, .topin td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:6px 5px !important; }
+.inputtbl th, .reftbl th, .topin th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.inputtbl tr:first-child th:first-child, .reftbl tr:first-child th:first-child, .topin tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.inputtbl tr:first-child th:last-child, .reftbl tr:first-child th:last-child, .topin tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.inputtbl input, .reftbl input, .topin input { font-size:12px !important; }
+.inputtbl select, .reftbl select, .topin select { font-size:11px !important; }
+/* ===== [TABLE UNIFY] end ===== */
+
+</style>
+</head>
+<body>
+
+<!-- Header (원본 재사용) -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+  <h2>Water-Saving Sanitary Fixtures Analysis Tool &nbsp;/&nbsp; 절수형 위생기구 분석</h2>
+  <div class="header-right">
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
+  </div>
+</div>
+
+<!-- ===== 절수 분석 (단일 페이지) ===== -->
+<div class="page active" id="p1">
+  <div class="layout">
+
+    <!-- LEFT : 입력 및 선택 + 적용 기준 Data -->
+    <div class="left">
+      <div class="sec-head">&#9632; 입력 및 선택</div>
+
+      <table class="inputtbl topin">
+        <tr>
+          <th style="width:40%;">건물 용도</th>
+          <th style="width:30%;">연간 건물 운영 일수</th>
+          <th style="width:30%;">상하수도요금(평균)</th>
+        </tr>
+        <tr>
+          <td>
+            <select id="bldgUse" onchange="calc()">
+              <option value="" selected>입력 해주세요</option>
+              <option value="6">학교 (6 h/일)</option>
+              <option value="7">극장·영화관 (7 h/일)</option>
+              <option value="8">사무소 (8 h/일)</option>
+              <option value="9">병원 (9 h/일)</option>
+              <option value="10">백화점·상점 (10 h/일)</option>
+              <option value="12">음식점 (12 h/일)</option>
+            </select>
+          </td>
+          <td><input id="days" type="number" placeholder="입력 해주세요" onchange="calc()"><span class="u">일/년</span></td>
+          <td><input id="tariff" type="number" placeholder="입력 해주세요" onchange="calc()"><span class="u">원/&#13221;</span></td>
+        </tr>
+      </table>
+      <input type="hidden" id="useTime">
+
+      <div class="sub-title">위생기구 입력 (구분 · 기구수 · 적용 Type)</div>
+      <table class="inputtbl" id="fixTbl">
+        <tr>
+          <th style="width:13%;">구분</th>
+          <th style="width:12%;">기구 개수</th>
+          <th style="width:15%;">Type</th>
+          <th style="width:15%;">시간당<br>사용 횟수</th>
+          <th style="width:13%;">동시<br>사용율</th>
+          <th style="width:15%;">1회 수량(&#8467;)</th>
+          <th style="width:17%;">1사용량<br>(&#8467;/day)</th>
+        </tr>
+        <tr data-fix="wc">
+          <th>대변기</th>
+          <td><input type="number" class="cnt" placeholder="입력 해주세요" onchange="calc()"></td>
+          <td>
+            <select class="type" onchange="calc()">
+              <option value="" selected>입력 해주세요</option>
+              <option value="g">일반형</option>
+              <option value="s">절수형</option>
+              <option value="u">초절수형</option>
+            </select>
+          </td>
+          <td><input class="hz" readonly></td>
+          <td><input class="sim" readonly></td>
+          <td><input class="liter" readonly></td>
+          <td><input class="day" readonly></td>
+        </tr>
+        <tr data-fix="ur">
+          <th>소변기</th>
+          <td><input type="number" class="cnt" placeholder="입력 해주세요" onchange="calc()"></td>
+          <td>
+            <select class="type" onchange="calc()">
+              <option value="" selected>입력 해주세요</option>
+              <option value="g">일반형</option>
+              <option value="s">절수형</option>
+              <option value="u">초절수형</option>
+            </select>
+          </td>
+          <td><input class="hz" readonly></td>
+          <td><input class="sim" readonly></td>
+          <td><input class="liter" readonly></td>
+          <td><input class="day" readonly></td>
+        </tr>
+        <tr data-fix="lv">
+          <th>세면기</th>
+          <td><input type="number" class="cnt" placeholder="입력 해주세요" onchange="calc()"></td>
+          <td>
+            <select class="type" onchange="calc()">
+              <option value="" selected>입력 해주세요</option>
+              <option value="g">일반형</option>
+              <option value="s">절수형</option>
+              <option value="u">초절수형</option>
+            </select>
+          </td>
+          <td><input class="hz" readonly></td>
+          <td><input class="sim" readonly></td>
+          <td><input class="liter" readonly></td>
+          <td><input class="day" readonly></td>
+        </tr>
+      </table>
+
+      <!-- 적용 기준 Data (페이지2 통합) -->
+      <div class="refbox">
+        <div class="ref-title">&#9635; 적용 기준 Data</div>
+
+        <div class="ref-group">
+          <div class="ref-sub">- 위생기구별 1회 사용수량 (L/회)</div>
+          <table class="reftbl">
+            <tr><th>구분</th><th>일반형</th><th>절수형</th><th>초절수형</th><th>시간당 사용 횟수</th></tr>
+            <tr><td class="l">대변기</td><td>13</td><td>6</td><td>4.5</td><td>6 회/h</td></tr>
+            <tr><td class="l">소변기</td><td>4</td><td>2</td><td>1</td><td>12 회/h</td></tr>
+            <tr><td class="l">세면기</td><td>3</td><td>2</td><td>1.5</td><td>8 회/h</td></tr>
+          </table>
+        </div>
+
+        <div class="ref-group">
+          <div class="ref-sub">- 기구수별 동시사용률(%)</div>
+          <table class="reftbl">
+            <tr><th>구분</th><th>1</th><th>2</th><th>5</th><th>10</th><th>20</th><th>50</th><th>100</th></tr>
+            <tr><td class="l">동시사용율</td><td>100</td><td>80</td><td>60</td><td>45</td><td>35</td><td>25</td><td>20</td></tr>
+          </table>
+        </div>
+
+        <div class="ref-group">
+          <div class="ref-sub">- 건물 용도별 1일 사용시간 T (h/일)</div>
+          <table class="reftbl">
+            <tr><th>학교</th><th>극장·영화관</th><th>사무소</th><th>병원</th><th>백화점·상점</th><th>음식점</th></tr>
+            <tr><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>12</td></tr>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT : 분석 결과 -->
+    <div class="right">
+      <div class="sec-head">&#9632; 분석 결과</div>
+
+      <div class="metrics">
+        <div class="m-block orange">
+          <div class="m-lbl">일반형 적용 시 연간 사용량</div>
+          <div class="m-val"><span id="genTon">-</span> <small>Ton/년</small></div>
+        </div>
+        <div class="m-block teal">
+          <div class="m-lbl">절수형 적용 시 연간 사용량</div>
+          <div class="m-val"><span id="effTon">-</span> <small>Ton/년</small></div>
+        </div>
+        <div class="m-block green">
+          <div class="m-lbl">연간 절감 수량</div>
+          <div class="m-val"><span id="saveTon">-</span> <small>Ton/년</small></div>
+        </div>
+      </div>
+
+      <div class="midrow">
+        <div class="formula">
+          <div class="f-title">산정식</div>
+          일사용량 = 기구수 × 시간당사용횟수 × 동시사용률 × 사용시간 × 1회수량<br>
+          연간량(Ton) = 일사용량 × 운전일수 ÷ 1000
+        </div>
+        <div class="rate">
+          <div class="r-lbl">절감률 / 연간 절감액</div>
+          <div class="r-val"><span id="ratePct">-</span> <small>%</small> / <span id="saveWon">-</span> <small>천/년</small></div>
+        </div>
+      </div>
+
+      <canvas id="barChart" height="210"></canvas>
+
+        <div class="ref-note">
+          <b>Data 출처 / 설계기준</b><br>
+          · 절수형 1회 사용수량 : 「수도법 시행규칙」[별표2] 절수설비·절수기기 기준 (대변기 6L 이하, 소변기 2L 이하)<br>
+          · 시간당 사용횟수·동시사용률 곡선 : 공기조화·위생공학 설계 표준값 (기구수별 동시사용률 100%→20% 보간)<br>
+          · 일 사용시간 : 「수도법 시행규칙」, 공기조화 위생공학 설계 표준
+        </div>
+    </div>
+  </div>
+</div>
+
+<div class="copyright">&copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.</div>
+
+<script>
+/* ---------- 설계기준 상수 ---------- */
+var LITER = {           // 1회 사용수량 (L/회) : 일반 g / 절수 s / 초절수 u
+  wc:{g:13, s:6,  u:4.5},
+  ur:{g:4,  s:2,  u:1},
+  lv:{g:3,  s:2,  u:1.5}
+};
+var HZ = { wc:6, ur:12, lv:8 };   // 시간당 사용횟수 (회/h)
+
+/* 기구수 → 동시사용률(%) 보간 곡선 */
+var SIM_X = [1,2,5,10,20,50,100];
+var SIM_Y = [100,80,60,45,35,25,20];
+function simRate(n){
+  if(n<=1) return 100;
+  if(n>=100) return 20;
+  for(var i=0;i<SIM_X.length-1;i++){
+    if(n>=SIM_X[i] && n<=SIM_X[i+1]){
+      var r=(n-SIM_X[i])/(SIM_X[i+1]-SIM_X[i]);
+      return SIM_Y[i]+(SIM_Y[i+1]-SIM_Y[i])*r;
+    }
+  }
+  return 20;
+}
+
+/* ---------- 계산 ---------- */
+function calc(){
+  // 사용시간(건물용도) 자동 — 미선택 시 NaN
+  var T = parseFloat(document.getElementById('bldgUse').value);
+  document.getElementById('useTime').value = isNaN(T) ? '' : (T + ' h');
+  var days = parseFloat(document.getElementById('days').value);
+  var tariff = parseFloat(document.getElementById('tariff').value);
+
+  var rows = document.querySelectorAll('#fixTbl tr[data-fix]');
+  var genDay=0, effDay=0;
+
+  for(var i=0;i<rows.length;i++){
+    var fix = rows[i].getAttribute('data-fix');
+    var cnt = parseFloat(rows[i].querySelector('.cnt').value);
+    var type = rows[i].querySelector('.type').value;
+    var hz = HZ[fix];
+    var literGen = LITER[fix].g;             // 일반형 기준
+
+    rows[i].querySelector('.hz').value = hz;
+
+    // 입력 미완료(기구수·Type·건물용도) 시 보조칸 공백 처리
+    if(isNaN(cnt) || cnt<=0 || type==='' || isNaN(T)){
+      rows[i].querySelector('.sim').value = '';
+      rows[i].querySelector('.liter').value = '';
+      rows[i].querySelector('.day').value = '';
+      continue;
+    }
+
+    var sim = simRate(cnt);
+    var liter = LITER[fix][type];            // 적용 Type → 1회수량 자동
+
+    // 일사용량(L/일) = 기구수 × 시간당횟수 × 동시사용률 × 사용시간 × 1회수량
+    var dayEff = cnt * hz * (sim/100) * T * liter;
+    var dayGen = cnt * hz * (sim/100) * T * literGen;
+
+    rows[i].querySelector('.sim').value = sim.toFixed(0)+' %';
+    rows[i].querySelector('.liter').value = liter;
+    rows[i].querySelector('.day').value = dayEff.toFixed(0);
+
+    genDay += dayGen;
+    effDay += dayEff;
+  }
+
+  // 필수 입력(건물용도·운영일수·기구입력) 미완료 시 결과는 '-' 표시
+  if(isNaN(T) || isNaN(days) || days<=0 || genDay<=0){
+    document.getElementById('genTon').textContent = '-';
+    document.getElementById('effTon').textContent = '-';
+    document.getElementById('saveTon').textContent = '-';
+    document.getElementById('ratePct').textContent = '-';
+    document.getElementById('saveWon').textContent = '-';
+    drawChart(0, 0);
+    return;
+  }
+
+  var genTon = genDay*days/1000;
+  var effTon = effDay*days/1000;
+  var saveTon = genTon - effTon;
+  var rate = genTon>0 ? (saveTon/genTon*100) : 0;
+  var saveWon = saveTon * (isNaN(tariff)?0:tariff);   // Ton × 원/Ton = 원, 천원 표시
+
+  document.getElementById('genTon').textContent = genTon.toFixed(1);
+  document.getElementById('effTon').textContent = effTon.toFixed(1);
+  document.getElementById('saveTon').textContent = saveTon.toFixed(1);
+  document.getElementById('ratePct').textContent = rate.toFixed(1);
+  document.getElementById('saveWon').textContent = (saveWon/1000).toFixed(0);
+
+  drawChart(genTon, effTon);
+}
+
+/* ---------- Canvas 차트 (원본 재사용) ---------- */
+function drawChart(vG, vE){
+  var cv=document.getElementById('barChart');
+  var ctx=cv.getContext('2d');
+  var W=cv.width=cv.clientWidth*2, H=cv.height=cv.clientHeight*2;
+  ctx.scale(1,1);
+  ctx.clearRect(0,0,W,H);
+  var padL=70, padT=24, padB=44;
+  var cw=W-padL-40, ch=H-padT-padB;
+  var maxv=Math.max(vG,vE,1);
+  var niceMax=Math.ceil(maxv/100)*100;
+  if(niceMax===0) niceMax=100;
+
+  // axis
+  ctx.strokeStyle='#ccc'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+ch); ctx.lineTo(padL+cw,padT+ch); ctx.stroke();
+  // y label
+  ctx.save();
+  ctx.translate(18,padT+ch/2); ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center'; ctx.fillStyle='#888'; ctx.font='16px sans-serif';
+  ctx.fillText('단위 : Ton/년', 0, 0);
+  ctx.restore();
+  // gridlines
+  ctx.fillStyle='#888'; ctx.font='15px sans-serif'; ctx.textAlign='right';
+  for(var g=0;g<=4;g++){
+    var yy=padT+ch-(ch*g/4);
+    ctx.strokeStyle='#eee'; ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(padL+cw,yy); ctx.stroke();
+    ctx.fillText((niceMax*g/4).toFixed(0), padL-8, yy+5);
+  }
+  // bars
+  var labels=['일반형','절수형 적용'];
+  var vals=[vG,vE];
+  var colors=['#b8bcc0','#00838f'];
+  // 막대 가로폭 : 기존 대비 2배 (cap 130 -> 260), 슬롯 폭 초과 시 겹침 방지
+  var slot=cw/2;
+  var bw=Math.min(slot*0.5, 130)*2;
+  if(bw>slot*0.86) bw=slot*0.86;
+  var tops=[];   // 각 막대 상단 좌표 저장 (절감률 표시용)
+  for(var i=0;i<2;i++){
+    var cx=padL+cw*(i+0.5)/2;
+    var bh=(vals[i]/niceMax)*ch;
+    var y=padT+ch-bh;
+    tops.push({x:cx, y:y});
+    ctx.fillStyle=colors[i];
+    ctx.fillRect(cx-bw/2, y, bw, bh);
+    ctx.fillStyle='#333'; ctx.font='bold 17px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(vals[i].toFixed(1), cx, y-8);
+    ctx.fillStyle='#555'; ctx.font='15px sans-serif';
+    ctx.fillText(labels[i], cx, padT+ch+24);
+  }
+  // 그래프 내 절감률 표시 (화살표 삭제 - 라벨만 표시)
+  var rate = vG>0 ? ((vG-vE)/vG*100) : 0;
+  var midX=(tops[0].x+tops[1].x)/2;
+  var topY=Math.min(tops[0].y, tops[1].y);
+  var labelY=Math.max(topY-30, padT+20);
+  ctx.fillStyle='#2e9e5b'; ctx.font='bold 22px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('절감률 '+rate.toFixed(1)+'%', midX, labelY);
+}
+
+
+window.onload = calc;
+window.onresize = calc;
+</script>
+
+<script>
+/* === HIMEC 공통 헤더 기능 (Save / Export / Main) === */
+(function(){
+  function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
+  function fkey(el,i){ return el.id ? ('#'+el.id) : ('@'+i); }
+  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool'); }
+
+  function himecSave(){
+    try{
+      var data={};
+      fields().forEach(function(el,i){
+        var k=fkey(el,i);
+        if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk', v:el.checked}; }
+        else { data[k]={t:'val', v:el.value}; }
+      });
+      localStorage.setItem(storeKey(), JSON.stringify(data));
+      alert('현재 화면의 입력값이 저장되었습니다.');
+    }catch(e){ alert('저장 중 오류가 발생했습니다: '+e.message); }
+  }
+
+  function himecRestore(){
+    try{
+      var raw=localStorage.getItem(storeKey()); if(!raw) return;
+      var data=JSON.parse(raw);
+      fields().forEach(function(el,i){
+        var rec=data[fkey(el,i)]; if(!rec) return;
+        if(rec.t==='chk'){ el.checked=!!rec.v; el.dispatchEvent(new Event('change',{bubbles:true})); }
+        else { el.value=rec.v; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+      });
+    }catch(e){}
+  }
+
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m) m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m && !m.contains(e.target)) closeMenu(); }
+
+  function himecExport(btn){
+    if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML =
+      '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>Excel로 내보내기</button>';
+    document.body.appendChild(m);
+    var r=btn.getBoundingClientRect();
+    var left=window.scrollX+r.right-m.offsetWidth; if(left<6) left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px';
+    m.style.left=left+'px';
+    m.addEventListener('click', function(e){
+      var t=e.target.closest('button'); if(!t) return;
+      var x=t.getAttribute('data-x'); closeMenu();
+      if(x==='pdf') himecPDF(); else himecExcel();
+    });
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
+  }
+
+  function himecPDF(){
+    /* 화면 비율 그대로 인쇄 → 브라우저 인쇄 대화상자에서 'PDF로 저장' 선택 */
+    window.print();
+  }
+  function himecExcel(){
+    alert('Excel 내보내기는 추후 별도 양식으로 제공될 예정입니다.');
+  }
+
+  function himecMain(){
+    location.href = '../tool_dashboard.html';
+  }
+
+  window.himecMain=himecMain;
+
+  if(document.readyState==='loading'){
+    window.addEventListener('DOMContentLoaded', function(){ setTimeout(himecRestore, 60); });
+  } else { setTimeout(himecRestore, 60); }
+})();
+</script>
+
+</body>
+</html>
