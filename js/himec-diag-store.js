@@ -219,9 +219,26 @@
     return { ok: conflicts.length === 0 && errs.length === 0, saved: saved, conflicts: conflicts, errors: errs };
   }
 
-  var _loadedForPid = null;
+  // 화면 유닛 전체 비우기 (로드 전 초기화 → DB 상태로 교체, 중복 방지)
+  function clearAllUnits() {
+    DIAG_TYPES.forEach(function (tp) {
+      var box = d.getElementById(tp + 'Units'); if (box) box.innerHTML = '';
+      if (typeof unitCount !== 'undefined') unitCount[tp] = 0;
+    });
+    try { if (typeof unitSubtype !== 'undefined') Object.keys(unitSubtype).forEach(function (k) { delete unitSubtype[k]; }); } catch (e) {}
+    try { if (typeof unitPhotos !== 'undefined') Object.keys(unitPhotos).forEach(function (k) { delete unitPhotos[k]; }); } catch (e) {}
+    w.unitRowId = {}; w.unitBaseTs = {};
+  }
+
+  var _loadedForPid = null, _loading = false;
   async function loadAll(projectId) {
     var p = projectId || pid(); if (!p) return false;
+    if (_loading) return false;               // 동시 재진입 방지 (load + hydrated 중복 차단)
+    _loading = true;
+    try { return await _loadAll(p); } finally { _loading = false; }
+  }
+  async function _loadAll(p) {
+    clearAllUnits();                          // ★ DB 불러오기 전 화면 초기화
     var proj = await getProject(p);
     if (proj && proj.meta) {
       OV_FIELDS.forEach(function (fid) { var el = d.getElementById(fid); if (el && proj.meta[fid] !== undefined) el.value = proj.meta[fid]; });
