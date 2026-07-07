@@ -198,13 +198,23 @@
    * kpi_sync_id 로 projects 행을 찾거나 만들어 UUID 로 바꿔치기.
    * → 대시보드/KPI 는 손 안 대고, 진단 쪽에서만 UUID 로 정규화. */
   function isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s || ''); }
-  async function resolveActiveProject() {
+  var _resolvePromise = null;
+  function resolveActiveProject() {
+    // 동시 재진입 방지: 진행 중인 resolve 가 있으면 그걸 재사용 (중복 생성 차단)
+    if (_resolvePromise) return _resolvePromise;
+    _resolvePromise = _resolve().then(function (v) { _resolvePromise = null; return v; },
+                                     function (e) { _resolvePromise = null; throw e; });
+    return _resolvePromise;
+  }
+  async function _resolve() {
     var raw = pid(); if (!raw) return null;
     if (isUuid(raw)) return raw;
     var syncId = raw.replace(/^pj_/, '');
     var c = await client(); if (!c) return null;
     var cid = companyId();
-    var q = c.from('projects').select('id').eq('kpi_sync_id', syncId);
+    // 이미 있는(혹은 중복된) 행을 가장 오래된 것 하나로 통일
+    var q = c.from('projects').select('id').eq('kpi_sync_id', syncId)
+             .order('created_at', { ascending: true }).limit(1);
     if (cid && cid !== 'default') q = q.eq('company_id', cid);
     var r = await q.maybeSingle();
     var uuid = (r && r.data && r.data.id) || null;
