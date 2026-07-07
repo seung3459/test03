@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<!-- HIMEC Pump Efficiency Analysis Tool
+     Chassis(헤더/카피라이트/여백/반응형/아이콘버튼/표 규격) = Tool-02 AHU 도구와 100% 동일 규격
+     Content/Logic = Tool-03 펌프 효율 분석 (장비개요·설계/측정 Data·막대그래프·레이더·분석결과·도넛)
+     2026 (주)하이멕 -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - Pump Efficiency Analysis Tool</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Page container */
+  .page-container {
+    padding: 0 100px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    background: #fff;
+  }
+
+  /* Header */
+  .header {
+    background: #fff;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: #222; }
+  .header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .header h2 { font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+  .header-right {
+    position: absolute;
+    bottom: 8px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  .header-right button {
+    padding: 8px 0;
+    width: 90px;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-save { background: #e85d24; color: #fff; }
+  .btn-file { background: #e85d24; color: #fff; }
+  .btn-main { background: #555f; color: #fff; }
+  .btn-save:hover, .btn-file:hover { opacity: 0.85; }
+  .btn-main:hover { opacity: 0.85; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    padding: 4px 20px 0;
+    background: #fff;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 5px 20px;
+    border-radius: 6px 6px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: #bbb;
+    color: #fff;
+    position: relative;
+    padding-right: 28px !important;
+  }
+  .tab.active { background: #00838f; color: #fff; }
+  .tab.add {
+    background: #999;
+    color: #fff;
+    font-size: 14px;
+    padding: 5px 16px;
+    padding-right: 16px !important;
+  }
+  .tab .tab-close {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .tab .tab-close:hover { background: rgba(255,0,0,0.6); color: #fff; }
+
+  /* Main 3-column layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr 0.9fr;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .panel {
+    background: #fff;
+    border: 1px solid transparent;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  /* Tool-02 동일: 좌/중앙/우 패널 사이 구분선 */
+  .panel + .panel { border-left: 1px solid #eee; }
+
+  /* Section titles */
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #222;
+    flex-shrink: 0;
+  }
+
+  /* ===== NEW TABLE STYLE matching the image ===== */
+  .info-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    margin-bottom: 6px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .info-table th, .info-table td {
+    border: 1px solid #ffffff;
+    padding: 6px 5px;
+    border-bottom: 1.5px solid #ccc;
+    text-align: center;
+  }
+  .info-table th {
+    background: #e8e8e8;
+    color: #555;
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .info-table tr:first-child th:first-child { border-top-left-radius: 8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius: 8px; }
+  .info-table td { background: #fff; }
+
+  /* Value + unit layout */
+  .value-unit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  .value-unit input {
+    text-align: right;
+    padding-right: 2px;
+  }
+  .value-unit .unit {
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+  }
+  .info-table input {
+    width: 100%;
+    border: none;
+    text-align: center;
+    font-size: 12px;
+    background: transparent;
+    outline: none;
+    padding: 4px 2px;
+  }
+  .info-table .highlight-cell {
+    background: #e0f7fa;
+    color: #00838f;
+    font-weight: 700;
+  }
+  .note {
+    font-size: 9px;
+    color: #888;
+    margin: 4px 0 6px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Left panel side border transparent */
+  #left-panel .info-table th:first-child,
+  #left-panel .info-table td:first-child {
+    border-left-color: transparent;
+  }
+  #left-panel .info-table th:last-child,
+  #left-panel .info-table td:last-child {
+    border-right-color: transparent;
+  }
+
+  /* Bar Chart */
+  .bar-chart-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .bar-chart-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 1px 1px 1px 1px;
+    border-left: 1px solid #999;
+    border-bottom: 1px solid #999;
+    margin: 6px 2px 0 2px;
+    min-height: 0;
+  }
+  .bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    max-width: none;
+    height: 100%;
+    padding: 0 4px;
+  }
+  .bar-pair {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    width: 100%;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
+  }
+  .bar {
+    width: 40px;
+    min-width: 24px;
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    transition: height 0.5s ease;
+  }
+  .bar-design { background: #ccc; }
+  .bar-measure { background: #00838f; }
+  .bar-value {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .bar-label {
+    font-size: 9px;
+    color: #666;
+    margin-top: 3px;
+    text-align: center;
+  }
+  .bar-category-label {
+    font-size: 10px;
+    color: #333;
+    font-weight: 600;
+    margin-top: 1px;
+  }
+  .y-axis-labels {
+    position: absolute;
+    left: -32px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #666;
+  }
+  .bar-legend {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 9px;
+    color: #555;
+    flex-shrink: 0;
+  }
+  .bar-legend-item { display: flex; align-items: center; gap: 3px; }
+  .bar-legend-color { width: 10px; height: 8px; border-radius: 2px; }
+
+  /* Center Panel - Radar Chart */
+  .center-panel {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .chart-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chart-canvas-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  .chart-canvas-container canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Right Panel */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+  }
+  .metrics-area {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .metric-card {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid #ccc;
+    border-radius: 5px;
+    padding: 5px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .metric-label {
+    font-size: 11px;
+    color: #00838f;
+    flex: 1;
+    line-height: 1.2;
+    font-weight: bold;
+  }
+  .metric-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #ff8c00;
+    min-width: 45px;
+    text-align: right;
+  }
+  .metric-unit {
+    font-size: 12px;
+    color: #888;
+    margin-left: 2px;
+    vertical-align: super;
+  }
+
+  /* Donut Chart */
+  .donut-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0px;
+    min-height: 10px;
+    overflow: hidden;
+  }
+  .donut-wrapper {
+    position: relative;
+    width: 81%;
+    height: 81%;
+    max-width: 81%;
+    max-height: 81%;
+    aspect-ratio: 1;
+  }
+  .donut-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .donut-center-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .donut-percent { font-size: 38px; font-weight: 800; }
+  .donut-percent-unit { font-size: 25px; font-weight: 600; }
+  .donut-status { font-size: 20px; font-weight: 700; margin-top: 2px; }
+
+  /* Copyright footer */
+  .copyright {
+    background: #fff;
+    border-top: 1px solid #ddd;
+    padding: 6px 20px;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+    text-align: center;
+    font-size: 10px;
+    color: #888;
+    flex-shrink: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+  }
+  @media (max-width: 1300px) {
+    .page-container { padding: 0 30px; }
+    .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+    .copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+  }
+  @media (max-width: 1100px) {
+    .page-container { padding: 0 15px; }
+    .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+    .copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+    .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .center-panel { grid-column: 1 / -1; grid-row: 1; }
+  }
+  @media (max-width: 700px) {
+    .page-container { padding: 0 10px; }
+    .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
+    .copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
+    .main { grid-template-columns: 1fr; }
+    .center-panel { grid-column: 1; }
+  }
+  @media (orientation: landscape) and (min-width: 1100px) {
+    .main { grid-template-columns: 1fr 1.1fr 0.9fr; }
+  }
+
+  .info-table input::placeholder {
+    color: #aaa;
+    font-style: italic;
+    font-size: 10px;
+  }
+</style>
+
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+<style id="himec-unify-portrait">
+
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* portrait: 좌측 구분선 → 상단 구분선으로 전환 */
+  body .main > .panel + .panel{ border-left:none !important; border-top:1px solid #eee !important; }
+
+  body .main .center-panel{
+    grid-column:auto !important; grid-row:auto !important; order:0 !important;
+    display:flex !important; flex-direction:column !important;
+  }
+  body .main #chartWrapper, body .main .chart-wrapper{
+    flex:none !important; width:100% !important;
+    height:65vw !important; min-height:65vw !important; overflow:visible !important;
+  }
+  body .main .chart-canvas-container{ width:100% !important; height:100% !important; }
+  body .main #chartWrapper canvas, body .main .chart-canvas-container canvas{
+    width:100% !important; height:100% !important; min-height:0 !important;
+  }
+  /* 보조 차트(막대/도넛/가로막대 등) */
+  body .main .bar-chart-container, body .main .donut-container, body .main .hbar-chart,
+  body .main .chart-area, body .main .graph-box{ height:auto !important; min-height:200px !important; }
+  body .main svg{ height:auto !important; }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+
+</style>
+
+<style id="pump-addon-style">
+  /* ===== 펌프 계통 모식도 (Tool-02 ahu-diagram 동일 방식: %기준 → 화면비율 무관) ===== */
+  /* 좌측 패널: 표 + 펌프 계통 모식도 / 막대그래프는 중앙 패널로 이동 */
+  #left-panel .pump-diagram{ position:relative; width:100%; container-type:inline-size;
+    margin-top:6px; flex:0 0 auto; }
+  #left-panel .pump-diagram img{ display:block; width:100%; height:auto;
+    border:1px solid #eee; border-radius:8px; }
+  #left-panel .pump-ov{ position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+    font-weight:700; color:#00838f; font-size:3.2cqw; line-height:1; letter-spacing:-0.3px;
+    text-align:center; pointer-events:none; }
+  #left-panel .pump-ov small{ font-size:2.1cqw; font-weight:600; color:#0097a7; }
+  /* 중앙 패널: 레이더 차트 2/3 + 막대그래프 1/3 세로 분배 */
+  #center-panel .chart-wrapper{ flex:2 1 0; min-height:0; }
+  #center-panel .bar-chart-container{ flex:1 1 0; min-height:120px; }
+
+  /* ===== 진단 결과 리스트 (Tool-02 diag 동일) ===== */
+  #right-panel .donut-container{ flex:1 1 0; min-height:150px; }
+  .diag-wrap{ flex:1 1 0; display:flex; flex-direction:column; min-height:0; margin-top:2px; }
+  .diag-scroll{ flex:1 1 auto; min-height:0; overflow-y:auto; padding-right:2px; }
+  .diag{ display:flex; flex-direction:column; gap:5px; }
+  .diag .d{ display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; border-radius:5px; border:none; border-left:3px solid #ccc;
+    background:#fafafa; line-height:1.35; }
+  .diag .d.ok{ border-left-color:#00838f; }
+  .diag .d.warn{ border-left-color:#ff8c00; }
+  .diag .d.bad{ border-left-color:#ff3333; }
+  .diag .d .dhead{ font-size:11.5px; font-weight:700; color:#333; white-space:nowrap; flex:none; }
+  .diag .d.ok .dstat{ color:#00838f; }
+  .diag .d.warn .dstat{ color:#ff8c00; }
+  .diag .d.bad .dstat{ color:#ff3333; }
+  .diag .d .dstat{ font-weight:800; margin-left:2px; }
+  .diag .d .dbody{ text-align:right; font-size:10px; color:#555; min-width:0; }
+  .diag .d .dsrc{ display:block; font-size:8.5px; color:#0097a7; font-weight:600; margin-top:1px;
+    cursor:pointer; text-decoration:underline; text-decoration-color:#cfe9ec; }
+  .diag .d .dsrc:hover{ color:#00838f; }
+
+  /* 출처 기준 요약 팝업 (Tool-02 동일) */
+  .src-modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42);
+    z-index:9999; align-items:center; justify-content:center; }
+  .src-modal-mask.on { display:flex; }
+  .src-modal { background:#fff; width:420px; max-width:92vw; max-height:82vh; overflow-y:auto; overflow-x:hidden;
+    border-radius:8px; box-shadow:0 10px 36px rgba(0,0,0,.25); }
+  .src-modal .sm-head { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid #eee; background:#00838f; border-radius:8px 8px 0 0; }
+  .src-modal .sm-head h3 { font-size:14px; font-weight:700; color:#fff; }
+  .src-modal .sm-head .sm-close { border:none; background:transparent; color:#fff; font-size:20px;
+    line-height:1; cursor:pointer; padding:0 2px; }
+  .src-modal .sm-body { padding:14px 16px; }
+  .src-modal .sm-std { font-size:9px; font-weight:700; color:#00838f; margin-bottom:8px; }
+  .src-modal .sm-desc { font-size:9px; color:#555; line-height:1.5; margin-bottom:10px; }
+  .src-modal table { width:100%; border-collapse:collapse; font-size:9px; }
+  .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; word-break:break-word; overflow-wrap:anywhere; }
+  .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
+  .src-modal td.rng { white-space:normal; word-break:keep-all; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+  .src-modal .lv-ok { color:#00838f; font-weight:700; }
+  .src-modal .lv-warn { color:#ff8c00; font-weight:700; }
+  .src-modal .lv-bad { color:#ff3333; font-weight:700; }
+  .src-modal tr.cur td { background:#fff8e1; }
+
+  @media (max-width:700px){
+    #left-panel .pump-ov{ font-size:4.2cqw; }
+    #left-panel .pump-ov small{ font-size:2.8cqw; }
+  }
+</style>
+
+<style id="ph-uniform">
+/* 입력 안내문구 통일 (10.5px / weight 400 / italic) */
+input::placeholder, textarea::placeholder{
+  font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; opacity:1; color:#9aa3ab !important;
+}
+input::-webkit-input-placeholder, textarea::-webkit-input-placeholder{
+  font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; color:#9aa3ab !important;
+}
+input:-ms-input-placeholder, textarea:-ms-input-placeholder{
+  font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; color:#9aa3ab !important;
+}
+/* 실제 입력값은 정상(똑바른) 글씨 */
+input, textarea{ font-style:normal; }
+/* select 안내문구(기본 미선택 항목) 통일 - 안내일 때만 기울임 */
+select.ph-empty{ font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; color:#9aa3ab !important; }
+option.ph-opt{ font-size:10.5px; font-weight:400; font-style:italic; color:#9aa3ab; }
+select:has(option.ph-opt:checked){ font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; color:#9aa3ab !important; }
+/* 실제 옵션 선택 시 정상 글씨 */
+select{ font-style:normal; }
+</style>
+<style>
+/* === 센터 뷰 토글 아이콘 + 현장 사진 === */
+.center-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.center-head .section-title{ margin-bottom:0; }
+.center-icons{ display:flex; gap:6px; flex-shrink:0; }
+.ci-btn{
+  width:30px; height:30px; padding:0; cursor:pointer;
+  background:#fff; color:#666; border:1px solid #d0d0d0; border-radius:7px;
+  display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.ci-btn svg{ width:17px; height:17px; }
+.ci-btn:hover{ background:#f5f5f5; }
+.ci-btn.active{ color:#00838f; border-color:#00838f; background:#e0f7fa; }
+
+.photo-view{ flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+.photo-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding-top:6px; }
+.photo-slot{ display:flex; flex-direction:column; min-width:0; }
+.photo-cap{ font-size:10px; color:#555; padding:5px 8px; background:#f7f7f7;
+  border:1px solid #e2e2e2; border-bottom:none; border-radius:6px 6px 0 0;
+  width:100%; box-sizing:border-box; font-family:inherit; outline:none; cursor:text;
+  transition:background .15s, border-color .15s; }
+.photo-cap::placeholder{ color:#b0b0b0; }
+.photo-cap:hover{ background:#eef1f3; }
+.photo-cap:focus{ background:#fff; border-color:#00838f; color:#222; }
+.photo-drop{ position:relative; border:1px dashed #cfcfcf; border-radius:0 0 6px 6px;
+  min-height:170px; background:#f2f3f5; cursor:pointer; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#9aa0a6; }
+.photo-drop:hover{ background:#f0fbfc; border-color:#00838f; }
+.photo-drop svg{ width:26px; height:26px; }
+.photo-drop .pd-title{ font-size:12px; font-weight:600; color:#666; }
+.photo-drop .pd-sub{ font-size:10px; }
+.photo-drop img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; background:#fff; }
+.photo-del{ position:absolute; top:6px; right:6px; z-index:2; width:22px; height:22px;
+  border:none; border-radius:5px; cursor:pointer; background:rgba(0,0,0,.55); color:#fff;
+  font-size:14px; line-height:1; display:none; align-items:center; justify-content:center; }
+.photo-drop.has-img .photo-del{ display:inline-flex; }
+</style>
+</head>
+<body>
+
+<div class="page-container">
+<!-- Header -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
+  <h2>Pump Efficiency Analysis Tool</h2>
+  <div class="header-right">
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab active" id="tab-1" onclick="switchTab(1)">P-01 #01<span class="tab-close" onclick="event.stopPropagation();removeTab(1)">✕</span></button>
+  <button class="tab add" onclick="addTab()">+</button>
+</div>
+
+<!-- Main Layout -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">■ 장비 개요</div>
+    <table class="info-table">
+      <tr><th>장비명</th><th>장비번호</th><th>용도</th><th>비고</th></tr>
+      <tr>
+        <td><input id="inp-name" onchange="recalc()" placeholder="입력 해주세요"></td>
+        <td><input id="inp-no" onchange="recalc()" placeholder="입력 해주세요"></td>
+        <td><input id="inp-use" onchange="recalc()" placeholder="입력 해주세요"></td>
+        <td><input id="inp-note" onchange="recalc()" placeholder="입력 해주세요"></td>
+      </tr>
+    </table>
+
+    <div class="section-title" style="margin-top:4px;">■ 설계 Data</div>
+    <table class="info-table">
+      <tr>
+        <th>설계 유량</th>
+        <th>설계 양정</th>
+        <th>설계 전류</th>
+        <th>설계 전압</th>
+        <th>정격 동력</th>
+        <th>정격 효율</th>
+      </tr>
+      <tr>
+        <td><span class="value-unit"><input id="inp-design-flow" type="number" step="1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">LPM</span></span></td>
+        <td><span class="value-unit"><input id="inp-design-head" type="number" step="0.1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">m</span></span></td>
+        <td><span class="value-unit"><input id="inp-design-current" type="number" step="0.1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">A</span></span></td>
+        <td><span class="value-unit"><input id="inp-design-voltage" type="number" step="1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">V</span></span></td>
+        <td><span class="value-unit"><input id="inp-design-power" type="number" step="0.1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">kW</span></span></td>
+        <td><span class="value-unit"><input id="inp-design-eff" type="number" step="0.1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">%</span></span></td>
+      </tr>
+    </table>
+
+    <div class="section-title" style="margin-top:4px;">■ 측정 Data</div>
+    <table class="info-table">
+      <tr>
+        <th>유량</th>
+        <th>양정</th>
+        <th>전류</th>
+        <th>전압</th>
+        <th class="highlight-cell">동력</th>
+        <th class="highlight-cell">예상 효율</th>
+      </tr>
+      <tr>
+        <td><span class="value-unit"><input id="inp-meas-flow" type="number" step="1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">LPM</span></span></td>
+        <td><span class="value-unit"><input id="inp-meas-head" type="number" step="0.1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">m</span></span></td>
+        <td><span class="value-unit"><input id="inp-meas-current" type="number" step="0.1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">A</span></span></td>
+        <td><span class="value-unit"><input id="inp-meas-voltage" type="number" step="1" onchange="recalc()" placeholder="입력 해주세요"><span class="unit">V</span></span></td>
+        <td style="background:#e0f7fa;"><span class="value-unit"><input id="calc-power" type="number" readonly style="font-weight:700; color:#00838f; background:#e0f7fa; cursor:default;" value="69.6"><span class="unit">kW</span></span></td>
+        <td style="background:#e0f7fa;"><span class="value-unit"><input id="calc-eff" type="number" readonly style="font-weight:700; color:#00838f; background:#e0f7fa; cursor:default;" value="41.3"><span class="unit">%</span></span></td>
+      </tr>
+    </table>
+    <div class="note">※ 동력 = √3 × 전압 × 전류 × 역률(0.9) / 1000 &nbsp; | &nbsp; 효율 = ρgQH / P × 100</div>
+
+    <div class="section-title" style="margin-top:4px;">■ 펌프 유량&양정 </div>
+    <div class="pump-diagram">
+      <img src="https://images.wrks.ai/dalle/1lyoRVJfXQ0BpeoiJxEqRB7zB1x6LhqS6hVgA23j.png" alt="펌프 계통 모식도">
+      <span class="pump-ov" id="ov-head" style="top:18.5%; left:48%;">-</span>
+      <span class="pump-ov" id="ov-flow" style="top:85.5%; left:79%;">-</span>
+    </div>
+  </div>
+
+  <!-- CENTER PANEL - Radar Chart -->
+  <div class="panel center-panel" id="center-panel">
+    <div class="center-head">
+      <div class="section-title" id="centerTitle">■ 설계 대비 측정 성능 비교 (레이더 차트)</div>
+      <div class="center-icons">
+        <button type="button" class="ci-btn active" id="ciDoc" onclick="switchCenterView('perf')" title="설계 대비 측정 성능 비교 보기" aria-label="설계 대비 측정 성능 비교">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>
+        </button>
+        <button type="button" class="ci-btn" id="ciCam" onclick="switchCenterView('photo')" title="현장 사진 등록/촬영" aria-label="현장 사진 등록/촬영">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="perfView" style="flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden;">
+    <div class="chart-wrapper" id="chartWrapper">
+      <div class="chart-canvas-container">
+        <canvas id="radarCanvas"></canvas>
+      </div>
+    </div>
+    <div class="section-title" style="margin-top:4px;">■ 설계 vs 측정 비교 (막대 그래프)</div>
+    <div class="bar-chart-container">
+      <div class="bar-chart-area" id="barChartArea">
+        <div class="y-axis-labels" id="yAxisLabels"></div>
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-d-flow"><div class="bar-value" id="bv-d-flow"></div></div>
+            <div class="bar bar-measure" id="bar-m-flow"><div class="bar-value" id="bv-m-flow"></div></div>
+          </div>
+          <div class="bar-label">설계 &nbsp; 측정</div>
+          <div class="bar-category-label">유량</div>
+        </div>
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-d-head"><div class="bar-value" id="bv-d-head"></div></div>
+            <div class="bar bar-measure" id="bar-m-head"><div class="bar-value" id="bv-m-head"></div></div>
+          </div>
+          <div class="bar-label">설계 &nbsp; 측정</div>
+          <div class="bar-category-label">양정</div>
+        </div>
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-d-current"><div class="bar-value" id="bv-d-current"></div></div>
+            <div class="bar bar-measure" id="bar-m-current"><div class="bar-value" id="bv-m-current"></div></div>
+          </div>
+          <div class="bar-label">설계 &nbsp; 측정</div>
+          <div class="bar-category-label">전류</div>
+        </div>
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-d-eff"><div class="bar-value" id="bv-d-eff"></div></div>
+            <div class="bar bar-measure" id="bar-m-eff"><div class="bar-value" id="bv-m-eff"></div></div>
+          </div>
+          <div class="bar-label">설계 &nbsp; 측정</div>
+          <div class="bar-category-label">효율</div>
+        </div>
+      </div>
+      <div class="bar-legend">
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#888;"></div>설계</div>
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#00838f;"></div>측정</div>
+      </div>
+    </div>
+    </div>
+    <div class="photo-view" id="photoView" style="display:none;">
+      <div class="tbl-cap">현장 사진 <span class="src">아이콘/영역을 클릭하여 촬영 또는 파일 선택</span></div>
+      <div class="photo-grid" id="photoGrid"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel right-panel" id="right-panel">
+    <div class="section-title">■ 분석 결과</div>
+    <div class="metrics-area">
+      <div class="metric-card">
+        <div class="metric-label">✔ 유량 (설계값 대비)</div>
+        <div><span class="metric-value" id="val-flow-ratio">146.4</span><span class="metric-unit">%</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 양정 (설계값 대비)</div>
+        <div><span class="metric-value" id="val-head-ratio">48.5</span><span class="metric-unit">%</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 전류 (설계값 대비)</div>
+        <div><span class="metric-value" id="val-current-ratio">81.6</span><span class="metric-unit">%</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 측정 효율</div>
+        <div><span class="metric-value" id="val-meas-eff">41.3</span><span class="metric-unit">%</span></div>
+      </div>
+    </div>
+
+    <!-- Donut Chart -->
+    <div class="donut-container">
+      <div class="donut-wrapper">
+        <svg class="donut-svg" viewBox="0 0 200 200" id="donutSvg">
+          <circle cx="100" cy="100" r="80" fill="none" stroke="#e8e8e8" stroke-width="24"/>
+          <circle cx="100" cy="100" r="80" fill="none" stroke="#00838f" stroke-width="24"
+            id="donutArc"
+            stroke-dasharray="502.65"
+            stroke-dashoffset="295.06"
+            stroke-linecap="round"
+            style="transition: stroke-dashoffset 0.8s ease, stroke 0.5s ease;"/>
+        </svg>
+        <div class="donut-center-text">
+          <div class="donut-percent" id="donutPercent" style="color:#ff3333;">41<span class="donut-percent-unit">%</span></div>
+          <div class="donut-status" id="donutStatus" style="color:#ff3333;">불량</div>
+        </div>
+      </div>
+    </div>
+    <div class="diag-wrap">
+      <div class="section-title" style="margin-top:4px;">■ 진단 결과</div>
+      <div class="diag-scroll">
+        <div class="diag" id="pumpDiag"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Copyright -->
+<div class="copyright">
+  ©HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<script>
+// ========== Pump Efficiency Calculation ==========
+function recalc() {
+  // Design values
+  const dFlow = parseFloat(document.getElementById('inp-design-flow').value) || 0;
+  const dHead = parseFloat(document.getElementById('inp-design-head').value) || 0;
+  const dCurrent = parseFloat(document.getElementById('inp-design-current').value) || 0;
+  const dPower = parseFloat(document.getElementById('inp-design-power').value) || 0;
+  const dEff = parseFloat(document.getElementById('inp-design-eff').value) || 0;
+
+  // Measured values
+  const mFlow = parseFloat(document.getElementById('inp-meas-flow').value) || 0;
+  const mHead = parseFloat(document.getElementById('inp-meas-head').value) || 0;
+  const mCurrent = parseFloat(document.getElementById('inp-meas-current').value) || 0;
+
+  // Auto-calculate power: P = sqrt(3) * V * I * PF / 1000
+  const mVoltage = parseFloat(document.getElementById('inp-meas-voltage').value) || 380;
+  const powerFactor = 0.9;
+  const mPower = (Math.sqrt(3) * mVoltage * mCurrent * powerFactor) / 1000;
+  document.getElementById('calc-power').value = mPower.toFixed(1);
+
+  // Auto-calculate efficiency: η = ρgQH / P
+  // Q in m³/s (LPM → m³/s = LPM / 60000)
+  // ρg = 9810 N/m³ (water)
+  const Q_m3s = mFlow / 60000;
+  const mEff = mPower > 0 ? (9810 * Q_m3s * mHead) / (mPower * 1000) * 100 : 0;
+  document.getElementById('calc-eff').value = mEff.toFixed(1);
+
+  // Ratios
+  const flowRatio = dFlow > 0 ? (mFlow / dFlow) * 100 : 0;
+  const headRatio = dHead > 0 ? (mHead / dHead) * 100 : 0;
+  const currentRatio = dCurrent > 0 ? (mCurrent / dCurrent) * 100 : 0;
+  const effDrop = dEff > 0 ? ((dEff - mEff) / dEff) * 100 : 0;
+
+  // Update metric cards
+  document.getElementById('val-flow-ratio').textContent = flowRatio.toFixed(1);
+  document.getElementById('val-head-ratio').textContent = headRatio.toFixed(1);
+  document.getElementById('val-current-ratio').textContent = currentRatio.toFixed(1);
+  document.getElementById('val-meas-eff').textContent = mEff.toFixed(1);
+  var _vd=document.getElementById('val-eff-drop'); if(_vd) _vd.textContent = effDrop.toFixed(1);
+
+  // Update donut (측정 효율 + 정격 효율 전달)
+  updateDonut(mEff, dEff);
+
+  // Update bar chart
+  updateBarChart(dFlow, mFlow, dHead, mHead, dCurrent, mCurrent, dEff, mEff);
+
+  // Update radar chart
+  drawRadarChart(flowRatio, headRatio, currentRatio, mEff, dEff);
+
+  // Update 펌프 계통 모식도 오버레이 (게이지=양정, 유량계=유량)
+  var ovH=document.getElementById('ov-head'), ovF=document.getElementById('ov-flow');
+  if(ovH) ovH.innerHTML = mHead.toFixed(1);
+  if(ovF) ovF.innerHTML = Math.round(mFlow).toLocaleString();
+
+  // Update 진단 결과
+  renderPumpDiag(flowRatio, headRatio, currentRatio, mEff, dEff);
+}
+
+/* ===== fmt 헬퍼 + 펌프 진단 리스트 (Tool-02 diag 로직 펌프 이식) ===== */
+function fmt(v, d){ if(v===undefined||v===null||isNaN(v)) return '-'; return Number(v).toFixed(d===undefined?1:d); }
+function renderPumpDiag(flowR, headR, currR, mEff, dEff){
+  function lvEff(r){ return r>=90?'ok':(r>=80?'warn':'bad'); }
+  function lvBal(r){ var dd=Math.abs(r-100); return dd<=15?'ok':(dd<=30?'warn':'bad'); }
+  var ST={ok:'양호',warn:'점검 필요',bad:'불량'};
+  var effR  = dEff>0 ? (mEff/dEff)*100 : 0;
+  var effDrop = dEff>0 ? ((dEff-mEff)/dEff)*100 : 0;
+  var D=[];
+  // 펌프효율
+  { var lv=lvEff(effR);
+    var msg={ok:'정상 운전.',
+             warn:'임펠러·웨어링·정렬 점검.',
+             bad:'임펠러 마모·내부누설 의심.'}[lv];
+    D.push([lv,'펌프효율',ST[lv],'측정효율 '+fmt(mEff,1)+'% / 정격 '+fmt(dEff,1)+'% (설계대비 '+fmt(effR,1)+'%) &mdash; '+msg,'출처: KS B 6301 · ISO 9906']); }
+  // 유량
+  { var lv=lvBal(flowR);
+    var msg={ok:'유량 정상.',
+             warn:'밸브 개도·계통저항 점검.',
+             bad:'계통저항·임펠러 이상 의심.'}[lv];
+    D.push([lv,'유량',ST[lv],'설계대비 '+fmt(flowR,1)+'% &mdash; '+msg,'출처: 설계유량 · ISO 9906 · 상사법칙(Q&prop;N)']); }
+  // 양정
+  { var lv=lvBal(headR);
+    var msg={ok:'양정 정상.',
+             warn:'임펠러·웨어링 마모 점검.',
+             bad:'임펠러 마모·공동현상 의심.'}[lv];
+    D.push([lv,'양정',ST[lv],'설계대비 '+fmt(headR,1)+'% &mdash; '+msg,'출처: 설계양정 · ASHRAE · 상사법칙(H&prop;N²)']); }
+  // 전류
+  { var lv=currR<=105?'ok':(currR<=120?'warn':'bad');
+    var msg={ok:'모터 부하 정상.',
+             warn:'과부하·축수 마찰 점검.',
+             bad:'과부하·결상·베어링 손상 의심.'}[lv];
+    D.push([lv,'전류',ST[lv],'설계대비 '+fmt(currR,1)+'% &mdash; '+msg,'출처: 모터 정격전류(명판) · KEC · 상사법칙(P&prop;N³)']); }
+  // 종합
+  { var worst=lvEff(effR);
+    var msg={ok:'전반적 펌프 성능 양호.',
+             warn:'일부 저하, 정밀 점검.',
+             bad:'성능 저하, 정비·교체.'}[worst];
+    D.push([worst,'종합 평가',ST[worst],'효율저하 '+fmt(effDrop,1)+'% &mdash; '+msg,'출처: 종합 진단']); }
+  document.getElementById('pumpDiag').innerHTML = D.map(function(d){
+    return '<div class="d '+d[0]+'"><div class="dhead">'+d[1]+' : <span class="dstat">'+d[2]+'</span></div>'
+         + '<div class="dbody">'+d[3]+'<span class="dsrc" onclick="showSrcPopup(\''+d[1]+'\',\''+d[0]+'\')" title="클릭하면 판정 기준·출처를 확인합니다">'+d[4]+'</span></div></div>';
+  }).join('');
+}
+
+/* ===== 진단 출처/판정 기준 팝업 (Tool-02 동일 · 펌프 공식 표준 적용) ===== */
+const SRC_INFO={
+  '펌프효율':{ std:'ISO 9906:2012(Rotodynamic pumps — Hydraulic performance acceptance tests) · KS B 6301(원심펌프 시험 방법) · KS B 7501(소형 벌류트 펌프) 〔한국〕 · ANSI/HI 14.6 〔미국〕 · JIS B 8301(遠心ポンプ試験方法) 〔일본〕 · 대한설비공학회 설비공학편람', unit:'측정/설계 펌프효율비',
+    desc:'측정 펌프효율 ÷ 설계 펌프효율. ▸적용식: η = ρgQH ÷ P × 100 [%] — 유효 수동력(ρg·Q·H, ρg=9,810 N/m³(물), Q[m³/s], H[m])을 전동기 입력동력 P(=√3·V·I·0.9, kW→W)로 나눈 종합효율(wire-to-water)입니다. η=ρgQH/P 정의는 ISO 9906·KS B 6301·ANSI/HI·설비공학편람 공통이며, 분모에 전기입력을 쓰므로 모터효율을 포함해 순수 펌프축효율보다 낮게 산출됩니다. 90/80% 임계는 성능저하 관리 관점으로 임펠러 마모·웨어링링 간극 확대·내부누설·축정렬 불량을 반영합니다.',
+    rows:[['ok','≥ 90%','양호 — 정상 운전'],['warn','80 ~ 90%','점검 — 임펠러·웨어링링·정렬 확인'],['bad','< 80%','불량 — 임펠러 마모·내부누설·노후 의심']] },
+  '유량':{ std:'ISO 9906:2012 등급 1/2/3 허용오차 · KS B 6301 · ANSI/HI 14.6 〔미국〕 · JIS B 8301 〔일본〕 · 상사법칙 Q∝N', unit:'측정/설계 유량비',
+    desc:'측정 유량 ÷ 설계 유량. 100%에서 벗어날수록 밸브 개도·계통저항·임펠러 상태를 진단하며, 양정·전류와 교차하여 원인을 판정합니다(종합 평가 항목 참조). ▸ISO 9906은 유량·양정 시험을 규정하고 등급별 허용오차(등급1B ±3% ~ 등급3B −7% 상당)를 정의하며, 시험은 정지점·설계점·120% 유량점 등 최소 5점 측정을 요구합니다. 본 도구의 ±15%(점검)·±30%(불량) 밴드는 이 시험 허용오차를 현장 진단용으로 확장한 값입니다.',
+    rows:[['ok','85 ~ 115%','양호 — 밸브·운전점 정상'],['warn','70~85% 또는 115~130%','점검 — 밸브 개도·스트레이너 확인'],['bad','< 70% 또는 > 130%','불량 — 계통저항 변동·임펠러 이상 의심']] },
+  '양정':{ std:'ISO 9906:2012(양정 성능·NPSH) · KS B 6301 · ANSI/HI 14.6 〔미국〕 · JIS B 8301 〔일본〕 · 상사법칙 H∝N² · 시스템곡선 H∝Q² · 설비공학편람', unit:'측정/설계 양정비',
+    desc:'측정 양정 ÷ 설계 양정. 시스템곡선 H∝Q²상 양정이 낮을수록 계통저항 감소(유량 과다), 높을수록 저항 증가(유량 부족)를 의미하며, 양정 저하는 임펠러 마모·공동현상(캐비테이션)을 시사합니다. ▸상사법칙(회전수 N: H∝N²)·시스템곡선(H∝Q²)은 ISO 9906·ANSI/HI·설비공학편람 펌프편에 공통 수록된 이론이며, NPSH 여유 부족 시 양정 급락(브레이크다운)이 나타납니다.',
+    rows:[['ok','85 ~ 115%','양호 — 양정 성능 정상'],['warn','70~85% 또는 115~130%','점검 — 임펠러·웨어링링 마모 확인'],['bad','< 70% 또는 > 130%','불량 — 임펠러 마모·내부누설·공동현상 의심']] },
+  '전류':{ std:'전동기 명판 정격전류 · KS C IEC 60034-1(회전기기 정격·성능) · 한국전기설비규정 KEC 212.6(과부하·결상 보호) 〔한국〕 · NEC Art.430(모터 과부하) 〔미국〕 · 상사법칙 P∝N³', unit:'측정/설계 전류비',
+    desc:'측정 전류 ÷ 설계(명판) 전류. 상사법칙 P∝N³상 전류 저하는 회전수 저하(유량 부족)를, 상승은 과부하·축수 마찰·결상·임펠러 막힘을 시사합니다. ▸105/120% 임계는 전동기 연속허용(서비스팩터)과 NEC/KEC 과부하 보호 정정(정격의 115~125%) 관행에 근거하며, KS C IEC 60034-1 정격·KEC 212.6 결상(단상운전) 보호를 참조합니다.',
+    rows:[['ok','≤ 105%','양호 — 모터 부하 정상'],['warn','105 ~ 120%','점검 — 과부하·베어링 마찰 확인'],['bad','> 120%','불량 — 과부하·결상·베어링 손상 의심']] },
+  '종합 평가':{ std:'상사법칙(Affinity Laws) Q∝N, H∝N², P∝N³ · 시스템곡선 H∝Q² · ISO 9906:2012 · KS B 6301 · ANSI/HI 14.6 〔미국〕 · JIS B 8301 〔일본〕 · 대한설비공학회 설비공학편람(펌프편)', unit:'유량 × 양정 조합',
+    desc:'펌프효율·유량·양정·전류를 종합 판정하되, 유량 편차의 원인은 상사법칙과 시스템곡선(H∝Q²)으로 역추적합니다. 동일 계통에서 유량비가 f%면 기대 양정비는 f²%이며, 실측 양정이 이보다 높으면 계통저항 증가(유량 부족), 낮으면 저항 감소(유량 과다)로 판정합니다.',
+    rows:[['bad','유량↓ + 양정↑','계통저항 증가(밸브닫힘·스트레이너막힘·배관폐색), 운전점 펌프곡선 좌측 이동'],['bad','유량↓ + 양정↓ (+전류↓)','펌프 출력 부족(회전수 저하·임펠러 마모·역회전·공동현상)'],['warn','유량↑ + 양정↓','계통저항 감소(밸브 과개방·배관 누수·바이패스 개방)'],['warn','유량↑ + 양정↑','펌프 과속(주파수↑), 과부하·소음·공동현상 우려'],['ok','유량·양정 H∝Q² 부합','운전점 적정(정상 운전)']] }
+};
+function showSrcPopup(cat,curLv){ var info=SRC_INFO[cat]; if(!info)return;
+  var lvName={ok:'양호',warn:'점검 필요',bad:'불량'};
+  var rows=info.rows.map(function(r){ return '<tr class="'+(r[0]===curLv?'cur':'')+'"><td class="rng">'+r[1]+'</td><td><span class="lv-'+r[0]+'">'+lvName[r[0]]+'</span></td><td>'+(r[2].split('—')[1]?r[2].split('—')[1].trim():r[2])+'</td></tr>'; }).join('');
+  document.getElementById('srcModalTitle').textContent=cat+' 판정 기준';
+  document.getElementById('srcModalBody').innerHTML='<div class="sm-std">출처: '+info.std+'</div><div class="sm-desc">'+info.desc+'</div>'+
+    '<table><thead><tr><th>'+info.unit+'</th><th>판정</th><th>의미</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 측정값의 판정 구간입니다.</div>';
+  document.getElementById('srcModalMask').classList.add('on');
+}
+function closeSrcPopup(){ document.getElementById('srcModalMask').classList.remove('on'); }
+
+function updateDonut(mEff, dEff) {
+  const circumference = 2 * Math.PI * 80;
+  const clamped = Math.max(0, Math.min(100, mEff));
+  const offset = circumference * (1 - clamped / 100);
+  const arc = document.getElementById('donutArc');
+  arc.setAttribute('stroke-dasharray', circumference.toFixed(2));
+  arc.setAttribute('stroke-dashoffset', offset.toFixed(2));
+
+  // 판단 기준: 정격 효율 대비 측정 효율의 비율
+  const effRatio = dEff > 0 ? (mEff / dEff) * 100 : 0;
+  let color, status;
+  if (effRatio >= 90) { color = '#00838f'; status = '양호'; }       // 정격 대비 90% 이상
+  else if (effRatio >= 70) { color = '#ff8c00'; status = '보통'; }  // 정격 대비 70~90%
+  else { color = '#ff3333'; status = '불량'; }                       // 정격 대비 70% 미만
+
+  arc.setAttribute('stroke', color);
+  document.getElementById('donutPercent').style.color = color;
+  document.getElementById('donutPercent').innerHTML = mEff.toFixed(1) + '<span class="donut-percent-unit">%</span>';
+  document.getElementById('donutStatus').style.color = color;
+  document.getElementById('donutStatus').textContent = status;
+}
+
+function updateBarChart(dFlow, mFlow, dHead, mHead, dCurr, mCurr, dEff, mEff) {
+  // Normalize to percentages for display (scale each pair by their max)
+  function setBar(dId, mId, dvId, mvId, dVal, mVal, unit) {
+    const maxVal = Math.max(dVal, mVal, 1);
+    document.getElementById(dId).style.height = (dVal / maxVal * 85) + '%';
+    document.getElementById(mId).style.height = (mVal / maxVal * 85) + '%';
+    document.getElementById(dvId).textContent = dVal.toFixed(0) + unit;
+    document.getElementById(mvId).textContent = mVal.toFixed(0) + unit;
+  }
+
+  setBar('bar-d-flow', 'bar-m-flow', 'bv-d-flow', 'bv-m-flow', dFlow, mFlow, '');
+  setBar('bar-d-head', 'bar-m-head', 'bv-d-head', 'bv-m-head', dHead, mHead, 'm');
+  setBar('bar-d-current', 'bar-m-current', 'bv-d-current', 'bv-m-current', dCurr, mCurr, 'A');
+  setBar('bar-d-eff', 'bar-m-eff', 'bv-d-eff', 'bv-m-eff', dEff, mEff, '%');
+}
+
+// ========== Radar Chart ==========
+function drawRadarChart(flowR, headR, currentR, measEff, designEff) {
+  const canvas = document.getElementById('radarCanvas');
+  const wrapper = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = wrapper.clientWidth * dpr;
+  canvas.height = wrapper.clientHeight * dpr;
+  canvas.style.width = wrapper.clientWidth + 'px';
+  canvas.style.height = wrapper.clientHeight + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const w = wrapper.clientWidth;
+  const h = wrapper.clientHeight;
+  const cx = w / 2;
+  // 하단 범례(h-20)와 축 라벨이 겹치지 않도록 중심을 위로 올리고 반지름을 세로 여백 기준으로 계산
+  const cy = h / 2 - 16;
+  const radius = Math.min(w * 0.40, (h - 56) * 0.40);
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+
+  // Labels and data
+  const labels = ['유량', '양정', '전류', '효율'];
+  const designData = [100, 100, 100, 100]; // design = 100% baseline
+  const measData = [flowR, headR, currentR, (measEff / designEff) * 100];
+  const maxVal = 180;
+  const numAxes = 4;
+  const angleStep = (Math.PI * 2) / numAxes;
+  const startAngle = -Math.PI / 2;
+
+  // Draw grid rings
+  const rings = [40, 80, 100, 120, 160];
+  rings.forEach(rv => {
+    const r = (rv / maxVal) * radius;
+    ctx.beginPath();
+    for (let i = 0; i <= numAxes; i++) {
+      const angle = startAngle + i * angleStep;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = rv === 100 ? '#999' : '#ddd';
+    ctx.lineWidth = rv === 100 ? 1.5 : 0.5;
+    if (rv === 100) {
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.stroke();
+    }
+  });
+
+  // Draw axes
+  for (let i = 0; i < numAxes; i++) {
+    const angle = startAngle + i * angleStep;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + radius * 1.1 * Math.cos(angle), cy + radius * 1.1 * Math.sin(angle));
+    ctx.strokeStyle = '#bbb';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+
+  // Draw ring labels
+  ctx.font = '10px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = '#999';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  rings.forEach(rv => {
+    const r = (rv / maxVal) * radius;
+    ctx.fillText(rv + '%', cx + 4, cy - r - 2);
+  });
+
+  // Draw design polygon (100% baseline)
+  ctx.beginPath();
+  for (let i = 0; i < numAxes; i++) {
+    const angle = startAngle + i * angleStep;
+    const r = (designData[i] / maxVal) * radius;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(200, 200, 200, 0.2)';
+  ctx.fill();
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw measured polygon
+  ctx.beginPath();
+  for (let i = 0; i < numAxes; i++) {
+    const angle = startAngle + i * angleStep;
+    const val = Math.min(measData[i], maxVal);
+    const r = (val / maxVal) * radius;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0, 131, 143, 0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#00838f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Draw measured points
+  for (let i = 0; i < numAxes; i++) {
+    const angle = startAngle + i * angleStep;
+    const val = Math.min(measData[i], maxVal);
+    const r = (val / maxVal) * radius;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#00838f';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Draw axis labels
+  ctx.font = '12px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < numAxes; i++) {
+    const angle = startAngle + i * angleStep;
+    const labelR = radius * 1.22;
+    const lx = cx + labelR * Math.cos(angle);
+    const ly = cy + labelR * Math.sin(angle);
+    ctx.fillText(labels[i], lx, ly);
+
+    // Show measured value below label
+    ctx.font = '10px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = '#00838f';
+    ctx.fillText(measData[i].toFixed(1) + '%', lx, ly + 14);
+    ctx.font = '12px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = '#333';
+  }
+
+  // Legend
+  const legendY = h - 20;
+  ctx.font = '10px "Noto Sans KR", sans-serif';
+  // Design legend
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 80, legendY);
+  ctx.lineTo(cx - 60, legendY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#666';
+  ctx.textAlign = 'left';
+  ctx.fillText('설계 (100%)', cx - 56, legendY + 1);
+
+  // Measured legend
+  ctx.strokeStyle = '#00838f';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx + 20, legendY);
+  ctx.lineTo(cx + 40, legendY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx + 30, legendY, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#00838f';
+  ctx.fill();
+  ctx.fillStyle = '#00838f';
+  ctx.fillText('측정', cx + 44, legendY + 1);
+}
+
+// ========== Tab Management ==========
+let tabCount = 1;
+let activeTab = 1;
+let nextTabId = 2;
+
+const FIELD_IDS = [
+  'inp-name', 'inp-no', 'inp-use', 'inp-note',
+  'inp-design-flow', 'inp-design-head', 'inp-design-current', 'inp-design-power', 'inp-design-eff',
+  'inp-meas-flow', 'inp-meas-head', 'inp-meas-current', 'inp-meas-voltage', 'inp-design-voltage'
+];
+
+const DEFAULT_VALUES = {
+  'inp-name': 'P-01', 'inp-no': '#01', 'inp-use': '저층부 냉수순환용', 'inp-note': '60Hz, 단독기동',
+  'inp-design-flow': '7500', 'inp-design-head': '33', 'inp-design-current': '144', 'inp-design-power': '75', 'inp-design-eff': '62.1',
+  'inp-meas-flow': '10982', 'inp-meas-head': '16', 'inp-meas-current': '117.5', 'inp-meas-voltage': '380', 'inp-design-voltage': '380'
+};
+
+const EMPTY_VALUES = {};
+FIELD_IDS.forEach(id => { EMPTY_VALUES[id] = ''; });
+
+const equipStore = {};
+
+function initStore() {
+  equipStore[1] = {};
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    equipStore[1][id] = el ? el.value : (DEFAULT_VALUES[id] || '');
+  });
+}
+
+function saveCurrentTab() {
+  if (!equipStore[activeTab]) equipStore[activeTab] = {};
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) equipStore[activeTab][id] = el.value;
+  });
+}
+
+function loadTab(tabId) {
+  const data = equipStore[tabId] || EMPTY_VALUES;
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = data[id] || '';
+      el.placeholder = (!data[id] || data[id] === '') ? '입력하세요' : '';
+    }
+  });
+}
+
+function updateTabName() {
+  const name = document.getElementById('inp-name').value || '장비';
+  const no = document.getElementById('inp-no').value || '#' + activeTab;
+  const tabBtn = document.getElementById('tab-' + activeTab);
+  if (tabBtn) {
+    const closeBtn = tabBtn.querySelector('.tab-close');
+    tabBtn.textContent = name + ' ' + no;
+    if (closeBtn) tabBtn.appendChild(closeBtn);
+  }
+}
+
+function switchTab(tabId) {
+  if (tabId === activeTab) return;
+  saveCurrentTab();
+  updateTabName();
+  document.querySelectorAll('.tab:not(.add)').forEach(t => t.classList.remove('active'));
+  const targetBtn = document.getElementById('tab-' + tabId);
+  if (targetBtn) targetBtn.classList.add('active');
+  activeTab = tabId;
+  loadTab(tabId);
+  recalc();
+}
+
+function addTab() {
+  saveCurrentTab();
+  updateTabName();
+  const newId = nextTabId++;
+  tabCount++;
+  equipStore[newId] = {};
+  FIELD_IDS.forEach(id => { equipStore[newId][id] = ''; });
+
+  const btn = document.createElement('button');
+  btn.className = 'tab';
+  btn.id = 'tab-' + newId;
+  btn.textContent = '장비 #' + tabCount;
+  btn.onclick = function() { switchTab(newId); };
+
+  const closeSpan = document.createElement('span');
+  closeSpan.className = 'tab-close';
+  closeSpan.textContent = '✕';
+  closeSpan.onclick = function(e) { e.stopPropagation(); removeTab(newId); };
+  btn.appendChild(closeSpan);
+
+  const tabBar = document.querySelector('.tab-bar');
+  tabBar.insertBefore(btn, tabBar.lastElementChild);
+
+  document.querySelectorAll('.tab:not(.add)').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  activeTab = newId;
+  loadTab(newId);
+  recalc();
+}
+
+function removeTab(tabId) {
+  const tabs = document.querySelectorAll('.tab:not(.add)');
+  if (tabs.length <= 1) {
+    alert('최소 1개의 장비는 유지해야 합니다.');
+    return;
+  }
+  const tabBtn = document.getElementById('tab-' + tabId);
+  const tabName = tabBtn ? tabBtn.textContent.replace('✕', '').trim() : '장비';
+  if (!confirm('"' + tabName + '" 장비를 삭제하시겠습니까?')) return;
+
+  if (tabBtn) tabBtn.remove();
+  delete equipStore[tabId];
+
+  if (activeTab === tabId) {
+    const remaining = document.querySelectorAll('.tab:not(.add)');
+    if (remaining.length > 0) {
+      const firstTab = remaining[0];
+      const firstId = parseInt(firstTab.id.replace('tab-', ''));
+      firstTab.classList.add('active');
+      activeTab = firstId;
+      loadTab(firstId);
+      recalc();
+    }
+  }
+}
+
+function saveData() {
+  saveCurrentTab();
+  updateTabName();
+  alert('데이터가 저장되었습니다.');
+}
+function exportFile() { alert('파일 변환 기능'); }
+function goMain() { alert('메인 화면으로 이동합니다.'); }
+
+// Y axis labels for bar chart
+function drawYAxis() {
+  const container = document.getElementById('yAxisLabels');
+  container.innerHTML = '';
+  for (let v = 0; v <= 100; v += 20) {
+    const lbl = document.createElement('span');
+    lbl.textContent = v + '%';
+    container.appendChild(lbl);
+  }
+}
+
+// Initialize
+window.addEventListener('DOMContentLoaded', function() {
+  initStore();
+  ['inp-name', 'inp-no'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateTabName);
+  });
+  drawYAxis();
+  recalc();
+});
+window.addEventListener('resize', function() {
+  recalc();
+});
+</script>
+
+<script>
+/* === HIMEC 공통 헤더 기능 (Save / Export / Main) === */
+(function(){
+  function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
+  function fkey(el,i){ return el.id ? ('#'+el.id) : ('@'+i); }
+  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool'); }
+
+  function himecSave(){
+    try{
+      var data={};
+      fields().forEach(function(el,i){
+        var k=fkey(el,i);
+        if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk', v:el.checked}; }
+        else { data[k]={t:'val', v:el.value}; }
+      });
+      localStorage.setItem(storeKey(), JSON.stringify(data));
+      alert('현재 화면의 입력값이 저장되었습니다.');
+    }catch(e){ alert('저장 중 오류가 발생했습니다: '+e.message); }
+  }
+
+  function himecRestore(){
+    try{
+      var raw=localStorage.getItem(storeKey()); if(!raw) return;
+      var data=JSON.parse(raw);
+      fields().forEach(function(el,i){
+        var rec=data[fkey(el,i)]; if(!rec) return;
+        if(rec.t==='chk'){ el.checked=!!rec.v; el.dispatchEvent(new Event('change',{bubbles:true})); }
+        else { el.value=rec.v; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+      });
+    }catch(e){}
+  }
+
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m) m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m && !m.contains(e.target)) closeMenu(); }
+
+  function himecExport(btn){
+    if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML =
+      '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>Excel로 내보내기</button>';
+    document.body.appendChild(m);
+    var r=btn.getBoundingClientRect();
+    var left=window.scrollX+r.right-m.offsetWidth; if(left<6) left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px';
+    m.style.left=left+'px';
+    m.addEventListener('click', function(e){
+      var t=e.target.closest('button'); if(!t) return;
+      var x=t.getAttribute('data-x'); closeMenu();
+      if(x==='pdf') himecPDF(); else himecExcel();
+    });
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
+  }
+
+  function himecPDF(){
+    /* 화면 비율 그대로 인쇄 → 브라우저 인쇄 대화상자에서 'PDF로 저장' 선택 */
+    window.print();
+  }
+  function himecExcel(){
+    alert('Excel 내보내기는 추후 별도 양식으로 제공될 예정입니다.');
+  }
+
+  function himecMain(){
+    location.href = '../tool_dashboard.html';
+  }
+
+  window.himecSave=himecSave;
+  window.himecExport=himecExport;
+  window.himecMain=himecMain;
+
+  if(document.readyState==='loading'){
+    window.addEventListener('DOMContentLoaded', function(){ setTimeout(himecRestore, 60); });
+  } else { setTimeout(himecRestore, 60); }
+})();
+</script>
+
+<style id="portrait-barfix">
+@media (orientation: portrait){
+  /* 막대그래프: 퍼센트-높이 체인의 '앵커'에 명시적(vw) 높이를 부여 → 모든 브라우저에서 % 해석 보장 */
+  body .main .bar-chart-container{
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    flex:0 0 auto !important;
+    display:flex !important;
+    flex-direction:column !important;
+    overflow:visible !important;
+  }
+  body .main #barChartArea,
+  body .main .bar-chart-area{
+    flex:0 0 auto !important;
+    height:64vw !important;        /* vw = 명시적 길이 → 자식 %가 항상 해석됨 */
+    min-height:260px !important;
+    max-height:380px !important;
+    overflow:visible !important;
+  }
+  body .main .bar-group{ height:100% !important; }
+  body .main .bar-pair{ height:100% !important; }
+}
+</style>
+<script>
+(function(){
+  // 캔버스형 차트(레이더/도넛 SVG 제외)는 방향전환 시 다시 그려야 하므로 resize 이벤트를 강제 발생
+  function poke(){ try{ window.dispatchEvent(new Event('resize')); }catch(e){} }
+  function pokeAll(){ poke(); requestAnimationFrame(poke); setTimeout(poke,120); setTimeout(poke,400); }
+  window.addEventListener('load', pokeAll);
+  window.addEventListener('orientationchange', pokeAll);
+  if(window.matchMedia){
+    try{ window.matchMedia('(orientation: portrait)').addEventListener('change', pokeAll); }
+    catch(e){ try{ window.matchMedia('(orientation: portrait)').addListener(pokeAll); }catch(_){} }
+  }
+  // 차트 래퍼 박스 크기 변화 감지
+  if('ResizeObserver' in window){
+    var ro=new ResizeObserver(function(){ pokeAll(); });
+    function obs(){
+      ['#chartWrapper','.chart-wrapper','.chart-canvas-container','#barChartArea',
+       '.bar-chart-area','#cvwrap','.chart-area'].forEach(function(sel){
+        document.querySelectorAll(sel).forEach(function(el){ try{ ro.observe(el); }catch(e){} });
+      });
+    }
+    if(document.readyState!=='loading') obs(); else document.addEventListener('DOMContentLoaded',obs);
+  }
+})();
+</script>
+
+<!-- 출처/판정 기준 팝업 (Tool-02 동일) -->
+<div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
+  <div class="src-modal">
+    <div class="sm-head"><h3 id="srcModalTitle">판정 기준</h3><button class="sm-close" onclick="closeSrcPopup()">&times;</button></div>
+    <div class="sm-body" id="srcModalBody"></div>
+  </div>
+</div>
+
+<style id="portrait-scrollfix">
+@media (orientation: portrait){
+  /* 루트/문서: 세로 스크롤 허용, 가로 스크롤 차단 */
+  html{
+    height:auto !important; min-height:100% !important;
+    overflow-x:hidden !important; overflow-y:auto !important;
+  }
+  body{
+    display:block !important;               /* flex 컬럼 고정 해제 -> 일반 문서 흐름 */
+    height:auto !important; min-height:100vh !important;
+    overflow-x:hidden !important; overflow-y:visible !important;
+  }
+  /* 화면 한 장 고정(flex:1 / overflow:hidden) 해제 */
+  body .page-container{
+    display:block !important; flex:none !important;
+    height:auto !important; min-height:0 !important; overflow:visible !important;
+  }
+  body .main{
+    display:block !important; flex:none !important;      /* grid/flex -> DOM 순서대로 세로 스택 */
+    height:auto !important; min-height:0 !important; overflow:visible !important;
+  }
+  body .main > .panel{
+    display:flex !important; flex-direction:column !important;
+    width:100% !important; height:auto !important;
+    min-height:0 !important; max-height:none !important; overflow:visible !important;
+  }
+
+  /* ★핵심: 패널 내부 flex 채움(flex:1 / min-height:0) 자식들이 높이 0으로
+     붕괴하는 것을 막는다 -> 콘텐츠 자연 높이 + 내부 스크롤 박스 개방 */
+  body .main .center-panel > *,
+  body .main .right-panel  > *{
+    flex:none !important;
+  }
+  /* 레이더 차트: 화면폭 기준 정사각 확보 (세로 모드) */
+  body .main #chartWrapper, body .main .chart-wrapper{
+    flex:none !important; width:100% !important;
+    height:65vw !important; min-height:200px !important; max-height:400px !important;
+    overflow:visible !important;
+  }
+  body .main .chart-canvas-container{ width:100% !important; height:100% !important; }
+  /* 막대그래프 컨테이너 */
+  body .main .bar-chart-container{
+    flex:none !important; height:auto !important; min-height:220px !important; overflow:visible !important;
+  }
+  /* 도넛 게이지(원/파이): 세로 모드에서 지름을 화면폭 기준 40vw로 제한(약 50% 축소) */
+  body .main .donut-container{
+    flex:none !important; height:auto !important; min-height:0 !important; overflow:visible !important;
+    padding:8px 0 !important;
+  }
+  body .main .donut-wrapper{
+    width:40vw !important; height:40vw !important;
+    max-width:40vw !important; max-height:40vw !important;
+    min-width:0 !important; min-height:0 !important;
+  }
+  /* 진단 결과: 내부 스크롤 제거 -> 전체 목록을 페이지 흐름으로 펼침 */
+  body .main .diag-wrap{
+    flex:none !important; height:auto !important; min-height:0 !important; overflow:visible !important;
+  }
+  body .main .diag-scroll{
+    flex:none !important; height:auto !important;
+    max-height:none !important; min-height:0 !important; overflow:visible !important;
+  }
+
+  /* 저작권 등 하단 요소 항상 노출 */
+  body .copyright{ position:static !important; }
+}
+</style>
+
+<script>
+/* === 센터 뷰 전환(운전 성능 <-> 현장 사진) + 사진 등록/촬영 === */
+(function(){
+  var PHOTO_LABELS = [
+    "사진 1 (예: 장비 외관)",
+    "사진 2 (예: 명판 / 사양)",
+    "사진 3 (예: 흡입/입구측)",
+    "사진 4 (예: 토출/출구측)",
+    "사진 5 (예: 계측기 / 게이지)",
+    "사진 6 (예: 제어반 / 기타)"
+  ];
+
+  function buildPhotoGrid(){
+    var grid = document.getElementById('photoGrid');
+    if(!grid || grid.dataset.built) return;
+    grid.dataset.built = "1";
+    for(var i=0;i<PHOTO_LABELS.length;i++){
+      (function(idx){
+        var slot = document.createElement('div');
+        slot.className = 'photo-slot';
+
+        var cap = document.createElement('input');
+        cap.type = 'text';
+        cap.className = 'photo-cap';
+        cap.title = '제목을 클릭하여 편집하세요';
+        cap.placeholder = PHOTO_LABELS[idx];
+        var savedLabel = null;
+        try{ savedLabel = localStorage.getItem('photoCap_' + idx); }catch(e){}
+        cap.value = (savedLabel !== null) ? savedLabel : PHOTO_LABELS[idx];
+        cap.addEventListener('input', function(){
+          try{ localStorage.setItem('photoCap_' + idx, cap.value); }catch(e){}
+        });
+        /* 입력창 클릭이 사진 촬영/선택으로 전파되지 않도록 차단 */
+        cap.addEventListener('click', function(e){ e.stopPropagation(); });
+
+        var drop = document.createElement('div');
+        drop.className = 'photo-drop';
+        drop.innerHTML =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+          '<div class="pd-title">사진 ' + (idx+1) + '</div>' +
+          '<div class="pd-sub">클릭하여 촬영 / 선택</div>';
+
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.setAttribute('capture','environment');
+        input.style.display = 'none';
+
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'photo-del';
+        del.title = '사진 삭제';
+        del.innerHTML = '&times;';
+
+        drop.appendChild(input);
+        drop.appendChild(del);
+
+        drop.addEventListener('click', function(e){
+          if(e.target === del) return;
+          input.click();
+        });
+
+        input.addEventListener('change', function(){
+          var f = input.files && input.files[0];
+          if(!f) return;
+          var r = new FileReader();
+          r.onload = function(ev){
+            var old = drop.querySelector('img');
+            if(old) old.remove();
+            var img = document.createElement('img');
+            img.src = ev.target.result;
+            drop.appendChild(img);
+            drop.classList.add('has-img');
+          };
+          r.readAsDataURL(f);
+        });
+
+        del.addEventListener('click', function(e){
+          e.stopPropagation();
+          var img = drop.querySelector('img');
+          if(img) img.remove();
+          drop.classList.remove('has-img');
+          input.value = '';
+        });
+
+        slot.appendChild(cap);
+        slot.appendChild(drop);
+        grid.appendChild(slot);
+      })(i);
+    }
+  }
+
+  window.switchCenterView = function(view){
+    var perf  = document.getElementById('perfView');
+    var photo = document.getElementById('photoView');
+    var title = document.getElementById('centerTitle');
+    var bDoc  = document.getElementById('ciDoc');
+    var bCam  = document.getElementById('ciCam');
+    if(!perf || !photo) return;
+
+    if(view === 'photo'){
+      buildPhotoGrid();
+      perf.style.display  = 'none';
+      photo.style.display = 'flex';
+      if(title) title.innerHTML = '&#9632; 현장 사진';
+      bDoc.classList.remove('active');
+      bCam.classList.add('active');
+    } else {
+      photo.style.display = 'none';
+      perf.style.display  = 'flex';
+      if(title) title.innerHTML = '■ 설계 대비 측정 성능 비교 (레이더 차트)';
+      bCam.classList.remove('active');
+      bDoc.classList.add('active');
+      /* 숨김 상태에서 캔버스 크기가 0이 되므로 다시 그린다 */
+      if(typeof recalc === 'function'){ try{ recalc(); }catch(e){} }
+    }
+  };
+})();
+</script>
+</body>
+</html>

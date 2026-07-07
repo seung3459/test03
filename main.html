@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HIMEC – Commissioning Dept.2 (Mechanical)</title>
+  <style>
+*{ box-sizing:border-box; font-family:'Noto Sans KR','Pretendard',-apple-system,sans-serif; }
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+body{margin:0;background:#f7f8fa;}
+
+/* ===== HEADER (diag_dashboard.html 그대로) ===== */
+.pj-dash-header{background:#fff;border-bottom:1px solid #e0e0e0;padding:18px 30px 14px;}
+.pj-dash-header-inner{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;}
+.pj-dash-header-left{flex:1;}
+.pj-dash-header-title{font-size:24px;font-weight:700;color:#333;margin:0;letter-spacing:-.3px;}
+.pj-dash-header-title .hi-brand{color:#1a4b8c;font-weight:800;letter-spacing:.5px;margin-right:6px;}
+.pj-dash-header-sub{font-size:12px;color:#999;margin:3px 0 0;font-weight:400;}
+.pj-dash-header-right{display:flex;align-items:center;gap:10px;}
+.auth-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#555;}
+.auth-user-info{font-size:12px;color:#999;white-space:nowrap;}
+.ico-btn{width:36px;height:30px;border:1px solid #dde1e6;background:#fff;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#3d4f5c;padding:0;transition:all .15s;flex-shrink:0;}
+.ico-btn:hover{background:#f4f5f7;border-color:#546a7b;}
+
+/* ===== MAIN CONTAINER (diag 여백 그대로: 20px 30px / max 1100) ===== */
+.main-page{min-height:100vh;animation:fadeIn .4s ease-out;padding-bottom:60px;}
+.main-container{max-width:1100px;margin:0 auto;padding:20px 30px;}
+
+/* 연도 선택 */
+.year-row{display:flex;justify-content:flex-end;margin-bottom:10px;}
+.year-select{position:relative;}
+.year-btn{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:#2b8abe;font-size:16px;font-weight:700;cursor:pointer;padding:4px 6px;}
+.year-btn .caret{font-size:11px;color:#7aa9c4;}
+.year-menu{display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid #e0e0e0;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.08);overflow:hidden;z-index:30;min-width:96px;}
+.year-menu.open{display:block;}
+.year-menu button{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 14px;font-size:14px;color:#444;cursor:pointer;}
+.year-menu button:hover{background:#f2f7fb;color:#1a4b8c;}
+.year-menu button.sel{color:#2b8abe;font-weight:700;}
+
+/* ===== Today 박스 ===== */
+.box{background:#fff;border:1px solid #ececf0;border-radius:14px;cursor:pointer;transition:box-shadow .15s,transform .15s,border-color .15s;position:relative;}
+.box:hover{box-shadow:0 8px 22px rgba(20,40,70,.10);border-color:#d4dde6;transform:translateY(-2px);}
+
+.today-box{padding:26px 30px 30px;margin-bottom:22px;overflow:hidden;animation:slideUp .35s ease-out;}
+.today-title{font-size:44px;font-weight:800;color:#2b8abe;line-height:1;margin:0;letter-spacing:-.5px;}
+.today-date{font-size:14px;font-weight:700;color:#222;margin:10px 0 18px;}
+.today-sched{max-width:560px;}
+.sched-line{display:flex;align-items:center;gap:10px;border-bottom:1px solid #ededf2;min-height:46px;padding:6px 2px;}
+.sched-line:last-child{border-bottom:1px solid #ededf2;}
+.sched-empty{color:#c4c9d2;}
+.sched-tag{flex-shrink:0;width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;}
+.tag-C{background:#9aa3ad;}.tag-P{background:#00838f;}.tag-H{background:#9aa3ad;}.tag-E{background:#e85d24;}.tag-_{background:#cfd6de;}
+.sched-text{font-size:12px;color:#333;}
+.sched-text.t-C{color:#888;}
+.sched-text.t-H{color:#888;text-decoration:line-through;}
+.sched-text.t-P{color:#00838f;}
+.sched-text.t-E{color:#e85d24;font-weight:600;}
+.today-clock{position:absolute;right:34px;bottom:30px;color:#3d4f5c;opacity:.85;}
+.today-more{position:absolute;right:34px;top:26px;font-size:12px;color:#9aa6b2;}
+
+/* ===== 하단 3카드 ===== */
+.card-row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+.card{min-height:118px;padding:18px 20px;overflow:hidden;animation:slideUp .4s ease-out;}
+.card-title{font-size:15px;font-weight:700;color:#E2495B;margin:0 0 8px;}
+.card-desc{font-size:11px;color:#8b94a0;line-height:1.6;}
+.card-desc b{color:#1a4b8c;font-weight:700;}
+.card-icon{position:absolute;right:16px;bottom:14px;opacity:.78;}
+.card-empty .card-title{color:#c4c9d2;}
+.card-empty{cursor:default;}
+.card-empty:hover{box-shadow:none;transform:none;border-color:#ececf0;}
+.card-badge{display:inline-block;font-size:10px;font-weight:700;color:#aab2bd;border:1px solid #e3e7ec;border-radius:5px;padding:2px 7px;margin-top:14px;}
+
+/* ===== 링크 미리보기 카드 (HIMEC EP 포털) ===== */
+.card-link{cursor:pointer;position:relative;display:flex;flex-direction:column;justify-content:flex-start;}
+.card-link:hover{box-shadow:0 8px 22px rgba(0,0,0,.10);transform:translateY(-2px);border-color:#cfe0ee;}
+.card-link .lk-title{font-size:15px;font-weight:700;color:#2a2f36;margin:0;display:flex;align-items:center;gap:6px;}
+.card-link .lk-title svg{flex-shrink:0;}
+.card-link .lk-url{font-size:11px;color:#2b8abe;margin:8px 0 0;word-break:break-all;display:flex;align-items:center;gap:4px;}
+.card-link .lk-go{position:absolute;right:16px;bottom:14px;font-size:10px;font-weight:700;color:#1a4b8c;background:rgba(255,255,255,.92);border:1px solid #dbe6f0;border-radius:6px;padding:3px 8px;display:inline-flex;align-items:center;gap:4px;}
+
+/* KPI 미니 수치 */
+.kpi-mini{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;}
+.kpi-mini .ki{display:flex;flex-direction:column;flex:0 0 auto;width:68px;}
+.kpi-mini .ki .kk{font-size:10.5px;color:#9aa6b2;font-weight:600;}
+.kpi-mini .ki .kv{font-size:15px;font-weight:800;color:#1a4b8c;}
+.kpi-mini .ki .kv.muted{color:#c4c9d2;}
+.kpi-mini .ki .kv .ku{font-size:11px;font-weight:400;}
+
+/* ===== FOOTER (diag 카피라이트 그대로) ===== */
+.pj-footer{position:fixed;bottom:0;left:0;right:0;background:#ffffff;padding:12px 16px;z-index:50;}
+.pj-footer-inner{max-width:1100px;margin:0 auto;text-align:center;}
+.pj-footer-copyright{font-size:10px;font-weight:400;color:#cfd4da;margin:0;letter-spacing:0.3px;}
+
+@media(max-width:880px){
+  .card-row{grid-template-columns:1fr;}
+  .pj-dash-header-title{font-size:18px;}
+  .main-container{padding:18px 16px;}
+  .today-title{font-size:34px;}
+}
+
+/* ===== Document 카드 / 모달 ===== */
+.card-doc{cursor:default;display:flex;flex-direction:column;min-height:118px;}
+.card-doc .card-desc b{color:#1a4b8c;}
+.dc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.dc-up{display:inline-flex;align-items:center;justify-content:center;background:none;color:#1a4b8c;border:none;padding:2px;cursor:pointer;transition:color .15s;}
+.dc-up:hover{color:#15407a;}
+.card-doc .card-desc{margin:6px 0 8px;}
+.doc-desc-link{cursor:pointer;display:inline-block;}
+.doc-desc-link:hover{text-decoration:underline;color:#1a4b8c;}
+.dc-list{list-style:none;margin:0;padding:0;max-height:90px;overflow-y:auto;}
+.dc-item{display:flex;align-items:center;gap:7px;padding:6px 2px;border-top:1px solid #f0f1f5;}
+.dc-fic{flex-shrink:0;color:#7c93ad;display:inline-flex;}
+.dc-name{flex:1;min-width:0;font-size:10px;font-weight:400;color:#2a2f36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dc-size{flex-shrink:0;font-size:10px;color:#9aa6b2;}
+.dc-act{flex-shrink:0;width:26px;height:26px;border:1px solid #dde1e6;background:#fff;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#3d4f5c;transition:all .15s;}
+.dc-act:hover{background:#f4f5f7;border-color:#546a7b;}
+.dc-act.del:hover{background:#fdecec;border-color:#e2495b;color:#e2495b;}
+.dc-empty{font-size:12px;color:#c4c9d2;padding:10px 0;}
+
+.doc-overlay{display:none;position:fixed;inset:0;background:rgba(20,30,45,.45);z-index:100;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s ease-out;}
+.doc-overlay.open{display:flex;}
+.doc-modal{background:#fff;width:100%;max-width:620px;max-height:84vh;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(15,30,55,.28);animation:slideUp .25s ease-out;}
+.doc-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #ededf2;}
+.doc-head h3{margin:0;font-size:18px;font-weight:800;color:#1a4b8c;display:flex;align-items:center;gap:8px;}
+.doc-close{width:30px;height:30px;border:none;background:#f1f3f6;border-radius:8px;cursor:pointer;color:#56606c;font-size:18px;line-height:1;}
+.doc-close:hover{background:#e6e9ee;}
+.doc-body{padding:18px 22px;overflow-y:auto;}
+.doc-uploadbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.doc-up-btn{display:inline-flex;align-items:center;gap:7px;background:#1a4b8c;color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;}
+.doc-up-btn:hover{background:#15407a;}
+.doc-hint{font-size:11px;color:#9aa6b2;}
+.doc-list{list-style:none;margin:0;padding:0;}
+.doc-item{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid #f0f1f5;}
+.doc-item:last-child{border-bottom:none;}
+.doc-ic{flex-shrink:0;color:#7c93ad;}
+.doc-meta{flex:1;min-width:0;}
+.doc-name{font-size:13px;font-weight:700;color:#2a2f36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.doc-sub{font-size:11px;color:#9aa6b2;margin-top:2px;}
+.doc-acts{display:flex;gap:6px;flex-shrink:0;}
+.doc-act{width:32px;height:32px;border:1px solid #dde1e6;background:#fff;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#3d4f5c;transition:all .15s;}
+.doc-act:hover{background:#f4f5f7;border-color:#546a7b;}
+.doc-act.del:hover{background:#fdecec;border-color:#e2495b;color:#e2495b;}
+.doc-empty{text-align:center;color:#c4c9d2;font-size:13px;padding:30px 0;}
+
+  </style>
+</head>
+<body>
+
+<div class="main-page">
+  <!-- ===== HEADER ===== -->
+  <div class="pj-dash-header">
+    <div class="pj-dash-header-inner">
+      <div class="pj-dash-header-left">
+        <h1 class="pj-dash-header-title"><span class="hi-brand">HIMEC</span>– Commissioning Dept.2 (Mechanical)</h1>
+        <p class="pj-dash-header-sub">(주)하이멕 – 커미셔닝 2본부(기계)</p>
+      </div>
+      <div class="pj-dash-header-right">
+        <div id="dashAuthStatus" class="auth-status"></div>
+        <button class="ico-btn" title="로그아웃" onclick="goLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <!-- 연도 선택 -->
+    <div class="year-row">
+      <div class="year-select">
+        <button class="year-btn" onclick="toggleYear(event)"><span id="yearLabel">2026</span><span class="caret">&#9662;</span></button>
+        <div class="year-menu" id="yearMenu"></div>
+      </div>
+    </div>
+
+    <!-- (1) Today 박스 → 캘린더 -->
+    <div class="box today-box" onclick="goCalendar()" title="업무 스케줄 캘린더로 이동">
+      <span class="today-more">전체 일정 보기 &rsaquo;</span>
+      <h2 class="today-title">Today</h2>
+      <div class="today-date" id="todayDate">2026.06.30</div>
+      <div class="today-sched" id="todaySched"></div>
+      <div class="today-clock">
+        <svg width="62" height="62" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15.5 14"/></svg>
+      </div>
+    </div>
+
+    <!-- 하단 3카드 -->
+    <div class="card-row">
+      <!-- (2) Project 성과/목표 관리 → KPI -->
+      <div class="box card" onclick="goKpi()" title="성과/목표 관리(KPI)로 이동">
+        <h3 class="card-title">Project 성과/목표 관리</h3>
+        <div class="card-desc" id="kpiDesc">불러오는 중…</div>
+        <div class="kpi-mini" id="kpiMini"></div>
+        <div class="card-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9aa6b2" stroke-width="1.4"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="#9aa6b2"/></svg>
+        </div>
+      </div>
+
+      <!-- (3) Document -->
+      <div class="box card card-doc">
+        <div class="dc-head">
+          <h3 class="card-title" style="color:#2b8abe;margin:0;">Document(행정관련)</h3>
+          <button class="dc-up" title="파일 업로드" onclick="document.getElementById('docFileInput').click()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </button>
+        </div>
+        <div class="card-desc doc-desc-link" id="docDesc" title="클릭하면 전체 문서 목록을 봅니다" onclick="openDocModal()">불러오는 중…</div>
+        <ul class="dc-list" id="docCardList"></ul>
+      </div>
+
+      <!-- (4) HIMEC EP 포털 링크 -->
+      <div class="box card card-link" onclick="goEP()" title="HIMEC EP 포털 바로가기">
+        <div class="lk-head">
+          <h3 class="lk-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a4b8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            HIMEC EP 포털
+          </h3>
+          <div class="lk-url">ep.himec.co.kr/default_HIMEC.aspx</div>
+        </div>
+        <span class="lk-go">바로가기 &rsaquo;</span>
+      </div>
+    </div>
+
+    <!-- 하단 추가 3카드 -->
+    <div class="card-row" style="margin-top:18px;">
+      <!-- Project -->
+      <div class="box card" onclick="goProject()" title="프로젝트 대시보드로 이동">
+        <h3 class="card-title" style="color:#E2495B;">Project</h3>
+        <div class="card-desc" id="projDesc">불러오는 중…</div>
+        <div class="kpi-mini" id="projMini"></div>
+        <div class="card-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9aa6b2" stroke-width="1.4"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        </div>
+      </div>
+
+      <!-- Analysis Tools -->
+      <div class="box card" onclick="goAnalysis()" title="분석 도구로 이동">
+        <h3 class="card-title" style="color:#2b8abe;">Analysis Tools</h3>
+        <div class="card-desc">데이터 <b>분석 도구</b> 모음으로 이동합니다.</div>
+        <div class="card-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9aa6b2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4 V19 H20"/><rect x="9" y="13" width="2.6" height="4" rx="0.4"/><rect x="13" y="10" width="2.6" height="7" rx="0.4"/><rect x="17" y="6.5" width="2.6" height="10.5" rx="0.4"/></svg>
+        </div>
+      </div>
+
+      <!-- Project search -->
+      <div class="box card" onclick="goSearch()" title="프로젝트 검색으로 이동">
+        <h3 class="card-title" style="color:#2a2f36;">Project search</h3>
+        <div class="card-desc">프로젝트를 <b>검색</b>하고 빠르게 찾습니다.</div>
+        <div class="card-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9aa6b2" stroke-width="1.4"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== Document 모달 ===== -->
+<div class="doc-overlay" id="docOverlay" onclick="docOverlayClick(event)">
+  <div class="doc-modal">
+    <div class="doc-head">
+      <h3>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a4b8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Document 보관함
+      </h3>
+      <button class="doc-close" onclick="closeDocModal()" title="닫기">&times;</button>
+    </div>
+    <div class="doc-body">
+      <div class="doc-uploadbar">
+        <button class="doc-up-btn" onclick="document.getElementById('docFileInput').click()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          파일 업로드
+        </button>
+        <input type="file" id="docFileInput" multiple style="display:none" onchange="onDocFilesSelected(event)">
+        <span class="doc-hint">브라우저(localStorage)에 저장됩니다 · 파일당 권장 4MB 이하</span>
+      </div>
+      <ul class="doc-list" id="docList"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<footer class="pj-footer">
+  <div class="pj-footer-inner">
+    <p class="pj-footer-copyright">© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</p>
+  </div>
+</footer>
+
+<script>
+/* ===== 페이지 경로 ===== */
+var KPI_PAGE = '01. management/01. KPI.html';
+var CAL_PAGE = '01. management/02. ScheduleCalendar.html';
+var PROJECT_PAGE  = '02. project/diag_dashboard.html';
+var ANALYSIS_PAGE = '03. analysis/tool_dashboard.html';
+var SEARCH_PAGE   = '1.5_ProjectSearch.html';
+
+/* ===== 공통 ===== */
+function pad(n){return String(n).padStart(2,'0');}
+function ymd(y,m,d){return y+'-'+pad(m)+'-'+pad(d);}
+var TODAY = new Date();
+var CUR_YEAR = TODAY.getFullYear();
+
+function updateAuthUI(){
+  var el=document.getElementById('dashAuthStatus');
+  if(el){el.innerHTML='<span class="auth-user-info">로컬 모드</span>';el.style.display='flex';}
+}
+
+/* ===== 연도 셀렉터 ===== */
+var selYear = CUR_YEAR;
+function buildYearMenu(){
+  var m=document.getElementById('yearMenu'); m.innerHTML='';
+  for(var y=CUR_YEAR-1;y<=CUR_YEAR+1;y++){
+    (function(yy){
+      var b=document.createElement('button');
+      b.textContent=yy; if(yy===selYear)b.className='sel';
+      b.onclick=function(ev){ev.stopPropagation();selYear=yy;document.getElementById('yearLabel').textContent=yy;m.classList.remove('open');buildYearMenu();renderKpi();renderProjectMini();scheduleSync();};
+      m.appendChild(b);
+    })(y);
+  }
+}
+function toggleYear(ev){ev.stopPropagation();document.getElementById('yearMenu').classList.toggle('open');}
+document.addEventListener('click',function(){var m=document.getElementById('yearMenu');if(m)m.classList.remove('open');});
+
+/* ===== 네비게이션 ===== */
+function goCalendar(){ location.href = CAL_PAGE; }
+function goKpi(){ location.href = KPI_PAGE; }
+function goHome(){ location.href = 'index.html'; }
+function goSoon(){ alert('준비 중인 기능입니다. (동일한 방식으로 페이지 연결 예정)'); }
+function goEP(){ window.open('https://ep.himec.co.kr/default_HIMEC.aspx', '_blank', 'noopener'); }
+function goProject(){ location.href = PROJECT_PAGE; }
+function goAnalysis(){ location.href = ANALYSIS_PAGE; }
+function goSearch(){ alert('준비 중인 기능입니다. (동일한 방식으로 페이지 연결 예정)');}
+function goLogout(){ if(confirm('로그아웃 하시겠습니까?')){ location.href = 'login.html'; } }
+
+/* ===== Project 박스: KPI(수주 예상&추적) 상태 연동 =====
+   출처: localStorage['himec_pm_tool_v23'].s1[연도]  (KPI 파일과 동일 키)
+   상태: 미계약 / 계약(→진행) / 종료(→완료)                                */
+var KPI_PROJ_KEY = 'himec_pm_tool_v23';
+function loadKpiS1(yr){
+  try{
+    var raw = localStorage.getItem(KPI_PROJ_KEY);
+    if(!raw) return [];
+    var o = JSON.parse(raw);
+    var s1 = (o && o.s1 && o.s1[yr]) ? o.s1[yr] : [];
+    return Array.isArray(s1) ? s1 : [];
+  }catch(e){ return []; }
+}
+function syncRowHeight(){
+  var rows = document.querySelectorAll('.card-row');
+  if(rows.length < 2) return;
+  var target = rows[0];
+  // 첫 행 카드들 중 최대 높이 측정
+  var h = 0, fc = target.querySelectorAll('.card');
+  for(var i=0;i<fc.length;i++){ h = Math.max(h, fc[i].getBoundingClientRect().height); }
+  if(h <= 0) return;
+  var cards = rows[1].querySelectorAll('.card');
+  for(var j=0;j<cards.length;j++){ cards[j].style.minHeight = Math.round(h) + 'px'; }
+}
+function scheduleSync(){
+  // 비동기 콘텐츠(Document/KPI) 반영 대기 후 재측정
+  requestAnimationFrame(syncRowHeight);
+  setTimeout(syncRowHeight, 250);
+  setTimeout(syncRowHeight, 800);
+}
+function renderProjectMini(){
+  var yr   = String(selYear);
+  var list = loadKpiS1(yr);
+  var ing  = list.filter(function(p){ return p.status === '계약'; }).length;   // 진행 ← 계약
+  var done = list.filter(function(p){ return p.status === '종료'; }).length;   // 완료 ← 종료
+  var pend = list.filter(function(p){ return p.status === '미계약'; }).length; // 미계약(예상 단계)
+  /* Total = 계약 + 종료 (수주 확정된 실제 프로젝트, 미계약 제외)
+     ▶ 미계약까지 Total 에 포함하려면 아래 줄을 (ing + done + pend) 로 바꾸세요. */
+  var total = ing + done;
+  var descEl = document.getElementById('projDesc');
+  if(descEl) descEl.innerHTML = '<b>'+yr+'년</b> 수주 프로젝트 현황';
+  var mini = document.getElementById('projMini'); if(!mini) return;
+  mini.innerHTML = '';
+  var items = [['Total', total], ['진행', ing], ['완료', done]];
+  items.forEach(function(it){
+    var d = document.createElement('div'); d.className = 'ki';
+    var zero = (it[1] === 0);
+    d.innerHTML = '<span class="kk">'+it[0]+'</span><span class="kv'+(zero?' muted':'')+'">'+it[1]+'<span class="ku">건</span></span>';
+    mini.appendChild(d);
+  });
+}
+
+/* ===== (1) Today 일정 : himec_workschedule_v1 연동 ===== */
+var CAL_KEY='himec_workschedule_v1';
+var TYPE_LABEL={'C':'완료','P':'진행','H':'최소','E':'기타','':''};
+function loadTodaySched(){
+  var dstr=ymd(TODAY.getFullYear(),TODAY.getMonth()+1,TODAY.getDate());
+  document.getElementById('todayDate').textContent=dstr.replace(/-/g,'.');
+  var entries=[];
+  try{
+    var raw=localStorage.getItem(CAL_KEY);
+    if(raw){var o=JSON.parse(raw);var store=(o&&o.store)||{};var mk=dstr.slice(0,7);
+      if(store[mk]&&store[mk][dstr])entries=store[mk][dstr].filter(function(e){return e&&(e.v||'').trim();});}
+  }catch(e){}
+  var box=document.getElementById('todaySched'); box.innerHTML='';
+  if(entries.length===0){
+    for(var i=0;i<3;i++){
+      var ln=document.createElement('div');ln.className='sched-line';
+      ln.innerHTML='<span class="sched-text sched-empty">오늘 등록된 일정이 없습니다</span>';
+      box.appendChild(ln);
+    }
+    return;
+  }
+  entries.slice(0,5).forEach(function(e){
+    var t=(e.t||'').toUpperCase(); var cls=(t&&'CPHE'.indexOf(t)>=0)?t:'_';
+    var ln=document.createElement('div');ln.className='sched-line';
+    ln.innerHTML='<span class="sched-tag tag-'+cls+'">'+(t||'·')+'</span>'
+                +'<span class="sched-text t-'+t+'">'+escapeHtml(e.v)+'</span>';
+    box.appendChild(ln);
+  });
+}
+function escapeHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* ===== (2) KPI : himec_pm_tool_v23 연동 (kpi.html 계산 로직 포팅) ===== */
+var KPI_KEY='himec_pm_tool_v23';
+var z12=function(){return Array(12).fill(0);};
+function OO(n,amt,r,p){return{name:n,amt:amt,r:r,p:p,c:false};}
+function MD(){return{sales:z12(),collect:z12(),perf:z12(),o1:OO('외주 1',0,z12(),0),o2:OO('외주 2',0,z12(),0)};}
+function ensureY(S,p,yr){if(!p.yd)p.yd={};if(!p.yd[yr])p.yd[yr]={amt:0,goal:MD(),actual:MD()};var b=p.yd[yr];if(!b.goal)b.goal=MD();return b;}
+function aggSeries(S,yr){
+  var su=z12(),sa=z12(),co=z12();
+  var s1=(S.s1&&S.s1[yr])||[];
+  s1.forEach(function(p){if((p.status=='계약'||p.status=='종료')&&p.month>=1&&p.month<=12)su[p.month-1]+=(+p.fee||0);});
+  var list=(S.carry||[]).concat(S.newp||[]);
+  list.forEach(function(p){var b=ensureY(S,p,yr),md=b.goal,a=+b.amt||0;
+    for(var m=0;m<12;m++){sa[m]+=a*(+md.sales[m]||0);co[m]+=a*(+md.collect[m]||0);}});
+  return{su:su,sa:sa,co:co};
+}
+function renderKpi(){
+  var yr=String(selYear);
+  document.getElementById('kpiDesc').innerHTML='<b>'+yr+'년</b> 수주·매출·수금 누적 달성율';
+  var S=null;
+  try{var raw=localStorage.getItem(KPI_KEY);if(raw)S=JSON.parse(raw);}catch(e){}
+  var rates={su:null,sa:null,co:null};
+  if(S&&typeof S==='object'){
+    var cm=+S.cumMonth||12;
+    var g=(S.aggGoal&&S.aggGoal[yr])||{su:0,sa:0,co:0};
+    var ser=aggSeries(S,yr);
+    ['su','sa','co'].forEach(function(k){
+      var gv=+g[k]||0, cumv=ser[k].slice(0,cm).reduce(function(x,y){return x+(+y||0);},0);
+      rates[k]= gv? Math.round(cumv/gv*1000)/10 : null;
+    });
+  }
+  var labels={su:'수주',sa:'매출',co:'수금'};
+  var mini=document.getElementById('kpiMini'); mini.innerHTML='';
+  ['su','sa','co'].forEach(function(k){
+    var r=rates[k]; var txt=(r===null)?'-':r+'%';
+    var d=document.createElement('div');d.className='ki';
+    d.innerHTML='<span class="kk">'+labels[k]+'</span><span class="kv'+(r===null?' muted':'')+'">'+txt+'</span>';
+    mini.appendChild(d);
+  });
+}
+
+
+/* ===== (3) Document 보관함 : himec_documents_v1 연동 ===== */
+var DOC_KEY='himec_documents_v1';
+var DOC_PW='6340';
+
+function docLoad(){
+  try{var raw=localStorage.getItem(DOC_KEY);if(raw){var a=JSON.parse(raw);if(Array.isArray(a))return a;}}catch(e){}
+  return [];
+}
+function docSave(arr){
+  try{localStorage.setItem(DOC_KEY,JSON.stringify(arr));return true;}
+  catch(e){alert('저장 공간이 부족합니다. 용량이 큰 파일은 저장할 수 없습니다.');return false;}
+}
+function fmtSize(n){
+  if(n==null)return '';
+  if(n<1024)return n+' B';
+  if(n<1048576)return (n/1024).toFixed(1)+' KB';
+  return (n/1048576).toFixed(2)+' MB';
+}
+function fmtDate(ts){
+  var d=new Date(ts);
+  return d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+
+function renderDocCard(){
+  var arr=docLoad();
+  var el=document.getElementById('docDesc');
+  var ul=document.getElementById('docCardList');
+  if(el){
+    if(arr.length===0){ el.innerHTML='저장된 문서가 없습니다. 업로드 버튼을 눌러 추가하세요.'; }
+    else{ var tot=arr.reduce(function(s,f){return s+(+f.size||0);},0);
+          el.innerHTML='문서 <b>'+arr.length+'</b>건 · 총 '+fmtSize(tot); }
+  }
+  if(ul){
+    ul.innerHTML='';
+    if(arr.length===0){
+      ul.innerHTML='<li class="dc-empty">업로드된 파일이 없습니다.</li>';
+    }else{
+      arr.slice().reverse().forEach(function(f){
+        var li=document.createElement('li'); li.className='dc-item';
+        li.innerHTML=
+          '<span class="dc-fic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>'
+         +'<span class="dc-name" title="'+escapeHtml(f.name)+'">'+escapeHtml(f.name)+'</span>'
+         +'<span class="dc-size">'+fmtSize(f.size)+'</span>'
+         +'<button class="dc-act" title="다운로드" onclick="event.stopPropagation();downloadDoc(\''+f.id+'\')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>'
+         +'<button class="dc-act del" title="삭제" onclick="event.stopPropagation();deleteDoc(\''+f.id+'\')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+        ul.appendChild(li);
+      });
+    }
+  }
+}
+
+function openDocModal(){ renderDocList(); document.getElementById('docOverlay').classList.add('open'); }
+function closeDocModal(){ document.getElementById('docOverlay').classList.remove('open'); }
+function docOverlayClick(ev){ if(ev.target.id==='docOverlay')closeDocModal(); }
+
+function renderDocList(){
+  var arr=docLoad();
+  var ul=document.getElementById('docList'); ul.innerHTML='';
+  if(arr.length===0){
+    ul.innerHTML='<li class="doc-empty">아직 업로드된 문서가 없습니다.</li>';
+    return;
+  }
+  arr.forEach(function(f){
+    var li=document.createElement('li'); li.className='doc-item';
+    li.innerHTML=
+      '<span class="doc-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>'
+     +'<div class="doc-meta"><div class="doc-name">'+escapeHtml(f.name)+'</div>'
+       +'<div class="doc-sub">'+fmtSize(f.size)+' · '+fmtDate(f.uploadedAt)+'</div></div>'
+     +'<div class="doc-acts">'
+       +'<button class="doc-act" title="다운로드" onclick="downloadDoc(\''+f.id+'\')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>'
+       +'<button class="doc-act del" title="삭제" onclick="deleteDoc(\''+f.id+'\')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>'
+     +'</div>';
+    ul.appendChild(li);
+  });
+}
+
+function onDocFilesSelected(ev){
+  var files=ev.target.files; if(!files||!files.length)return;
+  var arr=docLoad();
+  var pending=files.length;
+  Array.prototype.forEach.call(files,function(file){
+    var reader=new FileReader();
+    reader.onload=function(){
+      arr.push({
+        id:'d'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+        name:file.name, size:file.size, type:file.type||'',
+        data:reader.result, uploadedAt:Date.now()
+      });
+      pending--;
+      if(pending===0){ docSave(arr); renderDocList(); renderDocCard(); }
+    };
+    reader.onerror=function(){ pending--; if(pending===0){docSave(arr);renderDocList();renderDocCard();} };
+    reader.readAsDataURL(file);
+  });
+  ev.target.value='';
+}
+
+function downloadDoc(id){
+  var arr=docLoad();
+  var f=arr.filter(function(x){return x.id===id;})[0];
+  if(!f)return;
+  var a=document.createElement('a');
+  a.href=f.data; a.download=f.name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function deleteDoc(id){
+  var arr=docLoad();
+  var f=arr.filter(function(x){return x.id===id;})[0];
+  if(!f)return;
+  var pw=prompt('파일 삭제 비밀번호를 입력하세요.');
+  if(pw===null)return;
+  if(pw!==DOC_PW){ alert('비밀번호가 일치하지 않습니다.'); return; }
+  if(!confirm('\u300c'+f.name+'\u300d 파일을 삭제하시겠습니까?'))return;
+  arr=arr.filter(function(x){return x.id!==id;});
+  docSave(arr); renderDocList(); renderDocCard();
+}
+
+/* ===== INIT ===== */
+updateAuthUI();
+buildYearMenu();
+loadTodaySched();
+renderKpi();
+renderProjectMini();
+renderDocCard();
+scheduleSync();
+window.addEventListener('resize', syncRowHeight);
+</script>
+</body>
+</html>
