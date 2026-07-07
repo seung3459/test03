@@ -193,8 +193,38 @@
   /* =================================================================
    * 4. 저장/로드 — 유닛별 행 + 프로젝트 개요(meta)
    * ================================================================= */
+
+  /* activeProjectId 가 UUID 가 아니면(대시보드가 넘긴 'pj_<syncId>'),
+   * kpi_sync_id 로 projects 행을 찾거나 만들어 UUID 로 바꿔치기.
+   * → 대시보드/KPI 는 손 안 대고, 진단 쪽에서만 UUID 로 정규화. */
+  function isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s || ''); }
+  async function resolveActiveProject() {
+    var raw = pid(); if (!raw) return null;
+    if (isUuid(raw)) return raw;
+    var syncId = raw.replace(/^pj_/, '');
+    var c = await client(); if (!c) return null;
+    var cid = companyId();
+    var q = c.from('projects').select('id').eq('kpi_sync_id', syncId);
+    if (cid && cid !== 'default') q = q.eq('company_id', cid);
+    var r = await q.maybeSingle();
+    var uuid = (r && r.data && r.data.id) || null;
+    if (!uuid) {
+      var uid = await userId();
+      var nm = ''; try { nm = localStorage.getItem('activeProjectName') || ''; } catch (e) {}
+      var ins = await c.from('projects').insert({
+        name: nm || ('프로젝트 ' + syncId), kpi_sync_id: syncId, category: '01',
+        company_id: (cid === 'default' ? null : cid), created_by: uid
+      }).select('id').single();
+      if (ins.error) { warn('resolve insert', ins.error.message || ins.error); return null; }
+      uuid = ins.data.id;
+    }
+    try { localStorage.setItem('activeProjectId', uuid); } catch (e) {}   // 이후 저장/로드는 UUID 사용
+    return uuid;
+  }
+
   async function saveAll() {
-    var p = pid(); if (!p) return { ok: false, error: '활성 프로젝트 없음' };
+    var p = await resolveActiveProject(); if (!p) return { ok: false, error: '활성 프로젝트 없음' };
+    var saved = 0, conflicts = [], errs = [];
     var saved = 0, conflicts = [], errs = [];
     for (var t = 0; t < DIAG_TYPES.length; t++) {
       var type = DIAG_TYPES[t], count = (typeof unitCount !== 'undefined' && unitCount[type]) || 0;
@@ -307,10 +337,13 @@
     };
   }
   function autoLoad() {
-    var p = pid(); if (!p || p === _loadedForPid) return;
+    if (pid() == null) return;
     var tries = 0;
     (function wait() {
-      if (typeof unitCount !== 'undefined' && typeof addUnit === 'function') { loadAll(p); return; }
+      if (typeof unitCount !== 'undefined' && typeof addUnit === 'function') {
+        resolveActiveProject().then(function (uuid) { if (uuid && uuid !== _loadedForPid) loadAll(uuid); });
+        return;
+      }
       if (tries++ < 60) setTimeout(wait, 60);
     })();
   }
