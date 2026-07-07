@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - AHU Fan Efficiency Analysis Tool</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Page container */
+  .page-container {
+    padding: 0 100px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    background: #fff;
+  }
+
+  /* Header */
+  .header {
+    background: #fff;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: #222; }
+  .header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .header h2 { font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+  .header-right {
+    position: absolute;
+    bottom: 8px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  .header-right button {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #fff;
+    color: #555;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .header-right .icon-btn svg { width: 18px; height: 18px; }
+  .header-right .icon-btn:hover { background: #f3f4f6; color: #111; border-color: #9ca3af; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    padding: 4px 20px 0;
+    background: #fff;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 5px 20px;
+    border-radius: 6px 6px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: #bbb;
+    color: #fff;
+    position: relative;
+    padding-right: 28px !important;
+  }
+  .tab.active { background: #00838f; color: #fff; }
+  .tab.add {
+    background: #999;
+    color: #fff;
+    font-size: 14px;
+    padding: 5px 16px;
+    padding-right: 16px !important;
+  }
+  .tab .tab-close {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .tab .tab-close:hover { background: rgba(255,0,0,0.6); color: #fff; }
+
+  /* Main 3-column layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr 0.9fr;
+    gap: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .panel {
+    background: #fff;
+    border: 1px solid transparent;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Section titles */
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #222;
+    flex-shrink: 0;
+  }
+
+  /* Table style */
+  .info-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    margin-bottom: 6px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .info-table th, .info-table td {
+    border: 1px solid #ffffff;
+    padding: 5px 4px;
+    border-bottom: 1.5px solid #ccc;
+    text-align: center;
+  }
+  .info-table th {
+    background: #e8e8e8;
+    color: #555;
+    font-weight: 600;
+    font-size: 10px;
+  }
+  .info-table tr:first-child th:first-child { border-top-left-radius: 8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius: 8px; }
+  .info-table td { background: #fff; }
+  .info-table .row-header {
+    background: #f0f0f0;
+    font-weight: 600;
+    color: #00838f;
+    font-size: 11px;
+    width: 40px;
+  }
+
+  /* Value + unit layout */
+  .value-unit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  .value-unit input {
+    text-align: right;
+    padding-right: 2px;
+  }
+  .value-unit .unit {
+    font-size: 10px;
+    color: #888;
+    white-space: nowrap;
+  }
+  .info-table input {
+    width: 100%;
+    border: none;
+    text-align: center;
+    font-size: 11px;
+    background: transparent;
+    outline: none;
+    padding: 3px 2px;
+  }
+  .info-table .highlight-cell {
+    background: #e0f7fa;
+    color: #00838f;
+    font-weight: 700;
+  }
+  .note {
+    font-size: 9px;
+    color: #888;
+    margin: 4px 0 6px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  #left-panel .info-table th:first-child,
+  #left-panel .info-table td:first-child {
+    border-left-color: transparent;
+  }
+  #left-panel .info-table th:last-child,
+  #left-panel .info-table td:last-child {
+    border-right-color: transparent;
+  }
+
+  /* Bar Chart */
+  .bar-chart-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .bar-chart-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 1px 1px 1px 1px;
+    border-left: 1px solid #999;
+    border-bottom: 1px solid #999;
+    margin: 6px 2px 0 2px;
+    min-height: 0;
+  }
+  .bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    max-width: none;
+    height: 100%;
+    padding: 0 2px;
+  }
+  .bar-pair {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    width: 100%;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
+  }
+  .bar {
+    width: 30px;
+    min-width: 18px;
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    transition: height 0.5s ease;
+  }
+  .bar-design { background: #ccc; }
+  .bar-measure-sa { background: #00838f; }
+  .bar-measure-ra { background: #e85d24; }
+  .bar-value {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .bar-label {
+    font-size: 8px;
+    color: #666;
+    margin-top: 2px;
+    text-align: center;
+    line-height: 1.1;
+  }
+  .bar-category-label {
+    font-size: 9px;
+    color: #333;
+    font-weight: 600;
+    margin-top: 1px;
+  }
+  .y-axis-labels {
+    position: absolute;
+    left: -32px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #666;
+  }
+  .bar-legend {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 9px;
+    color: #555;
+    flex-shrink: 0;
+  }
+  .bar-legend-item { display: flex; align-items: center; gap: 3px; }
+  .bar-legend-color { width: 10px; height: 8px; border-radius: 2px; }
+
+  /* Center Panel - Radar Chart */
+  .center-panel {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .chart-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chart-canvas-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  .chart-canvas-container canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Fan selector tabs in center */
+  .fan-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+  }
+  .fan-btn {
+    padding: 3px 14px;
+    border: 1.5px solid #00838f;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #fff;
+    color: #00838f;
+  }
+  .fan-btn.active {
+    background: #00838f;
+    color: #fff;
+  }
+
+  /* Right Panel */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+  }
+  .metrics-area {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .metric-card {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid #ccc;
+    border-radius: 5px;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .metric-label {
+    font-size: 10px;
+    color: #00838f;
+    flex: 1;
+    line-height: 1.2;
+    font-weight: bold;
+  }
+  .metric-values-group {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .metric-val-wrap {
+    text-align: right;
+    min-width: 55px;
+  }
+  .metric-val-label {
+    font-size: 8px;
+    color: #888;
+    font-weight: 600;
+  }
+  .metric-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ff8c00;
+    min-width: 35px;
+    text-align: right;
+  }
+  .metric-value.sa-color { color: #00838f; }
+  .metric-value.ra-color { color: #e85d24; }
+  .metric-unit {
+    font-size: 10px;
+    color: #888;
+    margin-left: 1px;
+    vertical-align: super;
+  }
+
+  /* Donut Chart */
+  .donut-container {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 0px;
+    min-height: 10px;
+    overflow: hidden;
+    gap: 4px;
+  }
+  .donut-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .donut-item-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 2px;
+  }
+  .donut-wrapper {
+    position: relative;
+    width: 90%;
+    max-width: 180px;
+    aspect-ratio: 1;
+  }
+  .donut-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .donut-center-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .donut-percent { font-size: 24px; font-weight: 800; }
+  .donut-percent-unit { font-size: 16px; font-weight: 600; }
+  .donut-status { font-size: 14px; font-weight: 700; margin-top: 2px; }
+
+  /* Copyright footer */
+  .copyright {
+    background: #fff;
+    border-top: 1px solid #ddd;
+    padding: 6px 20px;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+    text-align: center;
+    font-size: 10px;
+    color: #888;
+    flex-shrink: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+  }
+  @media (max-width: 1300px) {
+    .page-container { padding: 0 30px; }
+    .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+    .copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+  }
+  @media (max-width: 1100px) {
+    .page-container { padding: 0 15px; }
+    .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+    .copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+    .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .center-panel { grid-column: 1 / -1; grid-row: 1; }
+  }
+  @media (max-width: 700px) {
+    .page-container { padding: 0 10px; }
+    .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
+    .copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
+    .main { grid-template-columns: 1fr; }
+    .center-panel { grid-column: 1; }
+  }
+
+  .info-table input::placeholder {
+    color: #aaa;
+    font-style: italic;
+    font-size: 10px;
+  }
+
+  /* ===== Work Schedule Calendar (added) ===== */
+  .cal-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 8px 6px 10px;
+  }
+  .cal-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    margin-bottom: 6px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .cal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #00838f;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cal-nav-btn {
+    border: 1px solid #00838f;
+    background: #fff;
+    color: #00838f;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .cal-nav-btn:hover { background: #00838f; color: #fff; }
+  .cal-legend {
+    display: flex;
+    gap: 14px;
+    font-size: 10px;
+    color: #666;
+    align-items: center;
+  }
+  .cal-legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .cal-legend b { font-weight: 700; font-size: 11px; }
+  .lg-c { color: #888; }
+  .lg-p { color: #00838f; }
+  .lg-h { color: #888; text-decoration: line-through; }
+  .lg-e { color: #e85d24; }
+  .cal-autosave {
+    font-size: 10px;
+    color: #2e7d32;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    white-space: nowrap;
+  }
+  .cal-autosave.show { opacity: 1; }
+
+  .cal-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #ddd;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .cal-dow {
+    background: #f0f0f0;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #555;
+    padding: 4px 0;
+  }
+  .cal-dow.sun { color: #e8482c; }
+  .cal-dow.sat { color: #2563eb; }
+
+  .cal-cell {
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .cal-cell.other { background: #fafafa; }
+  .cal-cell.today { background: #fff8f3; box-shadow: inset 0 0 0 2px #e85d24; }
+  .cal-cell.today .cal-day-num { color: #e85d24; }
+  .cal-cell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 1px;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .cal-head-left {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .cal-day-num { font-size: 12px; font-weight: 700; color: #333; flex-shrink: 0; }
+  .cal-cell.sun .cal-day-num,
+  .cal-cell.holiday .cal-day-num { color: #e8482c; }
+  .cal-cell.sat .cal-day-num { color: #2563eb; }
+  .cal-cell.other .cal-day-num { color: #bbb; }
+  .cal-holiday-name {
+    font-size: 8px;
+    color: #e8482c;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cal-holiday-name.anniv { color: #999; font-weight: 500; }
+  .cal-add-line {
+    border: none;
+    background: transparent;
+    color: #e85d24;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+  }
+  .cal-add-line:hover { color: #00838f; }
+
+  .cal-entries {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 3px 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cal-entry { display: flex; align-items: center; gap: 2px; }
+  .cal-entry select {
+    border: none;
+    border-bottom: 1px solid #ddd;
+    border-radius: 0;
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1;
+    padding: 0 1px;
+    height: 18px;
+    box-sizing: border-box;
+    width: 32px;
+    color: #555;
+    background: #fff;
+    flex-shrink: 0;
+    cursor: pointer;
+    text-align: center;
+    text-align-last: center;
+  }
+  .cal-entry input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    border-bottom: 1px solid #eee;
+    font-size: 10px;
+    font-weight: 400;
+    height: 18px;
+    box-sizing: border-box;
+    padding: 1px 2px;
+    outline: none;
+    background: transparent;
+    color: #333;
+  }
+  .cal-entry input:focus { border-bottom-color: #00838f; }
+  .cal-entry .del-line {
+    border: none;
+    background: transparent;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 10px;
+    flex-shrink: 0;
+    padding: 0 1px;
+  }
+  .cal-entry .del-line:hover { color: #e8482c; }
+  /* type styles: C gray / P teal / H strikethrough+gray */
+  .cal-entry.type-C input { color: #888; font-weight: 400; }
+  .cal-entry.type-P input { color: #00838f; font-weight: 400; }
+  .cal-entry.type-H input { color: #888; font-weight: 400; text-decoration: line-through; }
+  .cal-entry.type-E input { color: #e85d24; font-weight: 400; }
+
+  /* ----- Month picker (year/month selection popover) ----- */
+  .cal-title-btn {
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid transparent;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+    color: #00838f;
+    font-weight: 500;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.2;
+  }
+  .cal-title-btn:hover { background: #e0f2f4; border-color: #00838f; }
+  .cal-title-btn .caret { font-size: 10px; }
+  .mp-wrap { position: relative; }
+  .month-picker {
+    position: absolute;
+    top: 34px;
+    left: 28px;
+    z-index: 100;
+    background: #fff;
+    border: 1px solid #00838f;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    padding: 10px;
+    width: 264px;
+    display: none;
+  }
+  .month-picker.open { display: block; }
+  .mp-year {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .mp-year .mp-ylabel { font-size: 15px; font-weight: 500; color: #333; }
+  .mp-year button {
+    width: 28px; height: 28px;
+    border: 1px solid #00838f;
+    background: #fff; color: #00838f;
+    border-radius: 4px; cursor: pointer;
+    font-weight: 700; font-size: 14px; line-height: 1;
+  }
+  .mp-year button:hover { background: #00838f; color: #fff; }
+  .mp-months { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .mp-months button {
+    padding: 9px 0;
+    border: 1px solid #ddd;
+    background: #fafafa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #333;
+  }
+  .mp-months button:hover { background: #e0f2f4; border-color: #00838f; }
+  .mp-months button.sel { background: #00838f; color: #fff; border-color: #00838f; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="page-container">
+<!-- Header -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC − Commissioning Dept.2</h1>
+  <div class="sub">(주)하이멕 − 커미셔닝 2본부</div>
+  <h2>CX Dept.2 - Work_Schedule_Calenda</h2>
+  <div class="header-right">
+    <button class="icon-btn" onclick="goMain()" title="Main으로 이동" aria-label="Main으로 이동">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </button>
+    <button class="icon-btn" onclick="saveData()" title="저장" aria-label="저장">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    </button>
+    <button class="icon-btn" onclick="exportFile()" title="파일 내보내기" aria-label="파일 내보내기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Month tabs removed: navigation via title month-picker -->
+
+<!-- Main Layout : Work Schedule Calendar -->
+<div class="cal-main">
+  <div class="cal-toolbar">
+    <div class="cal-title mp-wrap">
+      <button class="cal-nav-btn" onclick="navMonth(-1)" title="이전 월">&#8249;</button>
+      <button type="button" class="cal-title-btn" id="calTitleBtn" onclick="toggleMonthPicker(event)" title="연·월 선택">
+        <span id="calTitleText">2026년 1월</span><span class="caret">&#9662;</span>
+      </button>
+      <button class="cal-nav-btn" onclick="navMonth(1)" title="다음 월">&#8250;</button>
+      <div class="month-picker" id="monthPicker"></div>
+    </div>
+    <div class="cal-legend">
+      <span><b class="lg-c">C</b> 완료</span>
+      <span><b class="lg-p">P</b> 진행</span>
+      <span><b class="lg-h">H</b> 최소</span>
+      <span><b class="lg-e">E</b> 기타</span>
+      <span class="cal-autosave" id="autoSaveStatus"></span>
+    </div>
+  </div>
+  <div class="cal-grid" id="calGrid">
+    <!-- calendar injected by JS -->
+  </div>
+</div>
+
+</div>
+<!-- Copyright -->
+<div class="copyright">
+  ©HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<script>
+// ========== HIMEC Work Schedule Calendar ==========
+const HOLIDAYS = {"2024-01-01": "새해", "2024-02-09": "설날 연휴", "2024-02-10": "설날", "2024-02-11": "설날 연휴", "2024-02-12": "설날 대체 휴일", "2024-03-01": "3·1절", "2024-04-10": "22대 국회의원 선거", "2024-05-05": "어린이날", "2024-05-06": "어린이날 대체 휴일", "2024-05-15": "부처님 오신날", "2024-06-06": "현충일", "2024-08-15": "광복절", "2024-09-16": "추석 연휴", "2024-09-17": "추석", "2024-09-18": "추석 연휴", "2024-10-03": "개천절", "2024-10-09": "한글날", "2024-12-25": "크리스마스", "2025-01-01": "새해", "2025-01-27": "설날 임시공휴일", "2025-01-28": "설날", "2025-01-29": "설날", "2025-01-30": "설날", "2025-03-01": "3·1절", "2025-03-03": "3·1절 대체 휴일", "2025-05-05": "부처님 오신 날", "2025-05-06": "어린이날 대체 휴일", "2025-06-03": "대통령선거 임시공휴일", "2025-06-06": "현충일", "2025-08-15": "광복절", "2025-10-03": "개천절", "2025-10-05": "추석 연휴", "2025-10-06": "추석", "2025-10-07": "추석 연휴", "2025-10-08": "추석 대체 휴일", "2025-10-09": "한글날", "2025-12-25": "크리스마스", "2026-01-01": "새해", "2026-02-16": "설날 연휴", "2026-02-17": "설날", "2026-02-18": "설날 연휴", "2026-03-01": "3·1절", "2026-03-02": "3·1절 대체 휴일", "2026-05-05": "어린이날", "2026-05-24": "부처님 오신 날", "2026-05-25": "부처님 오신 날 대체 휴일", "2026-06-03": "2026 지방선거", "2026-06-06": "현충일", "2026-08-15": "광복절", "2026-08-17": "광복절 대체 휴일", "2026-09-24": "추석 연휴", "2026-09-25": "추석", "2026-09-26": "추석 연휴", "2026-10-03": "개천절", "2026-10-05": "개천절 대체 휴일", "2026-10-09": "한글날", "2026-12-25": "크리스마스", "2027-01-01": "새해", "2027-02-06": "설날 연휴", "2027-02-07": "설날", "2027-02-08": "설날 연휴", "2027-02-09": "설날 대체 휴일", "2027-03-01": "3·1절", "2027-05-05": "어린이날", "2027-05-13": "부처님 오신 날", "2027-06-06": "현충일", "2027-08-15": "광복절", "2027-08-16": "광복절 대체 휴일", "2027-09-14": "추석 연휴", "2027-09-15": "추석", "2027-09-16": "추석 연휴", "2027-10-03": "개천절", "2027-10-04": "개천절 대체 휴일", "2027-10-09": "한글날", "2027-10-11": "한글날 대체 휴일", "2027-12-25": "크리스마스", "2027-12-27": "크리스마스 대체 휴일", "2028-01-01": "새해", "2028-01-26": "설날 연휴", "2028-01-27": "설날", "2028-01-28": "설날 연휴", "2028-03-01": "3·1절", "2028-05-02": "부처님 오신날", "2028-05-05": "어린이날", "2028-06-06": "현충일", "2028-08-15": "광복절", "2028-10-02": "추석 연휴", "2028-10-03": "추석 연휴", "2028-10-04": "추석 연휴", "2028-10-05": "대체 휴일", "2028-10-09": "한글날", "2028-12-25": "크리스마스", "2029-01-01": "새해", "2029-02-12": "설날 연휴", "2029-02-13": "설날", "2029-02-14": "설날 연휴", "2029-03-01": "3·1절", "2029-05-05": "어린이날", "2029-05-20": "부처님 오신날", "2029-06-06": "현충일", "2029-08-15": "광복절", "2029-09-21": "추석 연휴", "2029-09-22": "추석", "2029-09-23": "추석 연휴", "2029-10-03": "개천절", "2029-10-09": "한글날", "2029-12-25": "크리스마스", "2030-01-01": "새해", "2030-02-02": "설날 연휴", "2030-02-03": "설날", "2030-02-04": "설날 연휴", "2030-02-05": "설날 대체 휴일", "2030-03-01": "3·1절", "2030-05-05": "어린이날", "2030-05-06": "어린이날 대체 휴일", "2030-05-09": "부처님 오신날", "2030-06-06": "현충일", "2030-08-15": "광복절", "2030-09-11": "추석 연휴", "2030-09-12": "추석", "2030-09-13": "추석 연휴", "2030-10-03": "개천절", "2030-10-09": "한글날", "2030-12-25": "크리스마스"};
+const ANNIV = {"2025-02-14": "발렌타인 데이", "2026-02-14": "발렌타인 데이", "2027-02-14": "발렌타인 데이", "2028-02-14": "발렌타인 데이", "2029-02-14": "발렌타인 데이", "2030-02-14": "발렌타인 데이", "2025-05-01": "근로자의 날", "2026-05-01": "근로자의 날", "2027-05-01": "근로자의 날", "2028-05-01": "근로자의 날", "2029-05-01": "근로자의 날", "2030-05-01": "근로자의 날", "2031-05-01": "근로자의 날", "2025-05-08": "어버이날", "2026-05-08": "어버이날", "2027-05-08": "어버이날", "2028-05-08": "어버이날", "2029-05-08": "어버이날", "2030-05-08": "어버이날", "2025-05-15": "스승의날", "2026-05-15": "스승의날", "2027-05-15": "스승의날", "2028-05-15": "스승의날", "2029-05-15": "스승의날", "2030-05-15": "스승의날", "2025-05-05": "홍길동 생일"};
+const DOW = ['일','월','화','수','목','금','토'];
+const STORE_KEY = 'himec_workschedule_v1';
+
+let activeMonth = '2026-01';   // 'YYYY-MM' (currently viewed month)
+let store = {};                // store[mk][dateStr] = [{t:'',v:''}, ...]
+let pickerYear = 2026;         // year shown in the month-picker popover
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function ymd(y,m,d){ return y + '-' + pad(m) + '-' + pad(d); }
+function toIdx(mk){ const p = mk.split('-'); return parseInt(p[0],10)*12 + (parseInt(p[1],10)-1); }
+function fromIdx(i){ const y = Math.floor(i/12); const m = (i%12)+1; return y + '-' + pad(m); }
+function todayStr(){ const d = new Date(); return ymd(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+function todayMonth(){ return todayStr().slice(0,7); }
+
+function loadStore(){
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      store = o.store || {};
+      activeMonth = o.activeMonth || '2026-01';
+    }
+  } catch(e) {}
+  if (!/^\d{4}-\d{2}$/.test(activeMonth)) { activeMonth = '2026-01'; }
+}
+
+function persist(){
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({store:store, activeMonth:activeMonth}));
+  } catch(e) {}
+}
+
+// ---------- Auto-save (자동 저장) ----------
+let _autoSaveDirty = false;
+let _autoSaveTimer = null;
+
+function showSaveStatus(){
+  const el = document.getElementById('autoSaveStatus');
+  if (!el) return;
+  const t = new Date();
+  el.textContent = '\uC790\uB3D9 \uC800\uC7A5\uB428 ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + ':' + pad(t.getSeconds());
+  el.classList.add('show');
+  if (showSaveStatus._h) clearTimeout(showSaveStatus._h);
+  showSaveStatus._h = setTimeout(function(){ el.classList.remove('show'); }, 1800);
+}
+
+function autoSave(){
+  if (!_autoSaveDirty) return;
+  persist();
+  _autoSaveDirty = false;
+  showSaveStatus();
+}
+
+function markDirty(){
+  _autoSaveDirty = true;
+  if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(autoSave, 800);
+}
+
+function startAutoSave(){
+  // \uC8FC\uAE30\uC801 \uC548\uC804 \uC800\uC7A5 (5\uCD08)
+  setInterval(autoSave, 5000);
+  // \uD398\uC774\uC9C0 \uC885\uB8CC/\uC228\uAE40 \uC2DC \uC989\uC2DC \uC800\uC7A5
+  window.addEventListener('beforeunload', function(){ if (_autoSaveDirty) persist(); });
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden' && _autoSaveDirty) { persist(); _autoSaveDirty = false; }
+  });
+}
+
+function getEntries(ds){
+  const mk = ds.slice(0,7);
+  if (!store[mk]) store[mk] = {};
+  if (!store[mk][ds]) store[mk][ds] = [];
+  return store[mk][ds];
+}
+
+// ---------- Month navigation & picker ----------
+function goToMonth(mk){
+  if (!/^\d{4}-\d{2}$/.test(mk)) { return; }
+  activeMonth = mk;
+  renderCalendar();
+  persist();
+  closeMonthPicker();
+}
+
+function navMonth(dir){
+  goToMonth(fromIdx(toIdx(activeMonth) + dir));
+}
+
+function toggleMonthPicker(e){
+  if (e) { e.stopPropagation(); }
+  const mp = document.getElementById('monthPicker');
+  if (mp.classList.contains('open')) {
+    closeMonthPicker();
+  } else {
+    pickerYear = parseInt(activeMonth.split('-')[0], 10);
+    renderMonthPicker();
+    mp.classList.add('open');
+  }
+}
+
+function closeMonthPicker(){
+  const mp = document.getElementById('monthPicker');
+  if (mp) { mp.classList.remove('open'); }
+}
+
+function pickerNavYear(d){
+  pickerYear += d;
+  renderMonthPicker();
+}
+
+function renderMonthPicker(){
+  const mp = document.getElementById('monthPicker');
+  mp.innerHTML = '';
+
+  // Year row
+  const yrow = document.createElement('div');
+  yrow.className = 'mp-year';
+  const prev = document.createElement('button');
+  prev.type = 'button';
+  prev.textContent = '\u2039';
+  prev.title = '이전 연도';
+  prev.onclick = function(ev){ ev.stopPropagation(); pickerNavYear(-1); };
+  const ylabel = document.createElement('span');
+  ylabel.className = 'mp-ylabel';
+  ylabel.textContent = pickerYear + '년';
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.textContent = '\u203A';
+  next.title = '다음 연도';
+  next.onclick = function(ev){ ev.stopPropagation(); pickerNavYear(1); };
+  yrow.appendChild(prev);
+  yrow.appendChild(ylabel);
+  yrow.appendChild(next);
+  mp.appendChild(yrow);
+
+  // Month grid
+  const mgrid = document.createElement('div');
+  mgrid.className = 'mp-months';
+  const aY = parseInt(activeMonth.split('-')[0], 10);
+  const aM = parseInt(activeMonth.split('-')[1], 10);
+  for (let m = 1; m <= 12; m++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = m + '월';
+    if (pickerYear === aY && m === aM) { b.className = 'sel'; }
+    b.onclick = (function(mm){ return function(ev){
+      ev.stopPropagation();
+      goToMonth(pickerYear + '-' + pad(mm));
+    }; })(m);
+    mgrid.appendChild(b);
+  }
+  mp.appendChild(mgrid);
+}
+
+// Close picker when clicking outside
+document.addEventListener('click', function(ev){
+  const mp = document.getElementById('monthPicker');
+  const btn = document.getElementById('calTitleBtn');
+  if (!mp || !mp.classList.contains('open')) { return; }
+  if (mp.contains(ev.target) || (btn && btn.contains(ev.target))) { return; }
+  closeMonthPicker();
+});
+
+// ---------- Calendar grid ----------
+function renderCalendar(){
+  const parts = activeMonth.split('-');
+  const Y = parseInt(parts[0],10);
+  const M = parseInt(parts[1],10); // 1-12
+  document.getElementById('calTitleText').textContent = Y + '년 ' + M + '월';
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  DOW.forEach(function(d,i){
+    const h = document.createElement('div');
+    h.className = 'cal-dow' + (i===0 ? ' sun' : (i===6 ? ' sat' : ''));
+    h.textContent = d;
+    grid.appendChild(h);
+  });
+
+  const startDow = new Date(Y, M-1, 1).getDay();   // 0=Sun
+  const daysInMonth = new Date(Y, M, 0).getDate();
+  const weeks = Math.ceil((startDow + daysInMonth) / 7);
+  grid.style.gridTemplateRows = '24px repeat(' + weeks + ', 1fr)';
+
+  for (let cell = 0; cell < weeks*7; cell++) {
+    const dayNum = cell - startDow + 1;
+    const inMonth = (dayNum >= 1 && dayNum <= daysInMonth);
+    const dow = cell % 7;
+    const div = document.createElement('div');
+    div.className = 'cal-cell' + (inMonth ? '' : ' other') + (dow===0 ? ' sun' : (dow===6 ? ' sat' : ''));
+
+    if (inMonth) {
+      const ds = ymd(Y, M, dayNum);
+      if (ds === todayStr()) div.classList.add('today');
+      const hol = HOLIDAYS[ds];
+      const ann = ANNIV[ds];
+      if (hol) div.classList.add('holiday');
+
+      const head = document.createElement('div');
+      head.className = 'cal-cell-head';
+      const left = document.createElement('div');
+      left.className = 'cal-head-left';
+      const num = document.createElement('span');
+      num.className = 'cal-day-num';
+      num.textContent = dayNum;
+      left.appendChild(num);
+      if (hol || ann) {
+        const nm = document.createElement('span');
+        nm.className = 'cal-holiday-name' + (hol ? '' : ' anniv');
+        nm.textContent = hol || ann;
+        left.appendChild(nm);
+      }
+      head.appendChild(left);
+      const addb = document.createElement('button');
+      addb.className = 'cal-add-line';
+      addb.textContent = '+';
+      addb.title = '일정 추가';
+      addb.onclick = (function(d){ return function(){ addEntry(d); }; })(ds);
+      head.appendChild(addb);
+      div.appendChild(head);
+
+      const ents = document.createElement('div');
+      ents.className = 'cal-entries';
+      ents.id = 'ents-' + ds;
+      div.appendChild(ents);
+      renderEntries(ds, ents);
+    }
+    grid.appendChild(div);
+  }
+}
+
+function buildEntryRow(ds, ent){
+  const row = document.createElement('div');
+  row.className = 'cal-entry' + (ent.t ? (' type-' + ent.t) : '');
+  const sel = document.createElement('select');
+  ['','C','P','H','E'].forEach(function(o){
+    const op = document.createElement('option');
+    op.value = o;
+    op.textContent = (o === '' ? '\u00B7' : o);
+    if (o === ent.t) op.selected = true;
+    sel.appendChild(op);
+  });
+  sel.onchange = function(){
+    ent.t = sel.value;
+    row.className = 'cal-entry' + (ent.t ? (' type-' + ent.t) : '');
+    persist();
+  };
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = ent.v || '';
+  inp.placeholder = '업무 입력';
+  inp.oninput = function(){ ent.v = inp.value; markDirty(); };
+  inp.onblur = function(){ autoSave(); };
+  const del = document.createElement('button');
+  del.className = 'del-line';
+  del.textContent = '\u2715';
+  del.title = '삭제';
+  del.onclick = function(){
+    const arr = getEntries(ds);
+    const idx = arr.indexOf(ent);
+    if (idx > -1) arr.splice(idx, 1);
+    const c = document.getElementById('ents-' + ds);
+    renderEntries(ds, c);
+    persist();
+  };
+  row.appendChild(sel);
+  row.appendChild(inp);
+  row.appendChild(del);
+  return row;
+}
+
+function renderEntries(ds, container){
+  container.innerHTML = '';
+  const arr = getEntries(ds);
+  arr.forEach(function(ent){
+    container.appendChild(buildEntryRow(ds, ent));
+  });
+}
+
+function addEntry(ds){
+  const arr = getEntries(ds);
+  arr.push({t:'', v:''});
+  const c = document.getElementById('ents-' + ds);
+  renderEntries(ds, c);
+  persist();
+  const inputs = c.querySelectorAll('input');
+  if (inputs.length) inputs[inputs.length-1].focus();
+}
+
+// ---------- Header buttons (preserved) ----------
+function saveData(){
+  persist();
+  alert('데이터가 저장되었습니다.');
+}
+function exportFile(){
+  try {
+    const data = JSON.stringify({store:store, activeMonth:activeMonth}, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'HIMEC_WorkSchedule.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('파일 변환 기능');
+  }
+}
+function goMain(){
+  window.location.href = '../main.html';
+}
+
+// ---------- Init ----------
+window.addEventListener('DOMContentLoaded', function(){
+  loadStore();
+  activeMonth = todayMonth();   // \uC5F4\uC5C8\uC744 \uB54C \uC624\uB298 \uB0A0\uC9DC \uAE30\uC900\uC73C\uB85C \uB2EC\uB825 \uD45C\uC2DC
+  renderCalendar();
+  startAutoSave();
+});
+window.addEventListener('resize', function(){
+  // grid is fully responsive via CSS; no recompute required
+});
+</script>
+</body>
+</html>
