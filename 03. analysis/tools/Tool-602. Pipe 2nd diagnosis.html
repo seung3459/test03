@@ -7,544 +7,206 @@
 	<script src="../../js/himec-supabase-sync.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HIMEC - 2nd Diagnosis Piping</title>
+<title>HIMEC - Pipe Wall Thickness & Remaining Life Analysis Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ===== Reset & Base ===== */
-*{ margin: 0; padding: 0; box-sizing: border-box; }
-html, body{
-  height: 100%;
-  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f4f4f4;
-  display: flex;
-  flex-direction: column;
-}
-/* ===== Page Container ===== */
-.page-container{
-  padding: 0 100px;
-  background: #fff;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-}
-/* ===== HEADER ===== */
-.header{
-  background: #fff;
-  padding: 8px 20px;
-  border-bottom: 1px solid #ddd;
-  flex-shrink: 0;
-  margin-left: -100px;
-  margin-right: -100px;
-  padding-left: 120px;
-  padding-right: 120px;
-  position: relative;
-}
-.header h1{ font-size: 20px; font-weight: 700; color: #222; }
-.header .sub{ font-size: 11px; color: #888; margin-top: 2px; }
-.header h2{ font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
-.header-right{
-  position: absolute;
-  bottom: 8px;
-  right: 20px;
-  display: flex;
-  gap: 8px;
-}
-.header-right button{
-  padding: 8px 0;
-  width: 90px;
-  border: none;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-}
-.btn-save{ background: #e85d24; color: #fff; }
-.btn-file{ background: #e85d24; color: #fff; }
-.btn-main{ background: #555f; color: #fff; }
-.btn-save:hover, .btn-file:hover{ opacity: 0.85; }
-.btn-main:hover{ opacity: 0.85; }
-/* ===== FOOTER COPYRIGHT ===== */
-.footer-copyright{
-  flex-shrink: 0;
-  background: #f8fafc;
-  border-top: none;
-  padding: 8px 100px;
-  text-align: center;
-}
-.footer-inner{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 10px;
-  color: #e0e0e0;
-  letter-spacing: 0.01em;
-}
-.footer-divider{
-  color: var(--border);
-}
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { font-family:'Noto Sans KR', sans-serif; background:#f5f5f5; color:#333;
+    overflow:hidden; height:100vh; width:100vw; }
+  body { display:flex; flex-direction:column; }
+  .page-container { padding:0 100px; flex:1; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0; background:#fff; }
 
-/* ===== CONTENT AREA ===== */
-.content-area{
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 0;
-  min-height: 0;
-}
-/* ===== Main Panel ===== */
-.main-panel{ display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+  /* Header */
+  .header { background:#fff; padding:8px 20px; border-bottom:1px solid #ddd; flex-shrink:0;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px; position:relative; }
+  .header h1 { font-size:20px; font-weight:700; color:#222; }
+  .header .sub { font-size:11px; color:#888; margin-top:2px; }
+  .header h2 { font-size:15px; font-weight:600; color:#333; margin-top:4px; }
+  .header h2 #project-name:not(:empty)::before { content:"["; }
+  .header h2 #project-name:not(:empty)::after { content:"]"; }
+  .header h2 #project-name:not(:empty) { margin-right:6px; }
+  .header-right { position:absolute; bottom:8px; right:20px; display:flex; gap:8px; }
+  .header-right button { padding:8px 0; width:44px; height:34px; border:none; border-radius:4px;
+    font-size:10px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+  .header-right button svg { width:17px; height:17px; }
+  .btn-save, .btn-file { background:#e85d24; color:#fff; }
+  .btn-main { background:#555; color:#fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity:.85; }
 
-/* ===== diag2-tab styles ===== */
-.diag2-tab-bar{
-  display: flex;
-  align-items: center;
-  margin: 8px 0 4px;
-  padding: 4px 20px 0;
-  background: #fff;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.diag2-tab-list{
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.diag2-tab{
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 28px 6px 14px;
-  border-radius: 6px 6px 0 0;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  background: #bbb;
-  color: #fff;
-  white-space: nowrap;
-  user-select: none;
-  transition: background .15s;
-}
-.diag2-tab:hover{ background: #999; }
-.diag2-tab.active{ background: #00838f; color: #fff; }
-.diag2-tab-close{
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: rgba(255,255,255,0.7);
-  font-size: 13px;
-  line-height: 16px;
-  text-align: center;
-  cursor: pointer;
-  padding: 0;
-}
-.diag2-tab-close:hover{ background: rgba(255,0,0,0.6); color: #fff; }
+  /* Tabs */
+  .tab-bar { display:flex; padding:4px 20px 0; background:#fff; gap:4px; flex-shrink:0; }
+  .tab { padding:5px 20px; border-radius:6px 6px 0 0; font-size:12px; font-weight:600;
+    cursor:pointer; border:none; background:#bbb; color:#fff; position:relative; padding-right:28px; }
+  .tab.active { background:#00838f; color:#fff; }
+  .tab.add { background:#999; color:#fff; font-size:14px; padding:5px 16px; }
+  .tab .tab-close { position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:50%; border:none; background:transparent;
+    color:rgba(255,255,255,.7); font-size:13px; line-height:16px; text-align:center; cursor:pointer; padding:0; }
+  .tab .tab-close:hover { background:rgba(255,0,0,.6); color:#fff; }
 
-/* ===== FanEff Panel Styles ===== */
-.fanEff-unit-panel{
-  margin: 8px 20px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background: #fff;
-  overflow: hidden;
-}
-.fanEff-main{
-  display: grid;
-  grid-template-columns: 1fr 1.1fr 0.9fr;
-  gap: 0;
-  padding: 0;
-  min-height: 780px;
-}
-.fanEff-panel{
-  background: #fff;
-  border: 1px solid transparent;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  min-height: 0;
-}
-.fanEff-section-title{
-  font-size: 12px;
-  font-weight: 700;
-  margin-bottom: 4px;
-  color: #222;
-  flex-shrink: 0;
-}
-@media (max-width: 1600px) {
-  .page-container { padding: 0 60px; }
-  .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
-  .footer-copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
-}
-@media (max-width: 1300px) {
-  .page-container { padding: 0 30px; }
-  .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
-  .footer-copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
-}
-@media (max-width: 1100px) {
-  .page-container { padding: 0 15px; }
-  .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
-  .footer-copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
-  .fanEff-main{ grid-template-columns: 1fr 1fr; }
-  .fanEff-center-panel{ grid-column: 1 / -1; grid-row: 1; }
-}
-@media (max-width: 700px) {
-  .page-container { padding: 0 10px; }
-  .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
-  .footer-copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
-  .fanEff-main{ grid-template-columns: 1fr; }
-  .fanEff-center-panel{ grid-column: 1; }
-}
+  /* Main 3-column */
+  .main { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; padding:0 0 30px 0;
+    flex:1; min-height:0; overflow:hidden; }
+  .panel { background:#fff; padding:10px 12px; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0; }
+  .panel + .panel { border-left:1px solid #eee; }
+  #left-panel { overflow-y:auto; overflow-x:hidden; justify-content:flex-start; }
+  #center-panel { overflow-y:auto; }
+  #right-panel { overflow-y:auto; }
 
-/* Table styles */
-.fanEff-unit-panel .info-table{
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  table-layout: fixed;
-  margin-bottom: 6px;
-  font-size: 10px;
-  flex-shrink: 0;
-}
-.fanEff-unit-panel .info-table th, .fanEff-unit-panel .info-table td{
-  border: 1px solid #ffffff;
-  padding: 5px 4px;
-  border-bottom: 1.5px solid #ccc;
-  text-align: center;
-}
-.fanEff-unit-panel .info-table th{
-  background: #e8e8e8;
-  color: #555;
-  font-weight: 600;
-  font-size: 10px;
-}
-.fanEff-unit-panel .info-table tr:first-child th:first-child{ border-top-left-radius: 8px; }
-.fanEff-unit-panel .info-table tr:first-child th:last-child{ border-top-right-radius: 8px; }
-.fanEff-unit-panel .info-table td{ background: #fff; }
-.fanEff-unit-panel .info-table .row-header{
-  background: #f0f0f0;
-  font-weight: 600;
-  color: #00838f;
-  font-size: 11px;
-  width: 40px;
-}
-.fanEff-unit-panel .info-table input{
-  width: 100%;
-  border: none;
-  text-align: center;
-  font-size: 11px;
-  background: transparent;
-  outline: none;
-  padding: 3px 2px;
-}
-.fanEff-unit-panel .info-table .highlight-cell{
-  background: #e0f7fa;
-  color: #00838f;
-  font-weight: 700;
-}
-.fanEff-unit-panel .info-table input::placeholder{
-  color: #aaa;
-  font-style: italic;
-  font-size: 10px;
-}
-.fanEff-unit-panel .note{
-  font-size: 9px;
-  color: #888;
-  margin: 4px 0 6px;
-  text-align: right;
-  flex-shrink: 0;
-}
+  .section-title { font-size:12px; font-weight:700; margin-bottom:4px; color:#222; flex-shrink:0; }
+  .section-title.mt { margin-top:10px; }
 
-/* Photo Grid */
-.fanEff-unit-panel .fanEff-photo-grid{
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 6px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  padding: 4px 0;
-}
-.fanEff-unit-panel .fanEff-photo-slot{
-  display: flex;
-  flex-direction: column;
-  border: 1.5px solid #e0e0e0;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #fafafa;
-  min-height: 0;
-}
-.fanEff-unit-panel .fanEff-photo-desc{ flex-shrink: 0; border-bottom: 1px solid #e8e8e8; }
-.fanEff-unit-panel .fanEff-photo-desc input{
-  width: 100%; border: none; outline: none; padding: 3px 6px; font-size: 9px; background: #f5f5f5; color: #333;
-}
-.fanEff-unit-panel .fanEff-photo-desc input::placeholder{ color: #aaa; font-style: italic; }
-.fanEff-unit-panel .fanEff-photo-display{
-  flex: 1; position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; min-height: 80px; overflow: hidden;
-}
-.fanEff-unit-panel .fanEff-photo-num{
-  position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
-  background: #00838f; color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; z-index: 2;
-}
-.fanEff-unit-panel .fanEff-photo-empty{ display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; }
-.fanEff-unit-panel .fanEff-cam-icon{ font-size: 20px; opacity: 0.4; }
-.fanEff-unit-panel .fanEff-cam-text{ font-size: 10px; color: #999; font-weight: 600; }
-.fanEff-unit-panel .fanEff-cam-sub{ font-size: 8px; color: #bbb; }
-.fanEff-unit-panel .fanEff-photo-preview{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; }
-.fanEff-unit-panel .fanEff-photo-preview img{ width: 100%; height: 100%; object-fit: cover; }
-.fanEff-unit-panel .fanEff-photo-actions{
-  position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 3px; background: rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.2s ease;
-}
-.fanEff-unit-panel .fanEff-photo-display:hover .fanEff-photo-actions{ opacity: 1; }
-.fanEff-unit-panel .fanEff-photo-btn{
-  border: none; background: rgba(255,255,255,0.9); color: #333; font-size: 10px; padding: 2px 6px; border-radius: 3px; cursor: pointer;
-}
-.fanEff-unit-panel .fanEff-photo-btn:hover{ background: #fff; }
-.fanEff-unit-panel .fanEff-photo-btn.del{ color: #e53e3e; font-weight: 700; }
+  /* info-table */
+  .info-table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;
+    margin-bottom:6px; font-size:10px; flex-shrink:0; }
+  .info-table th, .info-table td { border:1px solid #fff; padding:5.1px 5px; border-bottom:1.5px solid #ccc; text-align:center; }
+  .info-table th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:11px; }
+  .info-table tr:first-child th:first-child { border-top-left-radius:8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius:8px; }
+  .info-table td { background:#fff; }
+  .info-table input, .info-table select { width:100%; border:none; text-align:center; font-size:12px;
+    background:transparent; outline:none; padding:4px 2px; font-family:inherit; color:#333; }
+  .info-table select { text-align:left; cursor:pointer; }
+  #left-panel .info-table th:first-child, #left-panel .info-table td:first-child { border-left-color:transparent; }
+  #left-panel .info-table th:last-child, #left-panel .info-table td:last-child { border-right-color:transparent; }
 
-/* Data Input Section */
-.fanEff-unit-panel .data-input-section{ border: none; background: transparent; margin-top: 4px; flex-shrink: 0; }
-.fanEff-unit-panel .data-input-header{ display: flex; align-items: center; justify-content: space-between; padding: 0 0 4px 0; }
-.fanEff-unit-panel .data-input-body{}
+  /* cdt table */
+  .cdt { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; margin-bottom:6px; font-size:10px; flex-shrink:0; }
+  .cdt th, .cdt td { border:1px solid #fff; padding:3.75px 4px; border-bottom:1.5px solid #ccc; text-align:center; }
+  .cdt th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:10.5px; }
+  .cdt tr:first-child th:first-child { border-top-left-radius:8px; }
+  .cdt tr:first-child th:last-child { border-top-right-radius:8px; }
+  .cdt td { background:#fff; }
+  .cdt td.grp { background:#f3f5f6; color:#3A4A57; font-weight:700; }
+  .cdt td.calc { background:#e0f7fa; color:#00838f; font-weight:700; }
+  .cdt input, .cdt select { width:100%; border:none; text-align:center; font-size:11px; background:transparent;
+    outline:none; padding:2px 1px; font-family:inherit; color:#1a4f8b; font-weight:600; }
+  .cdt input:focus { background:#fff7ee; }
+  .cdt th.th-src { cursor:pointer; }
+  .cdt th.th-src:hover { background:#b2ebf2; }
+  .th-i { font-size:9px; color:#00838f; vertical-align:top; }
+  .cdt select.sel-toggle { -webkit-appearance:none; -moz-appearance:none; appearance:none;
+    text-align:center; text-align-last:center; padding:2px 15px 2px 3px; cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M1 3l4 4 4-4' fill='none' stroke='%231a4f8b' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat:no-repeat; background-position:right 3px center; background-size:9px; }
+  .cdt select.sel-toggle:hover { background-color:#fff7ee; }
+  .cdt select.sel-toggle:focus { background-color:#fff7ee; }
+  .cdt th:first-child, #left-panel .cdt td:first-child { border-left-color:transparent; }
+  .cdt th:last-child, #left-panel .cdt td:last-child { border-right-color:transparent; }
 
-/* Meas Grid Table */
-.fanEff-unit-panel .meas-grid-table{
-  margin-bottom: 4px !important;
-  flex: 1;
-  table-layout: fixed;
-}
-.fanEff-unit-panel .meas-grid-table th{
-  font-size: 10px !important;
-  padding: 8px 4px !important;
-  background: #f0f0f0 !important;
-  text-align: center;
-}
-.fanEff-unit-panel .meas-grid-table td{
-  padding: 4px 2px !important;
-}
-.fanEff-unit-panel .meas-grid-table input{
-  font-size: 11px !important;
-  padding: 6px 2px !important;
-  text-align: center;
-}
-.fanEff-unit-panel .meas-grid-table input[readonly]{
-  font-weight: 700;
-  color: #00838f;
-  background: #e0f7fa;
-  cursor: default;
-}
-.fanEff-unit-panel .meas-grid-table .row-header{
-  white-space: nowrap;
-  font-weight: 600;
-  background: #f7f7f7;
-}
+  /* measure grid */
+  .mgrid { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:9.5px; margin-bottom:4px; }
+  .mgrid th, .mgrid td { border:1px solid #fff; border-bottom:1.5px solid #ccc; padding:4px 1px; text-align:center; }
+  .mgrid th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:9px; }
+  .mgrid td.ang { background:#f3f5f6; color:#3A4A57; font-weight:700; font-size:9px; }
+  .mgrid input { width:100%; border:none; text-align:center; font-size:10px; background:transparent;
+    outline:none; padding:2px 0; font-family:inherit; color:#1a4f8b; font-weight:600; }
+  .mgrid input:focus { background:#fff7ee; }
 
-/* Meas Summary Table */
-.fanEff-unit-panel .meas-summary-table{
-  table-layout: fixed;
-  margin-bottom: 2px !important;
-}
-.fanEff-unit-panel .meas-summary-table th{
-  background: #e8e8e8;
-  color: #555;
-  font-weight: 600;
-  font-size: 10px;
-  white-space: nowrap;
-  padding: 8px 4px !important;
-  text-align: center;
-  vertical-align: middle;
-}
-.fanEff-unit-panel .meas-summary-table td{
-  background: #ffffff;
-  min-width: 50px;
-  padding: 8px 4px !important;
-  text-align: center;
-  vertical-align: middle;
-}
-.fanEff-unit-panel .meas-sum-val{
-  width: 100%;
-  border: none;
-  background: transparent;
-  text-align: center;
-  font-weight: 700;
-  font-size: 12px;
-  color: #222;
-  cursor: default;
-  padding: 0;
-  outline: none;
-}
+  .residual { font-size:8px; color:#555; background:#f2f2f2; border:0.5px solid #ddd; border-radius:6px;
+    padding:8px 10px; margin-top:8px; flex-shrink:0; line-height:1.55; }
+  .residual b { color:#00838f; }
 
-/* Analysis Result */
-.fanEff-unit-panel .analysis-row{
-  border: none; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; background: #fafbfc; flex: 1; min-height: 0; display: flex; flex-direction: column;
-}
-.fanEff-unit-panel .analysis-row-header{ display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.fanEff-unit-panel .analysis-row-label{
-  display: inline-block; background: #00838f; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; min-width: 28px; text-align: center;
-}
-.fanEff-unit-panel .analysis-row-label.result{ background: #555; }
-.fanEff-unit-panel .analysis-row-sub{ font-size: 10px; color: #888; font-weight: 500; }
-.fanEff-unit-panel .analysis-row-result{ flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.fanEff-unit-panel .analysis-result-text{
-  width: 100%; flex: 1; min-height: 50px; border: 1px solid #ddd; border-radius: 4px; padding: 6px 8px;
-  font-size: 10px; font-family: 'Noto Sans KR', sans-serif; color: #333; background: #fff; resize: none; outline: none; line-height: 1.5;
-}
-.fanEff-unit-panel .analysis-result-text:focus{ border-color: #00838f; }
-.fanEff-unit-panel .analysis-result-text::placeholder{ color: #aaa; font-style: italic; }
+  .refs-card { border:none; background:transparent; padding:0 2px; margin-top:8px; text-align:right; cursor:pointer; }
+  .refs-card h3 { font-size:10px; font-weight:700; color:#333; }
+  .refs-more { font-size:8px; font-weight:700; color:#999; margin-left:4px; }
 
-/* Check Group */
-.fanEff-unit-panel .analysis-check-group{ display: flex; gap: 4px; margin-top: 6px; flex-shrink: 0; }
-.fanEff-unit-panel .analysis-check-item{
-  flex: 1; display: flex; align-items: center; gap: 4px; padding: 5px 6px; border-radius: 4px;
-  font-size: 9px; font-weight: 600; color: #555; cursor: pointer; transition: all 0.15s; background: #fff;
-}
-.fanEff-unit-panel .analysis-check-item input[type="checkbox"]{ display: none; }
-.fanEff-unit-panel .analysis-check-dot{
-  width: 12px; height: 12px; border: 1.5px solid #ccc; border-radius: 3px; flex-shrink: 0; position: relative; transition: all 0.15s;
-}
-.fanEff-unit-panel .analysis-check-item.good input:checked ~ .analysis-check-dot.good{ background: #00838f; border-color: #00838f; }
-.fanEff-unit-panel .analysis-check-item.good input:checked ~ .analysis-check-dot.good::after{
-  content: ''; position: absolute; top: 1px; left: 3px; width: 4px; height: 6px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
-}
-.fanEff-unit-panel .analysis-check-item.good input:checked ~ span:last-child{ color: #00838f; }
-.fanEff-unit-panel .analysis-check-item.maint input:checked ~ .analysis-check-dot.maint{ background: #ff8c00; border-color: #ff8c00; }
-.fanEff-unit-panel .analysis-check-item.maint input:checked ~ .analysis-check-dot.maint::after{
-  content: ''; position: absolute; top: 1px; left: 3px; width: 4px; height: 6px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
-}
-.fanEff-unit-panel .analysis-check-item.maint input:checked ~ span:last-child{ color: #ff8c00; }
-.fanEff-unit-panel .analysis-check-item.replace input:checked ~ .analysis-check-dot.replace{ background: #e53e3e; border-color: #e53e3e; }
-.fanEff-unit-panel .analysis-check-item.replace input:checked ~ .analysis-check-dot.replace::after{
-  content: ''; position: absolute; top: 1px; left: 3px; width: 4px; height: 6px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
-}
-.fanEff-unit-panel .analysis-check-item.replace input:checked ~ span:last-child{ color: #e53e3e; }
-.fanEff-unit-panel .analysis-check-item.good:has(input:checked){ background: #e0f7fa; }
-.fanEff-unit-panel .analysis-check-item.maint:has(input:checked){ background: #fff8e1; }
-.fanEff-unit-panel .analysis-check-item.replace:has(input:checked){ background: #ffebee; }
+  /* diagram */
+  .pipe-diagram { margin-top:8px; flex-shrink:0; }
 
-/* Photo Viewer */
-.fanEff-photo-viewer{
-  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center; cursor: pointer;
-}
-.fanEff-photo-viewer.active{ display: flex; }
-.fanEff-photo-viewer img{ max-width: 90%; max-height: 90%; object-fit: contain; border-radius: 4px; }
-.fanEff-photo-viewer-close{
-  position: absolute; top: 16px; right: 24px; background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; z-index: 10001;
-}
+  /* calc-table (center) */
+  .tbl-cap { font-size:10.5px; font-weight:700; color:#333; margin:6px 0 4px; display:flex; align-items:center; gap:6px; }
+  .tbl-cap .src { font-size:9px; font-weight:400; color:#808080; }
+  .calc-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px; margin-bottom:8px; }
+  .calc-table th, .calc-table td { padding:5.5px 8px; border-bottom:1px solid #e2e2e2; text-align:center; vertical-align:middle; }
+  .calc-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:10.5px; }
+  .calc-table tr:first-child th:first-child { border-top-left-radius:6px; }
+  .calc-table tr:first-child th:last-child { border-top-right-radius:6px; }
+  .calc-table td.lbl { text-align:left; color:#444; font-weight:600; }
+  .calc-table td.fx { color:#888; font-size:9px; text-align:left; }
+  .calc-table td.num { font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .calc-table tr.out td { background:#f2f2f2; font-weight:800; }
+  .calc-table tr.eff td { background:#e2e2e2; font-weight:800; border-top:1.5px solid #c9c9c9; }
 
-/* ===== PIPE Specific Styles ===== */
-.pipe-help-btn{
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; border: none; border-radius: 50%;
-  background: #e8e8e8; color: #555; font-size: 12px; font-weight: 700;
-  cursor: pointer; vertical-align: middle; line-height: 1; padding: 0;
-}
-.pipe-help-btn:hover{ background: #d6d6d6; }
+  .bar-wrap { margin-top:6px; }
 
-.pipe-chart-area{
-  display: flex; justify-content: space-around; align-items: flex-end;
-  gap: 10px; padding: 14px 8px 8px; height: 300px;
-  background: #fafafa; border: 1px solid #eee; border-radius: 6px;
-}
-.pipe-bar-group{
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: flex-end; flex: 1; height: 100%;
-}
-.pipe-bar-value{ font-size: 15px; font-weight: 700; color: #333; margin-bottom: 4px; }
-.pipe-bar-track{ width: 46px; height: 210px; display: flex; flex-direction: column-reverse; }
-.pipe-bar-fill{ width: 100%; border-radius: 3px 3px 0 0; transition: height .25s; min-height: 0; }
-.pipe-bar-tag{ margin-top: 6px; font-size: 12px; font-weight: 600; color: #444; text-align: center; }
+  /* metric cards */
+  .metrics-area { display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
+  .metric-card { background:transparent; border:none; border-bottom:1.5px solid #ccc; border-radius:5px;
+    padding:5.5px 1px 2px; display:flex; justify-content:space-between; align-items:center; }
+  .metric-card .ml { flex:1; }
+  .metric-label { font-size:11px; color:#00838f; line-height:1.2; font-weight:bold; }
+  .metric-sub { font-size:8.5px; color:#999; font-weight:500; margin-top:2px; }
+  .metric-value { font-size:26px; font-weight:700; color:#ff8c00; min-width:45px; text-align:right; }
+  .metric-unit { font-size:12px; color:#888; margin-left:2px; vertical-align:super; }
 
-/* Pipe Modal */
-.pipe-modal-overlay{
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.5); z-index: 99999;
-  align-items: center; justify-content: center;
-}
-.pipe-modal-box{
-  background: #e9ecef; width: 560px; max-width: 92vw; max-height: 86vh;
-  border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0,0,0,.3);
-}
-.pipe-modal-head{
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; background: #e8e8e8; color: #555;
-  font-size: 15px; font-weight: 700;
-}
-.pipe-modal-close{ background: none; border: none; color: #555; font-size: 18px; cursor: pointer; line-height: 1; }
-.pipe-modal-body{ padding: 14px 16px; overflow-y: auto; background: #fff; }
-.pipe-modal-group{
-  font-size: 13px; font-weight: 700; color: #2563eb;
-  margin: 14px 0 4px; padding-bottom: 3px; border-bottom: 2px solid #2563eb;
-}
-.pipe-modal-group:first-child{ margin-top: 0; }
-.pipe-modal-mat{ font-size: 12px; font-weight: 600; color: #333; margin: 10px 0 3px; }
-.pipe-modal-table{ width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 4px; }
-.pipe-modal-table th{ background: #f0f4ff; border: 1px solid #d6deeb; padding: 4px 6px; text-align: center; }
-.pipe-modal-table td{ border: 1px solid #e2e2e2; padding: 3px 6px; text-align: center; }
-.pipe-modal-table tr:nth-child(even) td{ background: #fafbfd; }
+  /* diagnosis */
+  .diag { display:flex; flex-direction:column; gap:5px; }
+  .diag .d { display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; border-radius:5px; border:none; border-left:3px solid #ccc; background:#fafafa; line-height:1.35; }
+  .diag .d .dhead { font-size:11.5px; font-weight:700; color:#333; white-space:nowrap; flex:none; }
+  .diag .d .dhead .dstat { font-weight:800; margin-left:2px; }
+  .diag .d .dbody { text-align:right; font-size:10px; color:#555; }
+  .diag .d .dsrc { display:block; font-size:8.5px; color:#999; font-weight:600; margin-top:1px; cursor:pointer; }
+  .d.ok { border-left-color:#00838f; } .d.ok .dstat { color:#00838f; }
+  .d.warn { border-left-color:#e0a800; } .d.warn .dstat { color:#e0a800; }
+  .d.bad { border-left-color:#ED7458; } .d.bad .dstat { color:#ED7458; }
 
-/* Equipment Add Button */
-.diag-summary-header{
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 20px; border-bottom: 1px solid #e5e7eb;
-}
-.diag-summary-actions{ display: flex; gap: 8px; }
-/* .diag2-tab.add - 탭 추가 버튼 */
-.diag2-tab.add{
-  background: #999; color: #fff; font-size: 14px;
-  padding: 6px 16px; padding-right: 16px !important;
-}
-.diag2-tab.add:hover{ background: #777; }
+  /* src modal */
+  .src-modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42); z-index:9999;
+    align-items:center; justify-content:center; }
+  .src-modal-mask.on { display:flex; }
+  .src-modal { background:#fff; width:420px; max-width:92vw; max-height:82vh; overflow-y:auto;
+    border-radius:8px; box-shadow:0 10px 36px rgba(0,0,0,.25); }
+  .src-modal .sm-head { display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
+    border-bottom:1px solid #eee; background:#00838f; border-radius:8px 8px 0 0; }
+  .src-modal .sm-head h3 { font-size:14px; font-weight:700; color:#fff; }
+  .src-modal .sm-head .sm-close { border:none; background:transparent; color:#fff; font-size:20px; cursor:pointer; }
+  .src-modal .sm-body { padding:14px 16px; }
+  .src-modal .sm-std { font-size:9px; font-weight:700; color:#00838f; margin-bottom:8px; }
+  .src-modal .sm-desc { font-size:9px; color:#555; line-height:1.5; margin-bottom:10px; }
+  .src-modal table { width:100%; border-collapse:collapse; font-size:9px; }
+  .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; word-break:break-word; }
+  .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
+  .src-modal .lv-ok { color:#00838f; font-weight:700; }
+  .src-modal .lv-warn { color:#e0a800; font-weight:700; }
+  .src-modal .lv-bad { color:#ED7458; font-weight:700; }
+  .src-modal tr.cur td { background:#fff8e1; }
 
-/* Confirm Modal */
-.confirm-modal-overlay{
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4); z-index: 10001;
-  align-items: center; justify-content: center;
-}
-.confirm-modal-overlay.active{ display: flex; }
-.confirm-modal-box{
-  background: #fff; border-radius: 10px; width: 360px; max-width: 90vw;
-  padding: 20px; text-align: center;
-}
-.confirm-modal-title{ font-size: 15px; font-weight: 700; color: #333; margin-bottom: 8px; }
-.confirm-modal-desc{ font-size: 12px; color: #666; margin-bottom: 16px; }
-.confirm-modal-actions{ display: flex; gap: 8px; justify-content: center; }
-.confirm-modal-btn{
-  padding: 8px 20px; border: none; border-radius: 4px;
-  font-size: 12px; font-weight: 600; cursor: pointer;
-}
-.confirm-modal-btn.cancel{ background: #e5e7eb; color: #333; }
-.confirm-modal-btn.confirm{ background: #e53e3e; color: #fff; }
-.confirm-modal-btn:hover{ opacity: 0.85; }
+  /* Copyright */
+  .copyright { background:#fff; border-top:1px solid #ddd; padding:6px 20px;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+    text-align:center; font-size:10px; color:#888; flex-shrink:0; }
 
-/* Toast */
-.toast-container{
-  position: fixed; bottom: 20px; right: 20px; z-index: 10002;
-}
-.toast{
-  background: #333; color: #fff; padding: 10px 16px;
-  border-radius: 6px; font-size: 12px; margin-top: 8px;
-  animation: toastFadeIn 0.3s ease;
-}
-@keyframes toastFadeIn{
-  from{ opacity: 0; transform: translateY(10px); }
-  to{ opacity: 1; transform: translateY(0); }
-}
+  @media (max-width:1600px) {
+    .page-container { padding:0 60px; }
+    .header { margin-left:-60px; margin-right:-60px; padding-left:80px; padding-right:80px; }
+    .copyright { padding:6px 80px; margin-left:-60px; margin-right:-60px; }
+  }
+  @media (max-width:1300px) {
+    .page-container { padding:0 30px; }
+    .header { margin-left:-30px; margin-right:-30px; padding-left:50px; padding-right:50px; }
+    .copyright { padding:6px 50px; margin-left:-30px; margin-right:-30px; }
+  }
+  @media (max-width:1100px) {
+    .page-container { padding:0 15px; overflow:auto; }
+    .header { margin-left:-15px; margin-right:-15px; padding-left:35px; padding-right:35px; }
+    .copyright { padding:6px 35px; margin-left:-15px; margin-right:-15px; }
+    .main { grid-template-columns:1fr 1fr; overflow:visible; }
+    .panel { overflow:visible; }
+  }
+  @media (max-width:700px) { .main { grid-template-columns:1fr; } }
+
+  /* placeholder(미입력) 표시: 회색 이탤릭 10px */
+  /* 미입력 안내(placeholder) 표시: 회색 이탤릭 10px */
+  select.ph { color:#9aa0a6 !important; font-style:italic !important; font-size:10px !important; font-weight:400 !important; }
+  input::placeholder { color:#9aa0a6 !important; font-style:italic !important; font-size:10px !important; font-weight:400 !important; opacity:1; }
+  input::-webkit-input-placeholder { color:#9aa0a6 !important; font-style:italic !important; font-size:10px !important; font-weight:400 !important; }
+  .photo-cap::placeholder { color:#b0b0b0 !important; font-style:normal !important; font-size:10px !important; }
 </style>
 <style id="himec-iconbtn-style">
-/* === HIMEC 아이콘 버튼 (Tool-304 통일 스타일) === */
+/* === HIMEC 아이콘 버튼 (Tool-402 동일 스타일) === */
 .header-right{ gap:6px !important; }
 .header-right button{
   width:34px !important; height:34px !important; padding:0 !important;
@@ -557,8 +219,7 @@ html, body{
 .header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
 .header-right button.btn-save:hover svg{ stroke:#e85d24; }
 .header-right button.btn-file:hover svg{ stroke:#e85d24; }
-.header-right button.btn-save.saved{ background:#27ae60 !important; border-color:#27ae60 !important; }
-.header-right button.btn-save.saved svg{ stroke:#ffffff !important; }
+/* 내보내기 드롭다운 메뉴 */
 .himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
   border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
 .himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
@@ -568,1141 +229,814 @@ html, body{
 .himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
 @media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
 </style>
-<style id="himec-fit-onepage">
-/* 외부 박스 테두리 제거 + 한 화면 꽉 채움(스크롤 없이, 빈 공간 없이) */
-#contentArea_pipe{ display:flex !important; flex-direction:column; }
-#d2PipeUnits{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
-#d2PipeUnits .diag2-tab-bar{ flex:0 0 auto; }
-#d2PipeUnits .diag2-content-area{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
-.fanEff-unit-panel{ border:none !important; border-radius:0 !important; flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
-.fanEff-main{ flex:1 1 auto !important; min-height:0 !important; }
-/* 좌측 측정치 입력 그리드: 남은 높이를 각도 4개 행에 균등 배분 → 셀이 화면을 채움 */
-.fanEff-unit-panel .meas-grid-table{ flex:1 1 auto; }
-.fanEff-unit-panel .meas-summary-table{ flex:0 0 auto; }
-.fanEff-unit-panel .meas-grid-table tbody tr{ height:1px; }
-.fanEff-unit-panel .meas-grid-table td{ height:1px; }
-.fanEff-unit-panel .meas-grid-table input{ height:100%; box-sizing:border-box; }
+<style id="himec-centerview-style">
+/* === 센터 뷰 토글 아이콘 + 현장 사진 (Tool-402 동일) === */
+.center-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.center-head .section-title{ margin-bottom:0; }
+.center-icons{ display:flex; gap:6px; flex-shrink:0; }
+.ci-btn{
+  width:30px; height:30px; padding:0; cursor:pointer;
+  background:#fff; color:#666; border:1px solid #d0d0d0; border-radius:7px;
+  display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.ci-btn svg{ width:17px; height:17px; }
+.ci-btn:hover{ background:#f5f5f5; }
+.ci-btn.active{ color:#00838f; border-color:#00838f; background:#e0f7fa; }
+
+.photo-view{ flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+.photo-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding-top:6px; }
+.photo-slot{ display:flex; flex-direction:column; min-width:0; }
+.photo-cap{ font-size:10px; color:#555; padding:5px 8px; background:#f7f7f7;
+  border:1px solid #e2e2e2; border-bottom:none; border-radius:6px 6px 0 0;
+  width:100%; box-sizing:border-box; font-family:inherit; outline:none; cursor:text;
+  transition:background .15s, border-color .15s; }
+.photo-cap::placeholder{ color:#b0b0b0; }
+.photo-cap:hover{ background:#eef1f3; }
+.photo-cap:focus{ background:#fff; border-color:#00838f; color:#222; }
+.photo-drop{ position:relative; border:1px dashed #cfcfcf; border-radius:0 0 6px 6px;
+  min-height:170px; background:#f2f3f5; cursor:pointer; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#9aa0a6; }
+.photo-drop:hover{ background:#f0fbfc; border-color:#00838f; }
+.photo-drop svg{ width:26px; height:26px; }
+.photo-drop .pd-title{ font-size:12px; font-weight:600; color:#666; }
+.photo-drop .pd-sub{ font-size:10px; }
+.photo-drop img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; background:#fff; }
+.photo-del{ position:absolute; top:6px; right:6px; z-index:2; width:22px; height:22px;
+  border:none; border-radius:5px; cursor:pointer; background:rgba(0,0,0,.55); color:#fff;
+  font-size:14px; line-height:1; display:none; align-items:center; justify-content:center; }
+.photo-drop.has-img .photo-del{ display:inline-flex; }
 </style>
+
+<style id="himec-unify-portrait">
+/* ===== [303 방식 이식] 세로(portrait) 모드 표시 통일 =====
+   가로: 3-column 고정 / 세로: 1-column 세로 스택 + 페이지 스크롤 ===== */
+
+/* [TABLE UNIFY] .calc-table 헤더색/테두리/라운드/폰트 통일 (숫자정렬·의미색 보존) */
+.calc-table { border-collapse:separate !important; border-spacing:0 !important; }
+.calc-table th, .calc-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:3.5px 5px !important; text-align:center !important; }
+.calc-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.calc-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.calc-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.calc-table input { font-size:12px !important; }
+.calc-table select { font-size:11px !important; }
+
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* 세로 모드에서 좌우 구분선 대신 상단 구분선 */
+  body .main .panel + .panel{ border-left:none !important; border-top:1px solid #eee !important; }
+  /* 도표(SVG/막대/게이지) 컨테이너: 부모 붕괴로 사라지지 않도록 auto 높이 보장.
+     ※ 303의 전체 svg 규칙은 버튼 아이콘(24px)까지 늘리므로 실제 도표만 스코프 */
+  body .main #pipeDiagram, body .main #pipeDiagram svg,
+  body .main #barWrap, body .main .bar-wrap,
+  body .main #lossWrap{
+    width:100% !important; height:auto !important; min-height:0 !important; overflow:visible !important;
+  }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+</style>
+
 </head>
 <body>
-
 <div class="page-container">
+
   <!-- Header -->
-  <div class="header" style="position:relative;">
-    <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
-    <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
-    <h2><span id="projectLabel" style="font-size:15px; color:#333; font-weight:600;"></span>2nd Diagnosis Piping</h2>
+  <div class="header">
+    <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+    <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+    <h2 id="pageTitle"><span id="project-name"></span>Pipe Wall Thickness &amp; Remaining Life Analysis Tool (배관 두께&middot;잔존수명 분석)</h2>
     <div class="header-right">
-      <button class="btn-main" onclick="GoMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
-      <button class="btn-save" id="btnSave" onclick="saveData()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
-      <button class="btn-file" onclick="exportFile()" title="파일 내보내기" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
+      <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+      <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+      <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
     </div>
   </div>
 
-  <!-- Main Panel -->
-  <div class="main-panel">
-    
-    <div class="content-area" id="contentArea_pipe">
-      <div id="d2PipeUnits"></div>
-    </div>
+  <!-- Tabs -->
+  <div class="tab-bar" id="eqTabs">
+    <button class="tab active">측정점-01 #P1<span class="tab-close">&#10005;</span></button>
+    <button class="tab add">+</button>
   </div>
 
-  </div>
+  <!-- Main -->
+  <div class="main">
 
-<!-- Copyright -->
-<footer class="footer-copyright">
-    <div class="footer-inner">
-        <span>© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</span>
+    <!-- LEFT -->
+    <div class="panel" id="left-panel">
+      <div class="section-title">&#9632; 배관 개요</div>
+      <table class="info-table">
+        <tr><th>배관명</th><th>측정 위치</th><th>POINT NO</th><th>비고</th></tr>
+        <tr>
+          <td><input id="inp-name" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><input id="inp-loc" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><input id="inp-no" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><input id="inp-note" placeholder="- 입력 -" onchange="recalc()"></td>
+        </tr>
+      </table>
+
+      <div class="section-title mt">&#9632; 배관 사양 Data</div>
+      <table class="cdt">
+        <thead><tr><th>재질</th><th>호칭경<br>[A]</th><th>외경 D<br>[mm]</th><th>공칭두께 Ti<br>[mm]</th></tr></thead>
+        <tbody><tr>
+          <td><select id="inp-mat" onchange="onMat()"></select></td>
+          <td><select id="inp-size" onchange="recalc()"></select></td>
+          <td class="calc"><span id="calc-od"></span></td>
+          <td class="calc"><span id="calc-ti"></span></td>
+        </tr></tbody>
+      </table>
+      <table class="cdt">
+        <thead><tr><th>운전압력 P<br>[MPa]</th><th>허용응력 S<br>[MPa]</th><th class="th-src" onclick="showFactorSrc('E')" title="기준·출처 보기">이음효율 E <span class="th-i">&#9432;</span></th><th class="th-src" onclick="showFactorSrc('CA')" title="기준·출처 보기">부식여유 CA<br>[mm] <span class="th-i">&#9432;</span></th><th>사용연수<br>[year]</th></tr></thead>
+        <tbody><tr>
+          <td><input id="inp-p" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><input id="inp-s" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><select id="inp-e" class="sel-toggle" onchange="recalc()"><option value="" selected>- 입력 -</option><option value="1.0">1.00 · Seamless</option><option value="1.0">1.00 · EFW+100%RT</option><option value="0.90">0.90 · EFW+Spot RT</option><option value="0.85">0.85 · ERW</option><option value="0.80">0.80 · EFW Single</option><option value="0.60">0.60 · Furnace Butt</option></select></td>
+          <td><select id="inp-ca" class="sel-toggle" onchange="recalc()"><option value="" selected>- 입력 -</option><option value="0">0 · STS/라이닝</option><option value="1.0">1.0 · 비부식성</option><option value="1.6">1.6 · 탄소강 최소</option><option value="3.0">3.0 · 경미부식</option><option value="6.0">6.0 · 심한부식</option></select></td>
+          <td><input id="inp-yr" placeholder="- 입력 -" onchange="recalc()"></td>
+        </tr></tbody>
+      </table>
+
+      <div class="section-title mt">&#9632; 초음파 두께 측정 Data <span style="font-size:9px;color:#888;font-weight:400">[단위: mm]</span></div>
+      <table class="mgrid" id="measGrid"></table>
+      <table class="cdt">
+        <thead><tr><th>최대두께</th><th>최소두께</th><th>평균두께</th></tr></thead>
+        <tbody><tr>
+          <td class="calc"><span id="calc-max"></span></td>
+          <td class="calc"><span id="calc-min"></span></td>
+          <td class="calc"><span id="calc-avg"></span></td>
+        </tr></tbody>
+      </table>
+
+      <div class="section-title mt">&#9632; 배관 두께 프로파일</div>
+      <div class="pipe-diagram" id="pipeDiagram"></div>
     </div>
-</footer>
 
-<!-- Photo Viewer -->
-<div class="fanEff-photo-viewer" id="fanefPhotoViewer" onclick="closeFanefPhotoViewer()">
-  <button class="fanEff-photo-viewer-close" onclick="closeFanefPhotoViewer()">&times;</button>
-  <img id="fanefPhotoViewerImg" src="" alt="Photo Viewer">
+    <!-- CENTER -->
+    <div class="panel" id="center-panel">
+      <div class="center-head">
+        <div class="section-title" id="centerTitle">&#9632; 두께 건전성 분석표</div>
+        <div class="center-icons">
+          <button type="button" class="ci-btn active" id="ciDoc" onclick="switchCenterView('perf')" title="두께 건전성 분석표 보기" aria-label="두께 건전성 분석표">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>
+          </button>
+          <button type="button" class="ci-btn" id="ciCam" onclick="switchCenterView('photo')" title="현장 사진 등록/촬영" aria-label="현장 사진 등록/촬영">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="perfView">
+      <div class="tbl-cap">배관 두께 분석 <span class="src">ASME B31.3 &middot; API 570 기준</span></div>
+      <table class="calc-table" id="analTable"></table>
+      <div class="tbl-cap" style="margin-top:36px">두께 비교 <span class="src">공칭 &middot; 최소허용 &middot; 측정최소</span></div>
+      <div class="bar-wrap" id="barWrap"></div>
+
+      <div class="residual">
+        &#8251; 압력설계두께 <b>t = P&middot;D &divide; (2&middot;(S&middot;E + P&middot;Y))</b> &nbsp;[mm] &nbsp;(ASME B31.3 &sect;304.1.1)<br>
+        &#8251; 최소허용두께 <b>t<sub>min</sub> = t + CA</b> &nbsp;(부식여유 포함, 구조최소두께와 비교하여 큰 값)<br>
+        &#8251; 부식속도 <b>CR = (Ti &minus; t<sub>측정최소</sub>) &divide; 사용연수</b> &nbsp;[mm/y] &nbsp;(API 570 &sect;7.1.2 장기부식률)<br>
+        &#8251; 잔존수명 <b>RL = (t<sub>측정최소</sub> &minus; t<sub>min</sub>) &divide; CR</b> &nbsp;[year] &nbsp;(API 570 &sect;7.2)<br>
+        &#8251; 최대사용압력 <b>MAWP = 2&middot;S&middot;E&middot;t<sub>측정최소</sub> &divide; D</b> &nbsp;[MPa] &nbsp;&middot;&nbsp; Y=0.4(강, T&lt;482&#8451;)
+      </div>
+
+      <div class="refs-card" onclick="showRefsSrc()" title="적용 표준 보기">
+        <h3>기준 및 출처 <span class="refs-more">&#9432; 상세 보기</span></h3>
+      </div>
+      </div><!-- /perfView -->
+
+      <div class="photo-view" id="photoView" style="display:none;">
+        <div class="tbl-cap">현장 사진 <span class="src">아이콘/영역을 클릭하여 촬영 또는 파일 선택</span></div>
+        <div class="photo-grid" id="photoGrid"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="panel" id="right-panel">
+      <div class="section-title">&#9632; 분석 결과</div>
+      <div class="metrics-area" id="metricsArea"></div>
+      <div class="section-title mt" style="margin-top:16px">&#9632; 두께 감육 현황</div>
+      <div id="lossWrap"></div>
+      <div class="section-title mt" style="margin-top:16px">&#9632; 건전성 진단</div>
+      <div class="diag" id="diag"></div>
+    </div>
+
+  </div>
 </div>
 
-<!-- Confirm Modal -->
-<div class="confirm-modal-overlay" id="confirmModalOverlay">
-  <div class="confirm-modal-box">
-    <div class="confirm-modal-title" id="confirmModalTitle"></div>
-    <div class="confirm-modal-desc" id="confirmModalDesc"></div>
-    <div class="confirm-modal-actions">
-      <button class="confirm-modal-btn cancel" onclick="hideConfirmModal()">취소</button>
-      <button class="confirm-modal-btn confirm" id="confirmModalBtn">확인</button>
-    </div>
-  </div>
+<div class="copyright">
+  &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
 </div>
 
-<!-- Toast Container -->
-<div class="toast-container" id="toastContainer"></div>
+<!-- Source Modal -->
+<div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
+  <div class="src-modal">
+    <div class="sm-head"><h3 id="srcModalTitle"></h3><button class="sm-close" onclick="closeSrcPopup()">&times;</button></div>
+    <div class="sm-body" id="srcModalBody"></div>
+  </div>
+</div>
 
 <script>
+const $=id=>document.getElementById(id);
+const PIPE_DB={"CU_K": {"label": "동관 Copper K (상수도·의료)", "std": "KS D 5301", "sizes": {"8": {"od": 9.52, "thk": 0.89}, "10": {"od": 12.7, "thk": 1.24}, "15": {"od": 15.88, "thk": 1.24}, "19": {"od": 19.05, "thk": 1.24}, "20": {"od": 22.22, "thk": 1.65}, "25": {"od": 28.58, "thk": 1.65}, "32": {"od": 34.92, "thk": 1.65}, "40": {"od": 41.28, "thk": 1.83}, "50": {"od": 53.98, "thk": 2.11}, "65": {"od": 66.68, "thk": 2.41}, "80": {"od": 79.38, "thk": 2.77}, "90": {"od": 92.08, "thk": 3.05}, "100": {"od": 104.78, "thk": 3.4}, "125": {"od": 130.18, "thk": 4.06}, "150": {"od": 155.58, "thk": 4.88}, "200": {"od": 206.38, "thk": 6.88}}}, "CU_L1": {"label": "동관 Copper L (상수도·공조·급수급탕)", "std": "KS D 5301", "sizes": {"8": {"od": 9.52, "thk": 0.76}, "10": {"od": 12.7, "thk": 0.89}, "15": {"od": 15.88, "thk": 1.02}, "19": {"od": 19.05, "thk": 1.07}, "20": {"od": 22.22, "thk": 1.14}, "25": {"od": 28.58, "thk": 1.27}, "32": {"od": 34.92, "thk": 1.4}, "40": {"od": 41.28, "thk": 1.52}, "50": {"od": 53.98, "thk": 1.78}, "65": {"od": 66.68, "thk": 2.03}, "80": {"od": 79.38, "thk": 2.29}, "90": {"od": 92.08, "thk": 2.54}, "100": {"od": 104.78, "thk": 2.79}, "125": {"od": 130.18, "thk": 3.18}, "150": {"od": 155.58, "thk": 3.56}, "200": {"od": 206.38, "thk": 5.08}, "250": {"od": 257.18, "thk": 6.35}}}, "CU_L2": {"label": "동관 Copper L (공조·급수급탕)", "std": "KS D 5301", "sizes": {"10": {"od": 12.7, "thk": 0.64}, "15": {"od": 15.88, "thk": 0.71}, "20": {"od": 22.22, "thk": 0.81}, "25": {"od": 28.58, "thk": 0.89}, "32": {"od": 34.92, "thk": 1.07}, "40": {"od": 41.28, "thk": 1.24}, "50": {"od": 53.98, "thk": 1.47}, "65": {"od": 66.68, "thk": 1.65}, "80": {"od": 79.38, "thk": 1.83}, "90": {"od": 92.08, "thk": 2.11}, "100": {"od": 104.78, "thk": 2.41}, "125": {"od": 130.18, "thk": 2.77}, "150": {"od": 155.58, "thk": 3.1}, "200": {"od": 206.38, "thk": 4.38}, "250": {"od": 257.18, "thk": 5.38}}}, "ST_GEN": {"label": "강관 (일반배관용)", "std": "KS D 3507", "sizes": {"13": {"od": 17.3, "thk": 2.35}, "15": {"od": 21.7, "thk": 2.65}, "20": {"od": 27.2, "thk": 2.65}, "25": {"od": 34.0, "thk": 3.25}, "32": {"od": 42.7, "thk": 3.25}, "40": {"od": 48.6, "thk": 3.25}, "50": {"od": 60.5, "thk": 3.65}, "65": {"od": 76.3, "thk": 3.65}, "80": {"od": 89.1, "thk": 4.05}, "90": {"od": 101.6, "thk": 4.04}, "100": {"od": 114.3, "thk": 4.5}, "125": {"od": 139.8, "thk": 4.85}, "150": {"od": 165.2, "thk": 4.85}, "200": {"od": 216.3, "thk": 5.85}, "250": {"od": 267.4, "thk": 6.4}, "300": {"od": 318.5, "thk": 7.0}, "350": {"od": 355.6, "thk": 7.6}, "400": {"od": 406.4, "thk": 7.9}, "450": {"od": 467.2, "thk": 7.9}, "500": {"od": 508.0, "thk": 7.9}, "550": {"od": 558.8, "thk": 7.9}}}, "ST_S40": {"label": "강관 SCH 40 (압력배관용)", "std": "KS D 3562", "sizes": {"13": {"od": 17.3, "thk": 2.3}, "15": {"od": 21.7, "thk": 2.8}, "20": {"od": 27.2, "thk": 2.9}, "25": {"od": 34.0, "thk": 3.4}, "32": {"od": 42.7, "thk": 3.6}, "40": {"od": 48.6, "thk": 3.7}, "50": {"od": 60.5, "thk": 3.9}, "65": {"od": 76.3, "thk": 5.2}, "80": {"od": 89.1, "thk": 5.5}, "90": {"od": 101.6, "thk": 5.7}, "100": {"od": 114.3, "thk": 6.0}, "125": {"od": 139.8, "thk": 6.0}, "150": {"od": 165.2, "thk": 7.1}, "200": {"od": 216.3, "thk": 8.2}, "250": {"od": 267.4, "thk": 9.3}, "300": {"od": 318.5, "thk": 10.3}, "350": {"od": 355.6, "thk": 11.1}, "400": {"od": 406.4, "thk": 12.7}, "450": {"od": 467.2, "thk": 14.3}, "500": {"od": 508.0, "thk": 15.1}, "550": {"od": 558.8, "thk": 15.9}}}, "ST_S80": {"label": "강관 SCH 80 (압력배관용)", "std": "KS D 3562", "sizes": {"13": {"od": 17.3, "thk": 2.8}, "15": {"od": 21.7, "thk": 3.2}, "20": {"od": 27.2, "thk": 3.4}, "25": {"od": 34.0, "thk": 3.9}, "32": {"od": 42.7, "thk": 4.5}, "40": {"od": 48.6, "thk": 4.5}, "50": {"od": 60.5, "thk": 4.9}, "65": {"od": 76.3, "thk": 6.0}, "80": {"od": 89.1, "thk": 6.6}, "90": {"od": 101.6, "thk": 7.0}, "100": {"od": 114.3, "thk": 7.1}, "125": {"od": 139.8, "thk": 8.1}, "150": {"od": 165.2, "thk": 9.3}, "200": {"od": 216.3, "thk": 10.3}, "250": {"od": 267.4, "thk": 12.7}, "300": {"od": 318.5, "thk": 14.3}, "350": {"od": 355.6, "thk": 15.1}, "400": {"od": 406.4, "thk": 16.7}, "450": {"od": 467.2, "thk": 19.0}, "500": {"od": 508.0, "thk": 20.6}}}, "STS_5": {"label": "STS 강관 SCH 5S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 1.0}, "8": {"od": 13.8, "thk": 1.2}, "10": {"od": 17.3, "thk": 1.2}, "15": {"od": 21.7, "thk": 1.65}, "20": {"od": 27.2, "thk": 1.65}, "25": {"od": 34.0, "thk": 1.65}, "32": {"od": 42.7, "thk": 1.65}, "40": {"od": 48.6, "thk": 1.65}, "50": {"od": 60.5, "thk": 1.65}, "65": {"od": 76.3, "thk": 2.1}, "80": {"od": 89.1, "thk": 2.1}, "90": {"od": 101.6, "thk": 2.1}, "100": {"od": 114.3, "thk": 2.1}, "125": {"od": 139.8, "thk": 2.8}, "150": {"od": 165.2, "thk": 2.8}, "200": {"od": 216.3, "thk": 2.8}, "250": {"od": 267.4, "thk": 3.4}, "300": {"od": 318.5, "thk": 4.0}}}, "STS_10": {"label": "STS 강관 SCH 10S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 1.2}, "8": {"od": 13.8, "thk": 1.65}, "10": {"od": 17.3, "thk": 1.65}, "15": {"od": 21.7, "thk": 2.1}, "20": {"od": 27.2, "thk": 2.1}, "25": {"od": 34.0, "thk": 2.8}, "32": {"od": 42.7, "thk": 2.8}, "40": {"od": 48.6, "thk": 2.8}, "50": {"od": 60.5, "thk": 2.8}, "65": {"od": 76.3, "thk": 3.0}, "80": {"od": 89.1, "thk": 3.0}, "90": {"od": 101.6, "thk": 3.0}, "100": {"od": 114.3, "thk": 3.0}, "125": {"od": 139.8, "thk": 3.4}, "150": {"od": 165.2, "thk": 3.4}, "200": {"od": 216.3, "thk": 4.0}, "250": {"od": 267.4, "thk": 4.0}, "300": {"od": 318.5, "thk": 4.5}}}, "STS_20": {"label": "STS 강관 SCH 20S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 1.5}, "8": {"od": 13.8, "thk": 2.0}, "10": {"od": 17.3, "thk": 2.0}, "15": {"od": 21.7, "thk": 2.5}, "20": {"od": 27.2, "thk": 2.5}, "25": {"od": 34.0, "thk": 3.0}, "32": {"od": 42.7, "thk": 3.0}, "40": {"od": 48.6, "thk": 3.0}, "50": {"od": 60.5, "thk": 3.5}, "65": {"od": 76.3, "thk": 3.5}, "80": {"od": 89.1, "thk": 4.0}, "90": {"od": 101.6, "thk": 4.0}, "100": {"od": 114.3, "thk": 4.0}, "125": {"od": 139.8, "thk": 5.0}, "150": {"od": 165.2, "thk": 5.0}, "200": {"od": 216.3, "thk": 6.5}, "250": {"od": 267.4, "thk": 6.5}, "300": {"od": 318.5, "thk": 6.5}}}, "STS_40": {"label": "STS 강관 SCH 40S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 1.7}, "8": {"od": 13.8, "thk": 2.2}, "10": {"od": 17.3, "thk": 2.3}, "15": {"od": 21.7, "thk": 2.8}, "20": {"od": 27.2, "thk": 2.9}, "25": {"od": 34.0, "thk": 3.4}, "32": {"od": 42.7, "thk": 3.6}, "40": {"od": 48.6, "thk": 3.7}, "50": {"od": 60.5, "thk": 3.9}, "65": {"od": 76.3, "thk": 5.2}, "80": {"od": 89.1, "thk": 5.5}, "90": {"od": 101.6, "thk": 5.7}, "100": {"od": 114.3, "thk": 6.0}, "125": {"od": 139.8, "thk": 6.6}, "150": {"od": 165.2, "thk": 7.1}, "200": {"od": 216.3, "thk": 8.2}, "250": {"od": 267.4, "thk": 9.3}, "300": {"od": 318.5, "thk": 10.3}}}, "STS_80": {"label": "STS 강관 SCH 80S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 2.4}, "8": {"od": 13.8, "thk": 3.0}, "10": {"od": 17.3, "thk": 3.2}, "15": {"od": 21.7, "thk": 3.7}, "20": {"od": 27.2, "thk": 3.9}, "25": {"od": 34.0, "thk": 4.5}, "32": {"od": 42.7, "thk": 4.9}, "40": {"od": 48.6, "thk": 5.1}, "50": {"od": 60.5, "thk": 5.5}, "65": {"od": 76.3, "thk": 7.0}, "80": {"od": 89.1, "thk": 7.6}, "90": {"od": 101.6, "thk": 8.1}, "100": {"od": 114.3, "thk": 8.6}, "125": {"od": 139.8, "thk": 9.5}, "150": {"od": 165.2, "thk": 11.0}, "200": {"od": 216.3, "thk": 12.7}, "250": {"od": 267.4, "thk": 15.1}, "300": {"od": 318.5, "thk": 17.4}}}, "CAST": {"label": "주철관 (Cast Iron)", "std": "KS D 4307", "sizes": {"80": {"od": 98.0, "thk": 6.7}, "100": {"od": 118.0, "thk": 6.8}, "150": {"od": 170.0, "thk": 7.0}, "200": {"od": 222.0, "thk": 7.1}, "250": {"od": 274.0, "thk": 7.5}, "300": {"od": 326.0, "thk": 8.0}, "350": {"od": 378.0, "thk": 8.5}, "400": {"od": 429.0, "thk": 9.0}, "450": {"od": 480.0, "thk": 9.5}, "500": {"od": 532.0, "thk": 10.0}, "600": {"od": 635.0, "thk": 11.0}, "700": {"od": 738.0, "thk": 12.0}, "800": {"od": 842.0, "thk": 13.0}, "900": {"od": 945.0, "thk": 14.0}, "1000": {"od": 1048.0, "thk": 15.0}, "1100": {"od": 1144.0, "thk": 16.0}, "1200": {"od": 1255.0, "thk": 17.0}}}};
+const Y_COEF=0.4;   /* ASME B31.3 Table 304.1.1 : ferritic/austenitic steel, T<482C */
 
-// ========== URL Parameters ==========
-const _urlParams = new URLSearchParams(window.location.search);
-const _projectId = _urlParams.get('projectId') || '';
-const _projectName = _urlParams.get('projectName') || '';
-
-// localStorage 키
-function _getStorageKey() {
-  return _projectId ? 'tool_pipe_' + _projectId : '';
-}
-
-// 프로젝트명 헤더에 표시
-function _showProjectLabel() {
-  var el = document.getElementById('projectLabel');
-  if (el && _projectName) {
-    el.textContent = '[' + decodeURIComponent(_projectName) + '] ';
+/* ---------- init selects & grid ---------- */
+(function init(){
+  var mo='<option value="" selected>- 입력 -</option>';
+  for(var k in PIPE_DB){ mo+='<option value="'+k+'">'+PIPE_DB[k].label+'</option>'; }
+  $('inp-mat').innerHTML=mo;
+  buildSizes('',null);
+  /* measure grid : 8 points x 4 angles */
+  var samp=[[5.9,5.8,5.7,5.9,5.8,5.7,5.9,5.8],
+            [5.6,5.5,5.4,5.5,5.3,5.4,5.5,5.6],
+            [5.2,5.0,4.9,4.8,5.0,5.1,5.2,5.3],
+            [5.7,5.6,5.5,5.6,5.7,5.6,5.5,5.6]];
+  var ang=['0&deg;','90&deg;','180&deg;','270&deg;'];
+  var h='<thead><tr><th style="width:26px">각도</th>';
+  for(var c=1;c<=8;c++) h+='<th>'+c+'</th>';
+  h+='</tr></thead><tbody>';
+  for(var r=0;r<4;r++){
+    h+='<tr><td class="ang">'+ang[r]+'</td>';
+    for(var c=0;c<8;c++){ h+='<td><input class="mc" data-r="'+r+'" data-c="'+c+'" placeholder="- 입력 -" onchange="recalc()"></td>'; }
+    h+='</tr>';
   }
-}
-
-// ===== 토스트 알림 =====
-function _showToast(message, type) {
-  var toast = document.getElementById('saveToast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'saveToast';
-    toast.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);padding:10px 28px;border-radius:8px;color:#fff;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';
-    document.body.appendChild(toast);
-  }
-  toast.textContent = message;
-  toast.style.background = type === 'success' ? '#27ae60' :
-                            type === 'warn' ? '#f39c12' : '#e74c3c';
-  toast.style.opacity = '1';
-  setTimeout(function() { toast.style.opacity = '0'; }, 2500);
-}
-
-// ===== Save 버튼 플래시 =====
-function _flashSaveButton() {
-  var btn = document.getElementById('btnSave');
-  if (!btn) return;
-  var orig = btn.textContent;
-  btn.textContent = 'Saved!';
-  btn.classList.add('saved');
-  setTimeout(function() {
-    btn.classList.remove('saved');
-    btn.textContent = orig;
-  }, 1200);
-}
-
-// ===== 프로젝트별 데이터 저장 (localStorage) =====
-function saveData() {
-  if (!_projectId) {
-    _showToast('프로젝트 정보가 없습니다. 대시보드에서 프로젝트를 선택해주세요.', 'warn');
-    return;
-  }
-
-  // 현재 활성 탭 데이터 저장
-  var st = diag2State['d2Pipe'];
-  if (st && st.activeTab) {
-    pipeEffSaveTabData('d2Pipe', st.activeTab);
-  }
-
-  // 전체 diag2State 직렬화
-  var stateSnapshot = {};
-  for (var type in diag2State) {
-    var s = diag2State[type];
-    stateSnapshot[type] = {
-      nextId: s.nextId,
-      activeTab: s.activeTab,
-      tabData: s.tabData
-    };
-  }
-
-  var payload = {
-    projectId: _projectId,
-    projectName: decodeURIComponent(_projectName),
-    savedAt: new Date().toISOString(),
-    diag2State: stateSnapshot,
-    photoStore: _photoStore || {}
-  };
-
-  try {
-    localStorage.setItem(_getStorageKey(), JSON.stringify(payload));
-    _showToast('저장되었습니다.', 'success');
-    _flashSaveButton();
-  } catch (e) {
-    _showToast('저장 실패: ' + e.message, 'error');
-  }
-}
-
-// ===== 프로젝트별 데이터 로드 (localStorage) =====
-function _loadProjectData() {
-  var key = _getStorageKey();
-  if (!key) return false;
-
-  try {
-    var raw = localStorage.getItem(key);
-    if (!raw) return false;
-    var payload = JSON.parse(raw);
-
-    // photoStore 복원
-    if (payload.photoStore) {
-      _photoStore = payload.photoStore;
-    }
-
-    // diag2State 복원
-    if (payload.diag2State) {
-      var stateData = payload.diag2State;
-
-      for (var type in stateData) {
-        var savedState = stateData[type];
-        if (!savedState || !savedState.tabData) continue;
-
-        // 탭 데이터 순회하여 탭 생성
-        var tabIds = Object.keys(savedState.tabData).map(Number).sort(function(a,b){return a-b;});
-
-        for (var i = 0; i < tabIds.length; i++) {
-          var tabId = tabIds[i];
-          var tabData = savedState.tabData[tabId];
-          if (!tabData) continue;
-
-          // 탭 추가 (첫 번째 탭은 DOMContentLoaded에서 이미 생성됨)
-          var createdId;
-          if (i === 0 && diag2State[type] && diag2State[type].activeTab) {
-            createdId = diag2State[type].activeTab;
-          } else {
-            createdId = window.addUnit(type);
-          }
-
-          if (createdId) {
-            diag2State[type].tabData[createdId] = tabData;
-            pipeEffRestoreTabData(type, createdId);
-
-            // 탭 라벨 업데이트
-            if (tabData['inp-equip']) {
-              var st = diag2State[type];
-              var btn = st.tabsEl.querySelector('.diag2-tab[data-tab-id="' + createdId + '"]');
-              if (btn) {
-                var labelEl = btn.querySelector('.diag2-tab-label');
-                if (labelEl) labelEl.textContent = tabData['inp-equip'];
-              }
-            }
-          }
-        }
-
-        // nextId 복원
-        if (savedState.nextId) {
-          diag2State[type].nextId = savedState.nextId;
-        }
-      }
-    }
-
-    return true;
-  } catch (e) {
-    console.warn('프로젝트 데이터 로드 실패:', e);
-    return false;
-  }
-}
-
-// ===== File Trans =====
-function exportFile() {
-  alert('파일 변환 기능');
-}
-
-// ===== Main 화면 이동 =====
-function GoMain() {
-  if (window.STD) {
-    STD.goMain((typeof saveData === 'function') ? saveData : null);
-  } else {
-    window.location.href = '../tool_dashboard.html';
-  }
-}
-
-// ===== Ctrl+S / Cmd+S 단축키 저장 =====
-window.addEventListener('keydown', function(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault();
-    saveData();
-  }
-});
-
-/* ===== PIPE TABLE DATA ===== */
-/* ===== PIPE TABLE DATA ===== */
-var PIPE_TABLE = {"Copper K(상수도, 의료)":{"8":{"od":9.52,"nt":0.89},"10":{"od":12.7,"nt":1.24},"15":{"od":15.88,"nt":1.24},"19":{"od":19.05,"nt":1.24},"20":{"od":22.22,"nt":1.65},"25":{"od":28.58,"nt":1.65},"32":{"od":34.92,"nt":1.65},"40":{"od":41.28,"nt":1.83},"50":{"od":53.98,"nt":2.11},"65":{"od":66.68,"nt":2.41},"80":{"od":79.38,"nt":2.77},"90":{"od":92.08,"nt":3.05},"100":{"od":104.78,"nt":3.4},"125":{"od":130.18,"nt":4.06},"150":{"od":155.58,"nt":4.88},"200":{"od":206.38,"nt":6.88}},"Copper L(상수도, 공조, 급수급탕)":{"8":{"od":9.52,"nt":0.76},"10":{"od":12.7,"nt":0.89},"15":{"od":15.88,"nt":1.02},"19":{"od":19.05,"nt":1.07},"20":{"od":22.22,"nt":1.14},"25":{"od":28.58,"nt":1.27},"32":{"od":34.92,"nt":1.4},"40":{"od":41.28,"nt":1.52},"50":{"od":53.98,"nt":1.78},"65":{"od":66.68,"nt":2.03},"80":{"od":79.38,"nt":2.29},"90":{"od":92.08,"nt":2.54},"100":{"od":104.78,"nt":2.79},"125":{"od":130.18,"nt":3.18},"150":{"od":155.58,"nt":3.56},"200":{"od":206.38,"nt":5.08},"250":{"od":257.18,"nt":6.35}},"Copper L (공조, 급수급탕)":{"10":{"od":12.7,"nt":0.64},"15":{"od":15.88,"nt":0.71},"20":{"od":22.22,"nt":0.81},"25":{"od":28.58,"nt":0.89},"32":{"od":34.92,"nt":1.07},"40":{"od":41.28,"nt":1.24},"50":{"od":53.98,"nt":1.47},"65":{"od":66.68,"nt":1.65},"80":{"od":79.38,"nt":1.83},"90":{"od":92.08,"nt":2.11},"100":{"od":104.78,"nt":2.41},"125":{"od":130.18,"nt":2.77},"150":{"od":155.58,"nt":3.1},"200":{"od":206.38,"nt":4.38},"250":{"od":257.18,"nt":5.38}},"강관":{"13":{"od":17.3,"nt":2.35},"15":{"od":21.7,"nt":2.65},"20":{"od":27.2,"nt":2.65},"25":{"od":34.0,"nt":3.25},"32":{"od":42.7,"nt":3.25},"40":{"od":48.6,"nt":3.25},"50":{"od":60.5,"nt":3.65},"65":{"od":76.3,"nt":3.65},"80":{"od":89.1,"nt":4.05},"90":{"od":101.6,"nt":4.04},"100":{"od":114.3,"nt":4.5},"125":{"od":139.8,"nt":4.85},"150":{"od":165.2,"nt":4.85},"200":{"od":216.3,"nt":5.85},"250":{"od":267.4,"nt":6.4},"300":{"od":318.5,"nt":7.0},"350":{"od":355.6,"nt":7.6},"400":{"od":406.4,"nt":7.9},"450":{"od":467.2,"nt":7.9},"500":{"od":508.0,"nt":7.9},"550":{"od":558.8,"nt":7.9}},"강관 SCH 40":{"13":{"od":17.3,"nt":2.3},"15":{"od":21.7,"nt":2.8},"20":{"od":27.2,"nt":2.9},"25":{"od":34.0,"nt":3.4},"32":{"od":42.7,"nt":3.6},"40":{"od":48.6,"nt":3.7},"50":{"od":60.5,"nt":3.9},"65":{"od":76.3,"nt":5.2},"80":{"od":89.1,"nt":5.5},"90":{"od":101.6,"nt":5.7},"100":{"od":114.3,"nt":6.0},"125":{"od":139.8,"nt":6.0},"150":{"od":165.2,"nt":7.1},"200":{"od":216.3,"nt":8.2},"250":{"od":267.4,"nt":9.3},"300":{"od":318.5,"nt":10.3},"350":{"od":355.6,"nt":11.1},"400":{"od":406.4,"nt":12.7},"450":{"od":467.2,"nt":14.3},"500":{"od":508.0,"nt":15.1},"550":{"od":558.8,"nt":15.9}},"강관 SCH 80":{"13":{"od":17.3,"nt":2.8},"15":{"od":21.7,"nt":3.2},"20":{"od":27.2,"nt":3.4},"25":{"od":34.0,"nt":3.9},"32":{"od":42.7,"nt":4.5},"40":{"od":48.6,"nt":4.5},"50":{"od":60.5,"nt":4.9},"65":{"od":76.3,"nt":6.0},"80":{"od":89.1,"nt":6.6},"90":{"od":101.6,"nt":7.0},"100":{"od":114.3,"nt":7.1},"125":{"od":139.8,"nt":8.1},"150":{"od":165.2,"nt":9.3},"200":{"od":216.3,"nt":10.3},"250":{"od":267.4,"nt":12.7},"300":{"od":318.5,"nt":14.3},"350":{"od":355.6,"nt":15.1},"400":{"od":406.4,"nt":16.7},"450":{"od":467.2,"nt":19.0},"500":{"od":508.0,"nt":20.6}},"STS SCH5":{"6":{"od":10.5,"nt":1.0},"8":{"od":13.8,"nt":1.2},"10":{"od":17.3,"nt":1.2},"15":{"od":21.7,"nt":1.65},"20":{"od":27.2,"nt":1.65},"25":{"od":34.0,"nt":1.65},"32":{"od":42.7,"nt":1.65},"40":{"od":48.6,"nt":1.65},"50":{"od":60.5,"nt":1.65},"65":{"od":76.3,"nt":2.1},"80":{"od":89.1,"nt":2.1},"90":{"od":101.6,"nt":2.1},"100":{"od":114.3,"nt":2.1},"125":{"od":139.8,"nt":2.8},"150":{"od":165.2,"nt":2.8},"200":{"od":216.3,"nt":2.8},"250":{"od":267.4,"nt":3.4},"300":{"od":318.5,"nt":4.0}},"STS SCH10":{"6":{"od":10.5,"nt":1.2},"8":{"od":13.8,"nt":1.65},"10":{"od":17.3,"nt":1.65},"15":{"od":21.7,"nt":2.1},"20":{"od":27.2,"nt":2.1},"25":{"od":34.0,"nt":2.8},"32":{"od":42.7,"nt":2.8},"40":{"od":48.6,"nt":2.8},"50":{"od":60.5,"nt":2.8},"65":{"od":76.3,"nt":3.0},"80":{"od":89.1,"nt":3.0},"90":{"od":101.6,"nt":3.0},"100":{"od":114.3,"nt":3.0},"125":{"od":139.8,"nt":3.4},"150":{"od":165.2,"nt":3.4},"200":{"od":216.3,"nt":4.0},"250":{"od":267.4,"nt":4.0},"300":{"od":318.5,"nt":4.5}},"STS SCH20":{"6":{"od":10.5,"nt":1.5},"8":{"od":13.8,"nt":2.0},"10":{"od":17.3,"nt":2.0},"15":{"od":21.7,"nt":2.5},"20":{"od":27.2,"nt":2.5},"25":{"od":34.0,"nt":3.0},"32":{"od":42.7,"nt":3.0},"40":{"od":48.6,"nt":3.0},"50":{"od":60.5,"nt":3.5},"65":{"od":76.3,"nt":3.5},"80":{"od":89.1,"nt":4.0},"90":{"od":101.6,"nt":4.0},"100":{"od":114.3,"nt":4.0},"125":{"od":139.8,"nt":5.0},"150":{"od":165.2,"nt":5.0},"200":{"od":216.3,"nt":6.5},"250":{"od":267.4,"nt":6.5},"300":{"od":318.5,"nt":6.5}},"STS SCH40":{"6":{"od":10.5,"nt":1.7},"8":{"od":13.8,"nt":2.2},"10":{"od":17.3,"nt":2.3},"15":{"od":21.7,"nt":2.8},"20":{"od":27.2,"nt":2.9},"25":{"od":34.0,"nt":3.4},"32":{"od":42.7,"nt":3.6},"40":{"od":48.6,"nt":3.7},"50":{"od":60.5,"nt":3.9},"65":{"od":76.3,"nt":5.2},"80":{"od":89.1,"nt":5.5},"90":{"od":101.6,"nt":5.7},"100":{"od":114.3,"nt":6.0},"125":{"od":139.8,"nt":6.6},"150":{"od":165.2,"nt":7.1},"200":{"od":216.3,"nt":8.2},"250":{"od":267.4,"nt":9.3},"300":{"od":318.5,"nt":10.3}},"STS SCH80":{"6":{"od":10.5,"nt":2.4},"8":{"od":13.8,"nt":3.0},"10":{"od":17.3,"nt":3.2},"15":{"od":21.7,"nt":3.7},"20":{"od":27.2,"nt":3.9},"25":{"od":34.0,"nt":4.5},"32":{"od":42.7,"nt":4.9},"40":{"od":48.6,"nt":5.1},"50":{"od":60.5,"nt":5.5},"65":{"od":76.3,"nt":7.0},"80":{"od":89.1,"nt":7.6},"90":{"od":101.6,"nt":8.1},"100":{"od":114.3,"nt":8.6},"125":{"od":139.8,"nt":9.5},"150":{"od":165.2,"nt":11.0},"200":{"od":216.3,"nt":12.7},"250":{"od":267.4,"nt":15.1},"300":{"od":318.5,"nt":17.4}},"주철관":{"80":{"od":98.0,"nt":6.7},"100":{"od":118.0,"nt":6.8},"150":{"od":170.0,"nt":7.0},"200":{"od":222.0,"nt":7.1},"250":{"od":274.0,"nt":7.5},"300":{"od":326.0,"nt":8.0},"350":{"od":378.0,"nt":8.5},"400":{"od":429.0,"nt":9.0},"450":{"od":480.0,"nt":9.5},"500":{"od":532.0,"nt":10.0},"600":{"od":635.0,"nt":11.0},"700":{"od":738.0,"nt":12.0},"800":{"od":842.0,"nt":13.0},"900":{"od":945.0,"nt":14.0},"1000":{"od":1048.0,"nt":15.0},"1100":{"od":1144.0,"nt":16.0},"1200":{"od":1255.0,"nt":17.0}}};
-
-var PIPE_BLOCKS = [
-    { mat: 'Copper K(상수도, 의료)',          group: 'COPPER TUBE' },
-    { mat: 'Copper L(상수도, 공조, 급수급탕)', group: 'COPPER TUBE' },
-    { mat: 'Copper L (공조, 급수급탕)',        group: 'COPPER TUBE' },
-    { mat: '강관',        group: 'STEEL PIPE' },
-    { mat: '강관 SCH 40', group: 'STEEL PIPE' },
-    { mat: '강관 SCH 80', group: 'STEEL PIPE' },
-    { mat: 'STS SCH5',  group: 'STAINLESS (STS)' },
-    { mat: 'STS SCH10', group: 'STAINLESS (STS)' },
-    { mat: 'STS SCH20', group: 'STAINLESS (STS)' },
-    { mat: 'STS SCH40', group: 'STAINLESS (STS)' },
-    { mat: 'STS SCH80', group: 'STAINLESS (STS)' },
-    { mat: '주철관',     group: 'CAST IRON' }
-  ];
-
-var PIPE_ANGLES = [0, 90, 180, 270];
-var PIPE_COLS = 8;
-
-var FANEF_PHOTO_COUNT = 6;
-
-/* ===== Utility Functions ===== */
-function _pn(v) {
-  if (typeof v === 'number') return v;
-  if (!v) return 0;
-  return parseFloat(String(v).replace(/,/g,'')) || 0;
-}
-
-function _fc(v, dec) {
-  if (v === '' || v === null || v === undefined) return '';
-  var n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g,''));
-  if (isNaN(n)) return String(v);
-  if (typeof dec === 'number') n = parseFloat(n.toFixed(dec));
-  var parts = String(n).split('.');
-  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  if (typeof dec === 'number' && dec > 0) {
-    parts[1] = (parts[1] || '').padEnd(dec, '0').substring(0, dec);
-  }
-  return (typeof dec === 'number' && dec === 0) ? parts[0] : parts.join('.');
-}
-
-/* ===== Toast / Confirm Modal ===== */
-function showToast(msg) {
-  var container = document.getElementById('toastContainer');
-  var toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = msg;
-  container.appendChild(toast);
-  setTimeout(function() { toast.remove(); }, 3000);
-}
-
-var _confirmCallback = null;
-function showConfirmModal(title, desc, callback) {
-  var overlay = document.getElementById('confirmModalOverlay');
-  var titleEl = document.getElementById('confirmModalTitle');
-  var descEl = document.getElementById('confirmModalDesc');
-  var btnEl = document.getElementById('confirmModalBtn');
-
-  titleEl.textContent = title;
-  descEl.textContent = desc;
-  _confirmCallback = callback;
-
-  if (callback) {
-    btnEl.style.display = '';
-    btnEl.onclick = function() {
-      hideConfirmModal();
-      if (_confirmCallback) _confirmCallback();
-    };
-  } else {
-    btnEl.style.display = 'none';
-  }
-
-  overlay.classList.add('active');
-}
-
-function hideConfirmModal() {
-  var overlay = document.getElementById('confirmModalOverlay');
-  overlay.classList.remove('active');
-  _confirmCallback = null;
-}
-
-/* ===== Photo Viewer ===== */
-function closeFanefPhotoViewer() {
-  var viewer = document.getElementById('fanefPhotoViewer');
-  if (viewer) viewer.classList.remove('active');
-}
-
-/* ===== diag2-tabs.js - PIPE Only ===== */
-(function () {
-  'use strict';
-
-  var diag2State = {};
-  var PREFIX_MAP = { d2Pipe: 'PIPE' };
-
-  function isPipeType(type) { return type === 'd2Pipe'; }
-
-  /* Add Unit */
-  window.addUnit = function (type, equipName, equipData) {
-    if (type !== 'd2Pipe') return;
-    return diag2AddTab(type, equipName, equipData);
-  };
-
-  function diag2AddTab(type, equipName, equipData) {
-    var st = diag2State[type];
-
-    if (!st) {
-      st = { nextId: 1, activeTab: null, barEl: null, tabsEl: null, contentEl: null, tabData: {} };
-      diag2State[type] = st;
-
-      var container = document.getElementById(type + 'Units');
-      if (!container) return;
-
-      var bar = document.createElement('div');
-      bar.className = 'diag2-tab-bar';
-
-      var tabs = document.createElement('div');
-      tabs.className = 'diag2-tab-list';
-
-      /* + 버튼 추가 (tab.add) */
-      var addBtn = document.createElement('div');
-      addBtn.className = 'diag2-tab add';
-      addBtn.textContent = '+';
-      addBtn.onclick = function() { window.addUnit(type); };
-      tabs.appendChild(addBtn);
-
-      bar.appendChild(tabs);
-      container.appendChild(bar);
-
-      var contentArea = document.createElement('div');
-      contentArea.className = 'diag2-content-area';
-      container.appendChild(contentArea);
-
-      st.barEl = bar;
-      st.tabsEl = tabs;
-      st.contentEl = contentArea;
-    }
-
-    var id = st.nextId++;
-    var abbr = PREFIX_MAP[type] || 'EQ';
-    var label = abbr + ' #' + String(id).padStart(2, '0');
-
-    var btn = document.createElement('div');
-    btn.className = 'diag2-tab active';
-    btn.setAttribute('data-tab-id', id);
-
-    var span = document.createElement('span');
-    span.className = 'diag2-tab-label';
-    span.textContent = label;
-
-    var closeBtn = document.createElement('span');
-    closeBtn.className = 'diag2-tab-close';
-    closeBtn.textContent = '\u00D7';
-    closeBtn.onclick = function (e) {
-      e.stopPropagation();
-      diag2RemoveTab(type, id, btn);
-    };
-
-    btn.appendChild(span);
-    btn.appendChild(closeBtn);
-    btn.onclick = function () { diag2SwitchTab(type, id); };
-
-    if (st.activeTab) {
-      pipeEffSaveTabData(type, st.activeTab);
-    }
-    var all = st.tabsEl.querySelectorAll('.diag2-tab');
-    for (var i = 0; i < all.length; i++) {
-      all[i].classList.remove('active');
-    }
-
-    /* + 버튼 앞에 새 탭 삽입 */
-    var addBtnEl = st.tabsEl.querySelector('.diag2-tab.add');
-    if (addBtnEl) {
-      st.tabsEl.insertBefore(btn, addBtnEl);
-    } else {
-      st.tabsEl.appendChild(btn);
-    }
-    st.activeTab = id;
-
-    st.tabData[id] = null;
-    pipeEffRenderPanel(type, id);
-
-    if (equipName) {
-      var pfx = type + '-' + id + '-';
-      var eqInput = document.getElementById(pfx + 'inp-equip');
-      if (eqInput) eqInput.value = equipName;
-      var labelEl = btn.querySelector('.diag2-tab-label');
-      if (labelEl) labelEl.textContent = equipName;
-    }
-
-    if (equipData) {
-      var ed = equipData;
-      var pfx2 = type + '-' + id + '-';
-      var fieldMap = {
-        'name': 'inp-equip',
-        'location': 'inp-loc',
-        'use': 'inp-use',
-        'note': 'inp-note',
-        'material': 'inp-material',
-        'dia': 'inp-dia'
-      };
-      for (var key in fieldMap) {
-        if (ed[key] !== undefined && ed[key] !== '') {
-          var targetEl = document.getElementById(pfx2 + fieldMap[key]);
-          if (targetEl) targetEl.value = ed[key];
-        }
-      }
-      pipeApplyLookup(pfx2);
-      pipeEffRecalc(pfx2);
-    }
-
-    return id;
-  }
-
-  function diag2SwitchTab(type, tabId) {
-    var st = diag2State[type];
-    if (!st || st.activeTab === tabId) return;
-
-    if (st.activeTab) {
-      pipeEffSaveTabData(type, st.activeTab);
-    }
-
-    var all = st.tabsEl.querySelectorAll('.diag2-tab');
-    for (var i = 0; i < all.length; i++) {
-      var tid = Number(all[i].getAttribute('data-tab-id'));
-      all[i].classList.toggle('active', tid === tabId);
-    }
-    st.activeTab = tabId;
-
-    pipeEffRenderPanel(type, tabId);
-    pipeEffRestoreTabData(type, tabId);
-  }
-
-  function diag2RemoveTab(type, tabId, btnEl) {
-    var st = diag2State[type];
-    var tabs = st.tabsEl.querySelectorAll('.diag2-tab');
-
-    if (tabs.length <= 1) {
-      showConfirmModal('삭제 불가', '최소 1개의 장비는 유지해야 합니다.', null);
-      return;
-    }
-
-    var label = btnEl.querySelector('.diag2-tab-label').textContent;
-    showConfirmModal(
-      '"' + label + '" 장비를 삭제하시겠습니까?',
-      '입력하신 데이터가 모두 사라집니다.',
-      function() {
-        btnEl.remove();
-        delete st.tabData[tabId];
-
-        if (typeof _photoStore !== 'undefined') {
-          delete _photoStore[type + '-' + tabId + '-'];
-        }
-
-        if (st.activeTab === tabId) {
-          var remaining = st.tabsEl.querySelectorAll('.diag2-tab');
-          if (remaining.length) {
-            var first = remaining[0];
-            first.classList.add('active');
-            st.activeTab = Number(first.getAttribute('data-tab-id'));
-            pipeEffRenderPanel(type, st.activeTab);
-            pipeEffRestoreTabData(type, st.activeTab);
-          } else {
-            st.contentEl.innerHTML = '';
-            st.activeTab = null;
-          }
-        }
-        showToast('✅ ' + label + ' 삭제 완료');
-      }
-    );
-  }
-
-  /* ===== PIPE Panel ===== */
-  function pipeEffRenderPanel(type, tabId) {
-    var st = diag2State[type];
-    if (!st || !st.contentEl) return;
-
-    var p = type + '-' + tabId + '-';
-    st.contentEl.innerHTML = pipeEffBuildHTML(p, tabId, type);
-
-    pipeEffInitMeasGrid(p);
-    pipeEffBindEvents(p, type, tabId);
-    pipeEffRecalc(p);
-  }
-
-  function pipeNominalKey(diaStr) {
-    if (!diaStr) return '';
-    var m = String(diaStr).match(/(\d+(?:\.\d+)?)/);
-    return m ? String(parseFloat(m[1])) : '';
-  }
-
-  function pipeLookup(material, diaStr) {
-    if (!material || !PIPE_TABLE[material]) return null;
-    var key = pipeNominalKey(diaStr);
-    if (!key) return null;
-    var rec = PIPE_TABLE[material][key];
-    return rec ? { od: rec.od, nt: rec.nt } : null;
-  }
-
-  function pipeApplyLookup(p) {
-    var matEl = document.getElementById(p + 'inp-material');
-    var diaEl = document.getElementById(p + 'inp-dia');
-    if (!matEl || !diaEl) return;
-    var rec = pipeLookup(matEl.value, diaEl.value);
-    var odEl = document.getElementById(p + 'inp-od');
-    var ntEl = document.getElementById(p + 'inp-nt');
-    var nomEl = document.getElementById(p + 'inp-nominal');
-    if (nomEl) nomEl.value = diaEl.value || '';
-    if (rec) {
-      if (odEl) odEl.value = rec.od;
-      if (ntEl) ntEl.value = rec.nt;
-    }
-  }
-  window.pipeApplyLookup = pipeApplyLookup;
-
-  function pipeEffBuildHTML(p, tabId, type) {
-    var html = '';
-    html += '<div class="fanEff-unit-panel"><div class="fanEff-main">';
-
-    /* LEFT PANEL */
-    html += '<div class="fanEff-panel" id="' + p + 'left-panel">';
-
-    html += '<div class="fanEff-section-title">■ 장비 개요</div>';
-    html += '<table class="info-table"><tr><th>장비</th><th>용도</th><th>비고</th></tr><tr>';
-    html += '<td><input id="' + p + 'inp-equip" value="" placeholder="P-01" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
-    html += '<td><input id="' + p + 'inp-use" value="" placeholder="용도" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
-    html += '<td><input id="' + p + 'inp-note" value="" placeholder="비고" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
-    html += '</tr></table>';
-
-    html += '<div class="fanEff-section-title" style="margin-top:4px;">■ 설계 Data</div>';
-    html += '<table class="info-table"><tr><th>측정위치</th><th>재질</th><th>배관경</th></tr><tr>';
-    html += '<td><input id="' + p + 'inp-loc" value="" placeholder="측정위치" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
-    html += '<td><input id="' + p + 'inp-material" value="" placeholder="재질(예: 강관)" onchange="window.pipeEffOnLookupChange(\'' + p + '\')"></td>';
-    html += '<td><input id="' + p + 'inp-dia" value="" placeholder="예: 100A" onchange="window.pipeEffOnLookupChange(\'' + p + '\')"></td>';
-    html += '</tr></table>';
-
-    html += '<div class="fanEff-section-title" style="margin-top:4px;">■ 측정 결과';
-    html += ' <button type="button" class="pipe-help-btn" onclick="window.pipeShowTable()" title="배관 관경표 보기">?</button></div>';
-    html += '<table class="info-table">';
-    html += '<tr><th>측정관경</th><th>외경<br>[mm]</th><th>공칭두께<br>[mm]</th><th>운전압력</th><th>허용응력</th><th>사용연수<br>[year]</th></tr><tr>';
-    html += '<td><input id="' + p + 'inp-nominal" type="text" readonly style="background:#f5f5f5;cursor:default;"></td>';
-    html += '<td style="background:#e0f7fa;"><input id="' + p + 'inp-od" type="text" readonly style="font-weight:700;color:#00838f;background:#e0f7fa;cursor:default;"></td>';
-    html += '<td style="background:#e0f7fa;"><input id="' + p + 'inp-nt" type="text" readonly style="font-weight:700;color:#00838f;background:#e0f7fa;cursor:default;"></td>';
-    html += '<td><input id="' + p + 'inp-press" type="text" inputmode="decimal" value="5.0" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
-    html += '<td><input id="' + p + 'inp-stress" type="text" inputmode="decimal" value="5.0" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
-    html += '<td><input id="' + p + 'inp-years" type="text" inputmode="decimal" value="" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
-    html += '</tr></table>';
-    html += '<div class="note">※ 최소허용두께 = (운전압력 × 외경) / (2 × 허용응력 + 운전압력) / 100 + 부식여유, SCH 및 동관의 경우 1cm</div>';
-
-    html += '<div class="data-input-section">';
-    html += '<div class="data-input-header"><span style="font-size:11px;font-weight:600;color:#333;">■ 측정치 입력 [mm]</span></div>';
-    html += '<div class="data-input-body">';
-    html += '<table class="info-table meas-grid-table" id="' + p + 'pipeGrid"><thead><tr><th>각도</th>';
-    for (var c = 1; c <= PIPE_COLS; c++) html += '<th>' + c + '</th>';
-    html += '</tr></thead><tbody>';
-    for (var a = 0; a < PIPE_ANGLES.length; a++) {
-      var ang = PIPE_ANGLES[a];
-      html += '<tr><td class="row-header">' + ang + '°</td>';
-      for (var c2 = 1; c2 <= PIPE_COLS; c2++) {
-        html += '<td><input id="' + p + 'g-' + ang + '-' + c2 + '" type="text" inputmode="decimal" value="" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
-      }
-      html += '</tr>';
-    }
-    html += '</tbody></table>';
-
-    html += '<table class="info-table meas-summary-table" style="margin-top:6px;">';
-    html += '<tbody>';
-    html += '<tr><th>최소 허용 두께<br>[mm]</th><th>측정 최소 두께<br>[mm]</th><th>부식두께<br>[mm]</th></tr>';
-    html += '<tr><td><input id="' + p + 'calc-min-allow" type="text" readonly class="meas-sum-val"></td>';
-    html += '<td><input id="' + p + 'calc-meas-min" type="text" readonly class="meas-sum-val"></td>';
-    html += '<td><input id="' + p + 'calc-corr" type="text" readonly class="meas-sum-val"></td></tr>';
-    html += '<tr><th>최대 부식 속도<br>[mm/year]</th><th>추정 잔존 수명<br>[year]</th><th>등급<br>[Level]</th></tr>';
-    html += '<tr><td><input id="' + p + 'calc-corr-rate" type="text" readonly class="meas-sum-val"></td>';
-    html += '<td><input id="' + p + 'calc-life" type="text" readonly class="meas-sum-val"></td>';
-    html += '<td><input id="' + p + 'calc-grade" type="text" readonly class="meas-sum-val"></td></tr>';
-    html += '</tbody></table>';
-    html += '</div></div>';
-    html += '</div>';
-
-    /* CENTER PANEL - Photos */
-    html += '<div class="fanEff-panel fanEff-center-panel" id="' + p + 'center-panel">';
-    html += '<div class="fanEff-section-title">■ 현장 사진</div>';
-    html += '<div class="fanEff-photo-grid" id="' + p + 'photoGrid">';
-    for (var i = 0; i < FANEF_PHOTO_COUNT; i++) {
-      html += '<div class="fanEff-photo-slot" id="' + p + 'photoSlot' + i + '">';
-      html += '<div class="fanEff-photo-desc"><input type="text" placeholder="사진 ' + (i+1) + ' 설명" id="' + p + 'photoDesc' + i + '"></div>';
-      html += '<div class="fanEff-photo-display" onclick="window.fanEffTriggerPhoto(\'' + p + '\',' + i + ')">';
-      html += '<div class="fanEff-photo-num">' + (i+1) + '</div>';
-      html += '<div class="fanEff-photo-empty" id="' + p + 'photoEmpty' + i + '">';
-      html += '<div class="fanEff-cam-icon">📷</div><div class="fanEff-cam-text">사진 ' + (i+1) + '</div><div class="fanEff-cam-sub">클릭하여 촬영/선택</div>';
-      html += '</div>';
-      html += '<div class="fanEff-photo-preview" id="' + p + 'photoPreview' + i + '" style="display:none;">';
-      html += '<img id="' + p + 'photoImg' + i + '" src="" alt="사진 ' + (i+1) + '">';
-      html += '<div class="fanEff-photo-actions">';
-      html += '<button class="fanEff-photo-btn" onclick="event.stopPropagation();window.fanEffViewPhoto(\'' + p + '\',' + i + ')" title="크게 보기">🔍</button>';
-      html += '<button class="fanEff-photo-btn" onclick="event.stopPropagation();window.fanEffTriggerPhoto(\'' + p + '\',' + i + ')" title="다시 찍기">🔄</button>';
-      html += '<button class="fanEff-photo-btn del" onclick="event.stopPropagation();window.fanEffRemovePhoto(\'' + p + '\',' + i + ')" title="삭제">✕</button>';
-      html += '</div></div></div>';
-      html += '<input type="file" accept="image/*" capture="environment" id="' + p + 'photoInput' + i + '" style="display:none;" onchange="window.fanEffHandlePhoto(\'' + p + '\',' + i + ',this)">';
-      html += '</div>';
-    }
-    html += '</div></div>';
-
-    /* RIGHT PANEL - Analysis */
-    html += '<div class="fanEff-panel fanEff-right-panel" id="' + p + 'right-panel">';
-    html += '<div class="fanEff-section-title">■ 분석 결과</div>';
-    html += '<div class="pipe-chart-area">';
-    var bars = [
-      { key: 'nominal', label: '공칭 두께', color: '#555555' },
-      { key: 'allow', label: '최소 허용 두께', color: '#e85d24' },
-      { key: 'measmin', label: '측정 최소 두께', color: '#00838f' }
-    ];
-    for (var b = 0; b < bars.length; b++) {
-      html += '<div class="pipe-bar-group">';
-      html += '<div class="pipe-bar-value" id="' + p + 'pbv-' + bars[b].key + '">-</div>';
-      html += '<div class="pipe-bar-track"><div class="pipe-bar-fill" id="' + p + 'pb-' + bars[b].key + '" style="height:0%;background:' + bars[b].color + ';"></div></div>';
-      html += '<div class="pipe-bar-tag">' + bars[b].label + '</div>';
-      html += '</div>';
-    }
-    html += '</div>';
-
-    html += '<div class="analysis-row analysis-row-result">';
-    html += '<div class="analysis-row-header"><span class="analysis-row-label result">결과</span><span class="analysis-row-sub">두께측정 결과</span></div>';
-    html += '<textarea class="analysis-result-text" id="' + p + 'inp-performance-result" placeholder="두께측정 결과를 입력하세요..."></textarea>';
-    html += '<div class="analysis-check-group">';
-    html += '<label class="analysis-check-item good"><input type="checkbox" name="' + p + 'perf-check" value="good" onchange="window.pipeEffOnPerfCheck(\'' + p + '\',this)"><span class="analysis-check-dot good"></span><span>양호</span></label>';
-    html += '<label class="analysis-check-item maint"><input type="checkbox" name="' + p + 'perf-check" value="maintenance" onchange="window.pipeEffOnPerfCheck(\'' + p + '\',this)"><span class="analysis-check-dot maint"></span><span>교체권고</span></label>';
-    html += '<label class="analysis-check-item replace"><input type="checkbox" name="' + p + 'perf-check" value="replace" onchange="window.pipeEffOnPerfCheck(\'' + p + '\',this)"><span class="analysis-check-dot replace"></span><span>즉시교체</span></label>';
-    html += '</div></div>';
-
-    html += '</div>';
-    html += '</div></div>';
-    return html;
-  }
-
-  /* ===== PIPE Calculations ===== */
-  function pipeEffGetMeasMin(p) {
-    var vals = [];
-    for (var a = 0; a < PIPE_ANGLES.length; a++) {
-      for (var c = 1; c <= PIPE_COLS; c++) {
-        var el = document.getElementById(p + 'g-' + PIPE_ANGLES[a] + '-' + c);
-        if (el) { var v = _pn(el.value); if (el.value !== '' && v > 0) vals.push(v); }
-      }
-    }
-    if (!vals.length) return null;
-    return Math.min.apply(null, vals);
-  }
-
-  function pipeEffRecalc(p) {
-    var gv = function(id) { var el = document.getElementById(p + id); return el ? _pn(el.value) : 0; };
-    var sv = function(id, v) { var el = document.getElementById(p + id); if (el) el.value = v; };
-
-    var od = gv('inp-od');
-    var nt = gv('inp-nt');
-    var press = gv('inp-press');
-    var stress = gv('inp-stress');
-    var years = gv('inp-years');
-
-    var measMin = pipeEffGetMeasMin(p);
-
-    var matEl = document.getElementById(p + 'inp-material');
-    var matStr = matEl ? String(matEl.value) : '';
-    var corrAllow = (/SCH/i.test(matStr) || /Copper/i.test(matStr) || matStr.indexOf('동관') !== -1) ? 1 : 2.54;
-
-    var denom = 2 * stress + press;
-    var minAllow = (denom > 0 ? (press * od) / denom / 100 : 0) + corrAllow;
-    sv('calc-min-allow', _fc(minAllow, 2));
-
-    sv('calc-meas-min', measMin !== null ? _fc(measMin, 2) : '');
-
-    var corr = (nt > 0 && measMin !== null) ? (nt - measMin) : null;
-    sv('calc-corr', corr !== null ? _fc(corr, 2) : '');
-
-    var corrRate = (corr !== null && years > 0) ? (corr / years) : null;
-    sv('calc-corr-rate', corrRate !== null ? _fc(corrRate, 4) : '');
-
-    var lifeVal = null, lifeText = '';
-    if (measMin !== null && years > 0) {
-      if (corrRate !== null && corrRate > 0) {
-        lifeVal = (measMin - minAllow) / corrRate;
-      } else {
-        lifeVal = 999;
-      }
-      lifeText = lifeVal > 10 ? '10년이상' : _fc(lifeVal, 1);
-    }
-    sv('calc-life', lifeText);
-
-    var nominalV = nt > 0 ? nt : 0;
-    var allowV = minAllow;
-    var measV = measMin !== null ? measMin : 0;
-    pipeEffSetBars(p, nominalV, allowV, measV);
-
-    pipeEffAutoJudge(p, measMin, minAllow, lifeVal);
-  }
-  window.pipeEffRecalc = pipeEffRecalc;
-
-  function pipeEffSetBars(p, nominalV, allowV, measV) {
-    var maxV = Math.max(nominalV, allowV, measV, 0.01);
-    var set = function(key, val) {
-      var fill = document.getElementById(p + 'pb-' + key);
-      var lab = document.getElementById(p + 'pbv-' + key);
-      if (fill) fill.style.height = ((val / maxV) * 100).toFixed(1) + '%';
-      if (lab) lab.textContent = val > 0 ? _fc(val, 2) : '-';
-    };
-    set('nominal', nominalV);
-    set('allow', allowV);
-    set('measmin', measV);
-  }
-
-  function pipeEffAutoJudge(p, measMin, minAllow, lifeVal) {
-    var gradeEl = document.getElementById(p + 'calc-grade');
-    var textEl = document.getElementById(p + 'inp-performance-result');
-    if (measMin === null || lifeVal === null) {
-      if (gradeEl) { gradeEl.value = ''; gradeEl.style.color = ''; }
-      if (!textEl || !textEl._userJudged) {
-        var cbs0 = document.querySelectorAll('input[name="' + p + 'perf-check"]');
-        cbs0.forEach(function(cb) { cb.checked = false; });
-      }
-      return;
-    }
-
-    var judge, gradeKor;
-    if (measMin <= minAllow) { judge = 'replace'; gradeKor = '즉시 교체'; }
-    else if (lifeVal >= 10) { judge = 'good'; gradeKor = '양호'; }
-    else if (lifeVal >= 5) { judge = 'maintenance'; gradeKor = '교체 권고'; }
-    else { judge = 'replace'; gradeKor = '즉시 교체'; }
-
-    if (gradeEl) {
-      gradeEl.value = gradeKor;
-      gradeEl.style.color = judge === 'replace' ? '#e53e3e' : (judge === 'maintenance' ? '#ff8c00' : '#00838f');
-    }
-
-    var cbs = document.querySelectorAll('input[name="' + p + 'perf-check"]');
-    var anyChecked = false;
-    cbs.forEach(function(cb) { if (cb.checked) anyChecked = true; });
-    if (!anyChecked || !textEl || !textEl._userJudged) {
-      cbs.forEach(function(cb) { cb.checked = (cb.value === judge); });
-    }
-    if (textEl && !textEl._userEdited) {
-      textEl.value = '측정최소 ' + _fc(measMin, 2) + 'mm / 최소허용 ' + _fc(minAllow, 2) + 'mm — ' + gradeKor;
-    }
-  }
-
-  /* ===== Tab Data Save/Restore ===== */
-  var ALL_PIPE_FIELDS = [
-    'inp-equip','inp-use','inp-note','inp-loc','inp-material','inp-dia',
-    'inp-nominal','inp-od','inp-nt','inp-press','inp-stress','inp-years',
-    'calc-min-allow','calc-meas-min','calc-corr','calc-corr-rate','calc-life','calc-grade',
-    'inp-performance-result'
-  ];
-
-  function pipeEffSaveTabData(type, tabId) {
-    var st = diag2State[type];
-    if (!st) return;
-    var p = type + '-' + tabId + '-';
-    var data = {};
-    ALL_PIPE_FIELDS.forEach(function(suf) {
-      var el = document.getElementById(p + suf);
-      data[suf] = el ? el.value : '';
-    });
-    data['_grid'] = pipeEffSaveGrid(p);
-    data['_photos'] = _getPhotoStore(p).map(function(item, idx) {
-      var descEl = document.getElementById(p + 'photoDesc' + idx);
-      return { img: item.img, desc: descEl ? descEl.value : '' };
-    });
-    var cbs = document.querySelectorAll('input[name="' + p + 'perf-check"]');
-    cbs.forEach(function(cb) { if (cb.checked) data['_perfCheck'] = cb.value; });
-    st.tabData[tabId] = data;
-  }
-
-  function pipeEffRestoreTabData(type, tabId) {
-    var st = diag2State[type];
-    if (!st || !st.tabData[tabId]) return;
-    var p = type + '-' + tabId + '-';
-    var data = st.tabData[tabId];
-    ALL_PIPE_FIELDS.forEach(function(suf) {
-      var el = document.getElementById(p + suf);
-      if (el && data[suf] !== undefined) el.value = data[suf];
-    });
-    if (data['_grid']) pipeEffRestoreGrid(p, data['_grid']);
-    if (data['_photos']) {
-      var store = _getPhotoStore(p);
-      data['_photos'].forEach(function(item, idx) {
-        store[idx] = { img: item.img, desc: item.desc };
-        var descEl = document.getElementById(p + 'photoDesc' + idx);
-        if (descEl) descEl.value = item.desc || '';
-        var emptyEl = document.getElementById(p + 'photoEmpty' + idx);
-        var prevEl = document.getElementById(p + 'photoPreview' + idx);
-        var imgEl = document.getElementById(p + 'photoImg' + idx);
-        if (item.img) {
-          if (emptyEl) emptyEl.style.display = 'none';
-          if (prevEl) prevEl.style.display = '';
-          if (imgEl) imgEl.src = item.img;
-        }
-      });
-    }
-    if (data['_perfCheck']) {
-      var cbs = document.querySelectorAll('input[name="' + p + 'perf-check"]');
-      cbs.forEach(function(cb) { cb.checked = (cb.value === data['_perfCheck']); });
-    }
-    pipeEffRecalc(p);
-  }
-
-  function pipeEffSaveGrid(p) {
-    var data = {};
-    for (var a = 0; a < PIPE_ANGLES.length; a++) {
-      for (var c = 1; c <= PIPE_COLS; c++) {
-        var id = 'g-' + PIPE_ANGLES[a] + '-' + c;
-        var el = document.getElementById(p + id);
-        data[id] = el ? el.value : '';
-      }
-    }
-    return data;
-  }
-
-  function pipeEffRestoreGrid(p, data) {
-    if (!data) return;
-    for (var k in data) {
-      var el = document.getElementById(p + k);
-      if (el) el.value = data[k];
-    }
-  }
-
-  function pipeEffInitMeasGrid(p) { /* Fixed grid - no init needed */ }
-
-  function pipeEffBindEvents(p, type, tabId) {
-    var equipEl = document.getElementById(p + 'inp-equip');
-    if (equipEl) {
-      equipEl.addEventListener('input', function() {
-        var st = diag2State[type];
-        if (!st) return;
-        var btn = st.tabsEl.querySelector('.diag2-tab[data-tab-id="' + tabId + '"]');
-        if (btn) {
-          var labelEl = btn.querySelector('.diag2-tab-label');
-          if (labelEl) {
-            var abbr = PREFIX_MAP[type] || 'EQ';
-            labelEl.textContent = equipEl.value || (abbr + ' #' + String(tabId).padStart(2, '0'));
-          }
-        }
-      });
-    }
-    var textEl = document.getElementById(p + 'inp-performance-result');
-    if (textEl) textEl.addEventListener('input', function() { textEl._userEdited = true; });
-  }
-
-  window.pipeEffOnChange = function(p) { pipeEffRecalc(p); };
-  window.pipeEffOnLookupChange = function(p) { pipeApplyLookup(p); pipeEffRecalc(p); };
-  window.pipeEffOnPerfCheck = function(p, el) {
-    var cbs = document.querySelectorAll('input[name="' + p + 'perf-check"]');
-    cbs.forEach(function(cb) { if (cb !== el) cb.checked = false; });
-    var textEl = document.getElementById(p + 'inp-performance-result');
-    if (textEl) textEl._userJudged = true;
-  };
-
-  /* ===== Pipe Table Modal ===== */
-  window.pipeShowTable = function() {
-    var ov = document.getElementById('pipeTableModal');
-    if (!ov) {
-      ov = document.createElement('div');
-      ov.id = 'pipeTableModal';
-      ov.className = 'pipe-modal-overlay';
-      ov.onclick = function(e) { if (e.target === ov) window.pipeHideTable(); };
-      ov.innerHTML = pipeBuildTableHTML();
-      document.body.appendChild(ov);
-    }
-    ov.style.display = 'flex';
-  };
-
-  window.pipeHideTable = function() {
-    var ov = document.getElementById('pipeTableModal');
-    if (ov) ov.style.display = 'none';
-  };
-
-  function pipeBuildTableHTML() {
-    var h = '<div class="pipe-modal-box">';
-    h += '<div class="pipe-modal-head"><span>배관 관경표</span><button class="pipe-modal-close" onclick="window.pipeHideTable()">✕</button></div>';
-    h += '<div class="pipe-modal-body">';
-    var lastGroup = '';
-    for (var i = 0; i < PIPE_BLOCKS.length; i++) {
-      var blk = PIPE_BLOCKS[i];
-      if (blk.group !== lastGroup) { h += '<div class="pipe-modal-group">' + blk.group + '</div>'; lastGroup = blk.group; }
-      var d = PIPE_TABLE[blk.mat] || {};
-      h += '<div class="pipe-modal-mat">' + blk.mat + '</div>';
-      h += '<table class="pipe-modal-table"><thead><tr><th>호칭경</th><th>외경(mm)</th><th>공칭두께(mm)</th></tr></thead><tbody>';
-      var keys = Object.keys(d).map(Number).sort(function(a,b){return a-b;});
-      for (var k = 0; k < keys.length; k++) {
-        var r = d[String(keys[k])];
-        h += '<tr><td>' + keys[k] + '</td><td>' + r.od + '</td><td>' + r.nt + '</td></tr>';
-      }
-      h += '</tbody></table>';
-    }
-    h += '</div></div>';
-    return h;
-  }
-
-  /* ===== Photo Handling ===== */
-  var _photoStore = {};
-
-  function _getPhotoStore(p) {
-    if (!_photoStore[p]) {
-      _photoStore[p] = [];
-      for (var i = 0; i < FANEF_PHOTO_COUNT; i++) _photoStore[p].push({ img: null, desc: '' });
-    }
-    return _photoStore[p];
-  }
-
-  window.fanEffTriggerPhoto = function(p, idx) {
-    var inp = document.getElementById(p + 'photoInput' + idx);
-    if (inp) inp.click();
-  };
-
-  window.fanEffHandlePhoto = function(p, idx, input) {
-    var file = input.files && input.files[0];
-    if (!file || !file.type.startsWith('image/')) return;
-    _resizeImg(file, 800, 0.7).then(function(dataURL) {
-      var photos = _getPhotoStore(p);
-      photos[idx].img = dataURL;
-      var emptyEl = document.getElementById(p + 'photoEmpty' + idx);
-      var prevEl = document.getElementById(p + 'photoPreview' + idx);
-      var imgEl = document.getElementById(p + 'photoImg' + idx);
-      if (emptyEl) emptyEl.style.display = 'none';
-      if (prevEl) { prevEl.style.display = ''; if (imgEl) imgEl.src = dataURL; }
-      input.value = '';
-    });
-  };
-
-  window.fanEffRemovePhoto = function(p, idx) {
-    var photos = _getPhotoStore(p);
-    photos[idx].img = null;
-    var emptyEl = document.getElementById(p + 'photoEmpty' + idx);
-    var prevEl = document.getElementById(p + 'photoPreview' + idx);
-    var imgEl = document.getElementById(p + 'photoImg' + idx);
-    if (emptyEl) emptyEl.style.display = '';
-    if (prevEl) prevEl.style.display = 'none';
-    if (imgEl) imgEl.src = '';
-  };
-
-  window.fanEffViewPhoto = function(p, idx) {
-    var photos = _getPhotoStore(p);
-    if (!photos[idx] || !photos[idx].img) return;
-    var viewer = document.getElementById('fanefPhotoViewer');
-    var vImg = document.getElementById('fanefPhotoViewerImg');
-    if (viewer && vImg) { vImg.src = photos[idx].img; viewer.classList.add('active'); }
-  };
-
-  function _resizeImg(file, maxSize, quality) {
-    return new Promise(function(resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        var img = new Image();
-        img.onload = function() {
-          var w = img.width, h = img.height;
-          if (w > maxSize || h > maxSize) {
-            if (w > h) { h = Math.round(h * (maxSize / w)); w = maxSize; }
-            else { w = Math.round(w * (maxSize / h)); h = maxSize; }
-          }
-          var canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        };
-        img.onerror = reject;
-        img.src = e.target.result;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
+  h+='</tbody>';
+  $('measGrid').innerHTML=h;
+  recalc();
 })();
 
-/* ===== Initialize with first equipment ===== */
-document.addEventListener('DOMContentLoaded', function() {
-  // 프로젝트명 헤더에 표시
-  _showProjectLabel();
 
-  // 기본 탭 추가
-  window.addUnit('d2Pipe');
+function applyPH(){
+  document.querySelectorAll('select').forEach(function(el){
+    var v=(el.value||'').trim();
+    if(v===''){ el.classList.add('ph'); } else { el.classList.remove('ph'); }
+  });
+}
+function buildSizes(mat,sel){
+  if(!mat||!PIPE_DB[mat]){ $('inp-size').innerHTML='<option value="" selected>- 입력 -</option>'; return; }
+  var s=PIPE_DB[mat].sizes, o='<option value="" selected>- 입력 -</option>';
+  for(var n in s){ o+='<option value="'+n+'"'+(n===sel?' selected':'')+'>'+n+'A</option>'; }
+  $('inp-size').innerHTML=o;
+}
+function onMat(){ var m=$('inp-mat').value; buildSizes(m,null); recalc(); }
 
-  // 프로젝트 데이터가 있으면 localStorage에서 로드
-  if (_projectId) {
-    setTimeout(function() {
-      _loadProjectData();
-    }, 100);
+function fnum(id){ var v=parseFloat($(id).value); return isNaN(v)?0:v; }
+function fmt(v,d){ if(!isFinite(v))return '-'; return v.toFixed(d==null?2:d); }
+
+/* ---------- core calc ---------- */
+function recalc(){
+  var mat=$('inp-mat').value, size=$('inp-size').value;
+  var rec=((PIPE_DB[mat]&&PIPE_DB[mat].sizes[size]))||{od:0,thk:0};
+  var D=rec.od, Ti=rec.thk;
+  $('calc-od').textContent=fmt(D,2);
+  $('calc-ti').textContent=fmt(Ti,2);
+
+  /* measured grid */
+  var vals=[];
+  document.querySelectorAll('.mc').forEach(function(el){ var v=parseFloat(el.value); if(!isNaN(v))vals.push(v); });
+  var tmax=vals.length?Math.max.apply(null,vals):0;
+  var tmin=vals.length?Math.min.apply(null,vals):0;
+  var tavg=vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:0;
+  $('calc-max').textContent=fmt(tmax,2);
+  $('calc-min').textContent=fmt(tmin,2);
+  $('calc-avg').textContent=fmt(tavg,2);
+
+  var P=fnum('inp-p'), S=fnum('inp-s'), E=fnum('inp-e'), CA=fnum('inp-ca'), yr=fnum('inp-yr');
+
+  /* ASME B31.3 pressure design thickness */
+  var tPress=(S>0)?(P*D)/(2*(S*E+P*Y_COEF)):0;
+  var tMin=tPress+CA;                 /* 최소 허용 두께 */
+  var corr=Ti-tmin;                   /* 부식(감육) 두께 */
+  var cr=(yr>0)?corr/yr:0;            /* 부식속도 mm/y (API570 장기) */
+  var rl=(cr>0)?(tmin-tMin)/cr:Infinity; /* 잔존수명 */
+  var mawp=(D>0)?(2*S*E*tmin)/D:0;    /* MAWP */
+  var lossPct=(Ti>0)?corr/Ti*100:0;  /* 감육률 */
+  var rlDisp=(!isFinite(rl))?'∞':(rl>=100?'100+':fmt(rl,1));
+  var rlCap=(rl>=10)?'10년 이상':fmt(rl,1)+'년';
+
+  /* judgments */
+  var ratio=(tMin>0)?tmin/tMin:0;
+  var jTh = ratio>=1.2?'ok':(ratio>=1.0?'warn':'bad');
+  var jCr = cr<=0.1?'ok':(cr<=0.25?'warn':'bad');
+  var jRl = (!isFinite(rl)||rl>=10)?'ok':(rl>=5?'warn':'bad');
+  var jLoss = lossPct<=20?'ok':(lossPct<=40?'warn':'bad');
+
+  /* ---- center table ---- */
+  var t='<thead><tr><th>항목</th><th>기호 / 산출식</th><th>값</th><th>단위</th></tr></thead><tbody>';
+  function row(l,f,v,u,cls){ return '<tr class="'+(cls||'')+'"><td class="lbl">'+l+'</td><td class="fx">'+f+'</td><td class="num">'+v+'</td><td>'+u+'</td></tr>'; }
+  t+=row('공칭 두께','Ti',fmt(Ti,2),'mm');
+  t+=row('압력설계두께','t = P·D / (2(S·E+P·Y))',fmt(tPress,3),'mm');
+  t+=row('최소 허용 두께','t<sub>min</sub> = t + CA',fmt(tMin,3),'mm','out');
+  t+=row('측정 최소 두께','A = min(측정값)',fmt(tmin,2),'mm','out');
+  t+=row('부식(감육) 두께','B = Ti − A',fmt(corr,2),'mm');
+  t+=row('부식속도','CR = B / 사용연수',fmt(cr,3),'mm/y');
+  t+=row('최대사용압력','MAWP = 2·S·E·A / D',fmt(mawp,3),'MPa');
+  t+=row('추정 잔존수명','RL = (A − t<sub>min</sub>) / CR',rlCap,'','eff');
+  t+='</tbody>';
+  $('analTable').innerHTML=t;
+
+  /* ---- bar compare ---- */
+  var maxv=Math.max(Ti,tMin,tmin,0.001);
+  function bar(lbl,v,color){
+    var w=(v/maxv*100).toFixed(1);
+    return '<div style="display:flex;align-items:center;gap:6px;margin:5px 0;font-size:10px">'+
+      '<div style="width:74px;color:#555;font-weight:600">'+lbl+'</div>'+
+      '<div style="flex:1;background:#f0f0f0;border-radius:3px;height:32px;position:relative">'+
+      '<div style="width:'+w+'%;background:'+color+';height:100%;border-radius:3px"></div></div>'+
+      '<div style="width:42px;text-align:right;font-weight:700;color:#333;font-variant-numeric:tabular-nums">'+fmt(v,2)+'</div></div>';
   }
-});
+  $('barWrap').innerHTML=bar('공칭 Ti',Ti,'#7f8c8d')+bar('측정최소',tmin,'#00838f')+bar('최소허용',tMin,'#ED7458');
 
+  /* ---- metric cards ---- */
+  var m='';
+  function card(lbl,sub,val,unit){ return '<div class="metric-card"><div class="ml"><div class="metric-label">'+lbl+'</div><div class="metric-sub">'+sub+'</div></div><div class="metric-value">'+val+'<span class="metric-unit">'+unit+'</span></div></div>'; }
+  m+=card('추정 잔존수명','Remaining Life',(rl>=10?'10년':fmt(rl,1)),(rl>=10?'이상':'년'));
+  m+=card('최대 부식속도','Corrosion Rate',fmt(cr,3),'mm/y');
+  m+=card('감육률','Metal Loss',fmt(lossPct,1),'%');
+  m+=card('최대사용압력','MAWP',fmt(mawp,2),'MPa');
+  $('metricsArea').innerHTML=m;
+
+  /* ---- loss gauge ---- */
+  var lp=Math.max(0,Math.min(100,lossPct));
+  var lc=jLoss==='ok'?'#00838f':(jLoss==='warn'?'#e0a800':'#ED7458');
+  $('lossWrap').innerHTML='<div style="font-size:10px;color:#555;margin-bottom:4px">공칭두께 대비 감육 '+fmt(lossPct,1)+'%</div>'+
+    '<div style="background:#f0f0f0;border-radius:4px;height:33px;position:relative">'+
+    '<div style="width:'+lp+'%;background:'+lc+';height:100%;border-radius:4px"></div>'+
+    '<div style="position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:#fff">잔여 '+fmt(100-lossPct,1)+'%</div></div>';
+
+  /* ---- diagnosis ---- */
+  var stat={ok:'양호',warn:'점검',bad:'불량'};
+  var d='';
+  function dd(cat,key,body){ return '<div class="d '+key+'"><div class="dhead">'+cat+' <span class="dstat">'+stat[key]+'</span></div><div class="dbody">'+body+'<span class="dsrc" onclick="showSrcPopup(\''+cat+'\',\''+key+'\')">기준&#9432;</span></div></div>'; }
+  d+=dd('두께 건전성',jTh,'측정최소 '+fmt(tmin,2)+' / 허용 '+fmt(tMin,2)+'mm (여유율 '+fmt((ratio-1)*100,0)+'%)');
+  d+=dd('부식속도',jCr,fmt(cr,3)+' mm/year');
+  d+=dd('잔존수명',jRl,rlCap);
+  d+=dd('종합 평가',worst([jTh,jCr,jRl,jLoss]),'4개 항목 종합');
+  $('diag').innerHTML=d;
+
+  /* ---- pipe section diagram ---- */
+  drawPipe(D,Ti,tmin,tMin);
+  applyPH();
+}
+
+function worst(arr){ if(arr.indexOf('bad')>=0)return 'bad'; if(arr.indexOf('warn')>=0)return 'warn'; return 'ok'; }
+
+function drawPipe(D,Ti,tmin,tMin){
+  var R=48, cx=60, cy=60;
+  var rIn=R-(R*Ti/(D/2))*1.1;
+  var rMeas=R-(R*tmin/(D/2))*1.1;
+  if(!isFinite(rIn)||rIn<10)rIn=18; if(!isFinite(rMeas)||rMeas<8)rMeas=rIn+3;
+  var svg='<svg viewBox="0 0 300 120" width="100%" style="max-width:340px;display:block;margin:0 auto;overflow:visible">'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="#c9d3d8" stroke="#7f8c8d" stroke-width="1"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+rMeas+'" fill="#fff" stroke="#00838f" stroke-width="1.2" stroke-dasharray="3 2"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+rIn+'" fill="#eaf6f8" stroke="#00838f" stroke-width="1"/>'+
+    '<text x="130" y="34" font-size="9" fill="#555">외경 D = '+fmt(D,1)+' mm</text>'+
+    '<text x="130" y="54" font-size="9" fill="#7f8c8d">공칭 Ti = '+fmt(Ti,2)+' mm</text>'+
+    '<text x="130" y="74" font-size="9" fill="#00838f">측정최소 = '+fmt(tmin,2)+' mm</text>'+
+    '<text x="130" y="94" font-size="9" fill="#ED7458">최소허용 = '+fmt(tMin,2)+' mm</text>'+
+    '</svg>';
+  $('pipeDiagram').innerHTML=svg;
+}
+
+/* ---------- 판정 기준 팝업 (API/ASME 근거) ---------- */
+const SRC_INFO={
+ '두께 건전성':{ std:'ASME B31.3 §304.1.1 (압력설계두께) · API 570 §7 · API 574 (구조최소두께 Annex D) · API 579-1/ASME FFS-1', unit:'측정최소 ÷ 최소허용',
+   desc:'측정 최소두께(A)를 최소 허용두께(t_min = 압력설계두께 t + 부식여유 CA)와 비교합니다. 압력설계두께는 ASME B31.3 §304.1.1 식 t = P·D/(2(S·E+P·Y))로 산출하며, 최소허용두께는 이 값과 API 574 구조최소두께 중 큰 값을 적용합니다. ▸측정값이 최소허용두께 미만이면 API 570에 따라 즉시 정비·교체 또는 FFS(API 579) 평가 대상입니다.',
+   rows:[['ok','≥ 120% (여유 20%↑)','양호 — 충분한 두께 여유'],['warn','100 ~ 120%','점검 — 허용두께 근접, 감시 강화'],['bad','< 100%','불량 — 최소허용 미달, 정비·교체']] },
+ '부식속도':{ std:'API 570 §7.1.2 (장기/단기 부식률) · API 571 (손상기구) · NACE 부식등급', unit:'부식속도 [mm/year]',
+   desc:'장기 부식률 CR = (Ti − 측정최소두께) ÷ 사용연수 [mm/y] (API 570 §7.1.2). 초기두께로 공칭두께 Ti를, 현재두께로 초음파 측정 최소두께를 사용합니다. ▸판정구간은 일반 탄소강 기준으로 0.1mm/y 이하 경미, 0.25mm/y 초과 시 심한 부식(약 10mpy)으로 분류하며, 부식률이 높을수록 검사주기를 단축(API 570 잔존수명의 1/2)해야 합니다.',
+   rows:[['ok','≤ 0.10 mm/y','양호 — 경미한 부식'],['warn','0.10 ~ 0.25 mm/y','점검 — 중간 부식, 주기 단축'],['bad','> 0.25 mm/y','불량 — 심한 부식, 원인 조치']] },
+ '잔존수명':{ std:'API 570 §7.2 (Remaining Life) · API 574 · API 510', unit:'추정 잔존수명 [year]',
+   desc:'잔존수명 RL = (측정최소두께 − 최소허용두께) ÷ 부식속도 [year] (API 570 §7.2). ▸API 570은 잔존수명의 1/2 또는 최대 검사주기(배관 등급별 5~10년) 중 짧은 값을 다음 검사주기로 정합니다. 잔존수명 5년 미만은 정밀점검·교체계획 수립, 10년 이상은 정상 운영으로 판정합니다.',
+   rows:[['ok','≥ 10년','양호 — 정상 운영'],['warn','5 ~ 10년','점검 — 교체계획 검토'],['bad','< 5년','불량 — 정비·교체 시급']] },
+ '종합 평가':{ std:'API 570 · API 574 · ASME B31.3 · KS D 3562/3576 · 산업안전보건기준', unit:'두께·부식속도·잔존수명·감육률 종합',
+   desc:'두께 건전성·부식속도·잔존수명·감육률 4개 항목을 종합 판정하며, 가장 낮은 등급을 종합등급으로 채택합니다(최소값 지배). 배관 두께 검사·평가는 API 570(운전 배관 검사코드)과 초음파 두께측정(ASTM E797 / KS B 0817)을 근거로 합니다.',
+   rows:[['ok','전 항목 양호','정상 운전 — 유지관리 지속'],['warn','일부 항목 점검','부분 저하 — 정밀점검·주기단축'],['bad','불량 항목 존재','성능 저하 — 정비·교체 필요']] }
+};
+function showSrcPopup(cat,curLv){ var info=SRC_INFO[cat]; if(!info)return;
+  var lvName={ok:'양호',warn:'점검 필요',bad:'불량'};
+  var rows=info.rows.map(function(r){ return '<tr class="'+(r[0]===curLv?'cur':'')+'"><td>'+r[1]+'</td><td><span class="lv-'+r[0]+'">'+lvName[r[0]]+'</span></td><td>'+(r[2].split('—')[1]?r[2].split('—')[1].trim():r[2])+'</td></tr>'; }).join('');
+  $('srcModalTitle').textContent=cat+' 판정 기준';
+  $('srcModalBody').innerHTML='<div class="sm-std">출처: '+info.std+'</div><div class="sm-desc">'+info.desc+'</div>'+
+    '<table><thead><tr><th>'+info.unit+'</th><th>판정</th><th>의미</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 측정값의 판정 구간입니다.</div>';
+  $('srcModalMask').classList.add('on');
+}
+function closeSrcPopup(){ $('srcModalMask').classList.remove('on'); }
+
+var FACTOR_SRC = {
+  E: {
+    title: '이음효율 E (Weld Joint Quality Factor)',
+    std: 'ASME B31.3 §304.1.1 · Table A-1B',
+    desc: '압력설계두께 식 t = P·D / (2(S·E + P·Y)) 의 이음효율(E). 배관 제조·용접 방식과 방사선검사(RT) 수준에 따라 결정됩니다. E가 작을수록 요구 두께가 커집니다.',
+    unit: '제조 / 검사 방식',
+    rows: [
+      ['1.00','Seamless (이음매 없음)'],
+      ['1.00','EFW + 100% 방사선검사(RT)'],
+      ['0.90','EFW + 스폿 RT'],
+      ['0.85','ERW (전기저항용접)'],
+      ['0.80','EFW Single Butt (제조상태)'],
+      ['0.60','Furnace Butt Weld']
+    ]
+  },
+  CA: {
+    title: '부식여유 CA (Corrosion Allowance)',
+    std: 'ASME B31.3 §304.1.1 · API 570 §7 · ISO 21457',
+    desc: '최소허용두께 t_min = t + CA 에 더해지는 부식여유[mm]. 고정값이 아니라 유체 부식성·설계수명(CA ≈ 부식속도 × 사용연수)에 따라 설계자가 결정합니다.',
+    unit: '서비스(유체) 조건',
+    rows: [
+      ['0','스테인리스 / 라이닝 배관'],
+      ['1.0','비부식성 서비스'],
+      ['1.6','탄소강 통상 최소 (1/16 in)'],
+      ['3.0','경미 부식성 (정유·화학·해수)'],
+      ['6.0','심한 부식성 서비스']
+    ]
+  }
+};
+function showFactorSrc(which){
+  var info=FACTOR_SRC[which]; if(!info)return;
+  var curEl=$(which==='E'?'inp-e':'inp-ca');
+  var cur=curEl?curEl.value:'';
+  var rows=info.rows.map(function(r){
+    var on=(parseFloat(r[0])===parseFloat(cur));
+    return '<tr class="'+(on?'cur':'')+'"><td style="text-align:center;font-weight:700;color:#1a4f8b">'+r[0]+'</td><td>'+r[1]+'</td></tr>';
+  }).join('');
+  $('srcModalTitle').textContent=info.title;
+  $('srcModalBody').innerHTML='<div class="sm-std">출처: '+info.std+'</div><div class="sm-desc">'+info.desc+'</div>'+
+    '<table><thead><tr><th style="width:60px;">값</th><th>'+info.unit+'</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 선택된 값입니다. 표 제목을 클릭하면 언제든 이 기준을 볼 수 있습니다.</div>';
+  $('srcModalMask').classList.add('on');
+}
+
+function showRefsSrc(){
+  var stds=[
+   ['API 570 〔미국·국제〕','In-service Piping Inspection Code — §7.1.2 장기/단기 부식률, §7.2 잔존수명, 검사주기 산정의 핵심 근거'],
+   ['API 574 〔미국·국제〕','Inspection Practices for Piping System Components — 구조 최소두께 표(Annex D), 초음파 두께측정 실무'],
+   ['API 510 / API 579-1 (ASME FFS-1) 〔미국·국제〕','압력용기 검사코드 및 Fitness-For-Service — 최소허용 미달 시 적합성 평가'],
+   ['ASME B31.3 §304.1.1 〔미국·국제〕','Process Piping — 압력설계두께 t = P·D/(2(S·E+P·Y)), Y계수(Table 304.1.1)·이음효율 E'],
+   ['ASME B31.1 §104.1.2 〔미국·국제〕','Power Piping(동력배관) — 증기·고온배관 두께 t = P·D/(2(S·E+P·y))+A'],
+   ['ASME B31G 〔미국·국제〕','Manual for Determining Remaining Strength of Corroded Pipelines — 국부감육 잔존강도 평가'],
+   ['API 571 〔미국·국제〕','Damage Mechanisms — 부식·감육 손상기구 식별 및 부식속도 판정 근거'],
+   ['KS D 3562 / 3507 / 3576 / 5301 〔한국〕','압력배관용·일반배관용 탄소강관, 배관용 STS 강관, 이음매없는 동관 — 외경·공칭두께 규격'],
+   ['ASTM E797 / KS B 0817 〔국제·한국〕','초음파 펄스-에코 두께 측정 방법 — 측정 데이터 신뢰성 근거'],
+   ['산업안전보건기준·에너지이용합리화법 〔한국〕','압력배관 안전관리 및 에너지진단 — 노후배관 진단·관리 근거'],
+   ['적용 계산식 〔산출식〕','① 압력설계두께 t = P·D ÷ (2(S·E + P·Y)) [mm] · ② 최소허용두께 t_min = t + CA · ③ 부식속도 CR = (Ti − 측정최소) ÷ 사용연수 · ④ 잔존수명 RL = (측정최소 − t_min) ÷ CR · ⑤ MAWP = 2·S·E·측정최소 ÷ D'],
+   ['설계계수 〔표준값〕','Y = 0.4 (강, 운전온도 482℃ 미만, ASME B31.3 Table 304.1.1) · E = 1.0(이음매없음/방사선검사) · CA = 부식여유(설계값, 통상 1.0~3.0mm)']
+  ];
+  var rows=stds.map(function(s){ return '<tr><td style="font-weight:700;color:#00838f;white-space:normal;word-break:keep-all;vertical-align:top;">'+s[0]+'</td><td style="white-space:normal;word-break:break-word;">'+s[1]+'</td></tr>'; }).join('');
+  $('srcModalTitle').textContent='기준 및 출처 — 적용 표준 (상세)';
+  $('srcModalBody').innerHTML='<div class="sm-desc">본 도구의 배관 두께·부식속도·잔존수명 판정에 적용된 국내외 공식 표준입니다. 미국·국제(API 570/574/510/579·ASME B31.3/B31.1/B31G)와 한국(KS D 배관규격·산업안전보건기준·에너지이용합리화법) 기준을 교차 적용하였습니다.</div>'+
+    '<table><thead><tr><th>적용 표준</th><th>내용</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  $('srcModalMask').classList.add('on');
+}
 </script>
-<script>window.__STD_TOOL='pipe';</script>
 <script>
-/* ============================================================
-   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
-   방식: localStorage 우선 + GitHub 동기화(가능 시)
-        + beforeunload 백업 + 저장 후 이동(GoMain)
-   ============================================================ */
+/* === HIMEC 저장/내보내기/메인 (Tool-402 동일) === */
 (function(){
-  if (window.STD) return;                         // 중복 주입 방지
-  var TOOL = window.__STD_TOOL || 'tool';
-  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
-  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
-  function pname(){ return qp('projectName') || qp('name') || ''; }
-  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
-  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
-
-  function genericData(){
-    var o={__std:true, t:Date.now(), fields:{}};
-    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
-      var ty=(el.type||'').toLowerCase();
-      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
-      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
-    });
-    return o;
-  }
-  function genericRestore(o){
-    if(!o||!o.fields) return;
-    Object.keys(o.fields).forEach(function(id){
-      var el=document.getElementById(id); if(!el) return;
-      var ty=(el.type||'').toLowerCase();
-      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
-      else el.value=o.fields[id];
-      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
-           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
-    });
-  }
-  function lsSave(){
-    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
-    catch(e){ console.warn('[STD] LS save fail', e); return false; }
-  }
-  function lsLoad(){
-    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
-  }
-  function ghSync(){
-    var p=ghPath();
-    if(p && typeof window.ghSaveFile==='function'){
-      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
-        .then(function(){ return true; })
-        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
-    }
-    return Promise.resolve(null);                 // GitHub 미사용 페이지
-  }
-  function toast(msg, type){
-    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
-    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
-    var el=document.getElementById('__stdToast');
-    if(!el){ el=document.createElement('div'); el.id='__stdToast';
-      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
-      document.body.appendChild(el); }
-    el.textContent=msg; el.style.opacity='1';
-    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
-  }
-
-  var dirty=false;
-  document.addEventListener('input', function(){ dirty=true; }, true);
-  document.addEventListener('change', function(){ dirty=true; }, true);
-
-  function save(pageSaver, opts){
-    opts=opts||{};
-    lsSave();                                     // 1) 항상 localStorage 백업
-    var hasPage=(typeof pageSaver==='function');
-    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
-      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
-        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
-    }
-    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
-      dirty=false;
-      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
-      return {gh:gh};
-    });
-  }
-  function load(pageLoader){
-    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
-    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
-  }
-  function goMain(pageSaver){
-    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../tool_dashboard.html';
-    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
-  }
-  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
-
-  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
-               genericData:genericData, genericRestore:genericRestore,
-               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+  function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
+  function fkey(el,i){ return el.id || el.name || ('f'+i); }
+  function storeKey(){ return 'HIMEC_SAVE::'+(location.pathname||document.title||'tool'); }
+  function himecSave(){ try{ var data={}; fields().forEach(function(el,i){ var k=fkey(el,i);
+    if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk',v:el.checked}; } else { data[k]={t:'val',v:el.value}; } });
+    localStorage.setItem(storeKey(), JSON.stringify(data)); alert('현재 화면의 입력값이 저장되었습니다.');
+    }catch(e){ alert('저장 중 오류가 발생했습니다: '+e.message); } }
+  function himecRestore(){ try{ var raw=localStorage.getItem(storeKey()); if(!raw)return; var data=JSON.parse(raw);
+    fields().forEach(function(el,i){ var rec=data[fkey(el,i)]; if(!rec)return;
+      if(rec.t==='chk'){ el.checked=!!rec.v; el.dispatchEvent(new Event('change',{bubbles:true})); }
+      else { el.value=rec.v; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); } });
+    }catch(e){} }
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m)m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m&&!m.contains(e.target))closeMenu(); }
+  function himecExport(btn){ if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML='<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>Excel로 내보내기</button>';
+    document.body.appendChild(m); var r=btn.getBoundingClientRect(); var left=window.scrollX+r.right-m.offsetWidth; if(left<6)left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px'; m.style.left=left+'px';
+    m.addEventListener('click', function(e){ var t=e.target.closest('button'); if(!t)return; var x=t.getAttribute('data-x'); closeMenu(); if(x==='pdf')himecPDF(); else himecExcel(); });
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0); }
+  function himecPDF(){ window.print(); }
+  function himecExcel(){ alert('Excel 내보내기는 추후 별도 양식으로 제공될 예정입니다.'); }
+  function himecMain(){ location.href = '../tool_dashboard.html'; }
+  window.himecSave=himecSave; window.himecExport=himecExport; window.himecMain=himecMain;
+  if(document.readyState==='loading'){ window.addEventListener('DOMContentLoaded', function(){ setTimeout(himecRestore,60); }); }
+  else { setTimeout(himecRestore,60); }
 })();
 </script>
+<script>
+/* === 센터 뷰 전환(두께 건전성 분석표 <-> 현장 사진) + 사진 등록/촬영 (Tool-402 동일) === */
+(function(){
+  var PHOTO_LABELS = [
+    "사진 1 (예: 배관 외관)",
+    "사진 2 (예: 측정 위치)",
+    "사진 3 (예: 감육 / 부식부)",
+    "사진 4 (예: 용접부 / 이음부)",
+    "사진 5 (예: 두께 측정기 / 게이지)",
+    "사진 6 (예: 기타)"
+  ];
+
+  function buildPhotoGrid(){
+    var grid = document.getElementById('photoGrid');
+    if(!grid || grid.dataset.built) return;
+    grid.dataset.built = "1";
+    for(var i=0;i<PHOTO_LABELS.length;i++){
+      (function(idx){
+        var slot = document.createElement('div');
+        slot.className = 'photo-slot';
+
+        var cap = document.createElement('input');
+        cap.type = 'text';
+        cap.className = 'photo-cap';
+        cap.title = '제목을 클릭하여 편집하세요';
+        cap.placeholder = PHOTO_LABELS[idx];
+        var savedLabel = null;
+        try{ savedLabel = localStorage.getItem('pipePhotoCap_' + idx); }catch(e){}
+        cap.value = (savedLabel !== null) ? savedLabel : PHOTO_LABELS[idx];
+        cap.addEventListener('input', function(){
+          try{ localStorage.setItem('pipePhotoCap_' + idx, cap.value); }catch(e){}
+        });
+        cap.addEventListener('click', function(e){ e.stopPropagation(); });
+
+        var drop = document.createElement('div');
+        drop.className = 'photo-drop';
+        drop.innerHTML =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+          '<div class="pd-title">사진 ' + (idx+1) + '</div>' +
+          '<div class="pd-sub">클릭하여 촬영 / 선택</div>';
+
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.setAttribute('capture','environment');
+        input.style.display = 'none';
+
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'photo-del';
+        del.title = '사진 삭제';
+        del.innerHTML = '&times;';
+
+        drop.appendChild(input);
+        drop.appendChild(del);
+
+        drop.addEventListener('click', function(e){
+          if(e.target === del) return;
+          input.click();
+        });
+
+        input.addEventListener('change', function(){
+          var f = input.files && input.files[0];
+          if(!f) return;
+          var r = new FileReader();
+          r.onload = function(ev){
+            var old = drop.querySelector('img');
+            if(old) old.remove();
+            var img = document.createElement('img');
+            img.src = ev.target.result;
+            drop.appendChild(img);
+            drop.classList.add('has-img');
+          };
+          r.readAsDataURL(f);
+        });
+
+        del.addEventListener('click', function(e){
+          e.stopPropagation();
+          var img = drop.querySelector('img');
+          if(img) img.remove();
+          drop.classList.remove('has-img');
+          input.value = '';
+        });
+
+        slot.appendChild(cap);
+        slot.appendChild(drop);
+        grid.appendChild(slot);
+      })(i);
+    }
+  }
+
+  window.buildPhotoGrid = buildPhotoGrid;
+
+  window.switchCenterView = function(view){
+    var perf  = document.getElementById('perfView');
+    var photo = document.getElementById('photoView');
+    var title = document.getElementById('centerTitle');
+    var bDoc  = document.getElementById('ciDoc');
+    var bCam  = document.getElementById('ciCam');
+    if(!perf || !photo) return;
+
+    if(view === 'photo'){
+      buildPhotoGrid();
+      perf.style.display  = 'none';
+      photo.style.display = 'flex';
+      if(title) title.innerHTML = '&#9632; 현장 사진';
+      bDoc.classList.remove('active');
+      bCam.classList.add('active');
+    } else {
+      photo.style.display = 'none';
+      perf.style.display  = 'block';
+      if(title) title.innerHTML = '&#9632; 두께 건전성 분석표';
+      bCam.classList.remove('active');
+      bDoc.classList.add('active');
+      if(typeof recalc === 'function'){ try{ recalc(); }catch(e){} }
+    }
+  };
+})();
+</script>
+
+<script>
+/* === 측정점 탭 추가 / 전환 / 삭제 (입력값 + 사진 탭별 분리) === */
+(function(){
+  var tabbar = document.getElementById('eqTabs');
+  if(!tabbar) return;
+
+  var store = [];        // 탭별 일반 입력값
+  var photoStore = [];   // 탭별 사진(제목+이미지)
+  var current = 0;
+
+  /* ---- 일반 입력 필드 (사진영역/파일/탭바 제외) ---- */
+  function fieldEls(){
+    return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea'))
+      .filter(function(el){
+        return el.type !== 'file'
+            && !el.closest('.tab-bar')
+            && !el.closest('#photoView');
+      });
+  }
+  function keyOf(el, i){
+    if(el.classList && el.classList.contains('mc'))
+      return 'mc_' + el.dataset.r + '_' + el.dataset.c;
+    return el.id || el.name || ('f' + i);
+  }
+  function snapshot(){
+    var d = {};
+    fieldEls().forEach(function(el, i){
+      d[keyOf(el, i)] = (el.type === 'checkbox' || el.type === 'radio')
+        ? { c: el.checked } : { v: el.value };
+    });
+    return d;
+  }
+  function apply(d){
+    if(!d) return;
+    fieldEls().forEach(function(el, i){
+      var r = d[keyOf(el, i)];
+      if(!r) return;
+      if('c' in r){
+        el.checked = r.c;
+        el.dispatchEvent(new Event('change', { bubbles:true }));
+      } else {
+        el.value = r.v;
+        el.dispatchEvent(new Event('input',  { bubbles:true }));
+        el.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+    });
+    if(typeof window.recalc === 'function'){ try{ window.recalc(); }catch(e){} }
+  }
+
+  /* ---- 사진 스냅샷 / 적용 ---- */
+  function ensurePhotoGrid(){
+    if(typeof window.buildPhotoGrid === 'function'){ try{ window.buildPhotoGrid(); }catch(e){} }
+  }
+  function photoSnapshot(){
+    ensurePhotoGrid();
+    var arr = [];
+    var grid = document.getElementById('photoGrid');
+    if(!grid) return arr;
+    grid.querySelectorAll('.photo-slot').forEach(function(slot){
+      var cap = slot.querySelector('.photo-cap');
+      var img = slot.querySelector('.photo-drop img');
+      arr.push({ cap: cap ? cap.value : '', src: img ? img.src : '' });
+    });
+    return arr;
+  }
+  function photoApply(arr){
+    ensurePhotoGrid();
+    var grid = document.getElementById('photoGrid');
+    if(!grid) return;
+    grid.querySelectorAll('.photo-slot').forEach(function(slot, i){
+      var rec  = arr && arr[i];
+      var cap  = slot.querySelector('.photo-cap');
+      var drop = slot.querySelector('.photo-drop');
+      var old  = drop.querySelector('img'); if(old) old.remove();
+      drop.classList.remove('has-img');
+      var fileInp = drop.querySelector('input[type=file]'); if(fileInp) fileInp.value = '';
+      if(rec){
+        if(cap && typeof rec.cap === 'string') cap.value = rec.cap;
+        if(rec.src){
+          var img = document.createElement('img');
+          img.src = rec.src;
+          drop.appendChild(img);
+          drop.classList.add('has-img');
+        }
+      }
+    });
+  }
+
+  /* ---- 탭 렌더 ---- */
+  function renderTabs(){
+    tabbar.querySelectorAll('.tab:not(.add)').forEach(function(n){ n.remove(); });
+    var addBtn = tabbar.querySelector('.tab.add');
+    store.forEach(function(d, idx){
+      var b = document.createElement('button');
+      b.className = 'tab' + (idx === current ? ' active' : '');
+      var no = (d['inp-no'] && d['inp-no'].v) ? d['inp-no'].v : ('P' + (idx + 1));
+      b.innerHTML = '측정점-' + ('0' + (idx + 1)).slice(-2) + ' #' + no
+                  + '<span class="tab-close">\u2715</span>';
+      b.addEventListener('click', function(e){
+        if(e.target.classList.contains('tab-close')){
+          e.stopPropagation();
+          closeTab(idx);
+          return;
+        }
+        switchTab(idx);
+      });
+      tabbar.insertBefore(b, addBtn);
+    });
+  }
+
+  function switchTab(idx){
+    if(idx === current) return;
+    store[current]      = snapshot();
+    photoStore[current] = photoSnapshot();
+    current = idx;
+    apply(store[current]);
+    photoApply(photoStore[current]);
+    renderTabs();
+  }
+
+  /* ---- '+' : 현재값 저장 후 공통값 복사 / POINT NO 새 번호 / 사진은 빈 상태 ---- */
+  function addTab(){
+    store[current]      = snapshot();
+    photoStore[current] = photoSnapshot();
+
+    var fresh = snapshot();                          // 공통 입력값 복사
+    fresh['inp-no'] = { v: 'P' + (store.length + 1) }; // POINT NO만 새 번호
+
+    // 사진: 제목(라벨)은 복사, 이미지는 비움 → 탭별 분리
+    var freshPhoto = photoSnapshot().map(function(p){ return { cap: p.cap, src: '' }; });
+
+    store.push(fresh);
+    photoStore.push(freshPhoto);
+    current = store.length - 1;
+
+    apply(store[current]);
+    photoApply(photoStore[current]);
+    renderTabs();
+  }
+
+  function closeTab(idx){
+    if(store.length <= 1){ alert('측정점은 최소 1개 이상 있어야 합니다.'); return; }
+    if(!confirm('이 측정점을 삭제할까요?')) return;
+    store.splice(idx, 1);
+    photoStore.splice(idx, 1);
+    if(current >= store.length) current = store.length - 1;
+    else if(idx < current) current--;
+    apply(store[current]);
+    photoApply(photoStore[current]);
+    renderTabs();
+  }
+
+  /* ---- 초기화 ---- */
+  function boot(){
+    store[0]      = snapshot();
+    photoStore[0] = photoSnapshot();
+    var addBtn = tabbar.querySelector('.tab.add');
+    if(addBtn) addBtn.addEventListener('click', addTab);
+    renderTabs();
+  }
+  // 기존 복원(himecRestore) 이후 실행되도록 약간 지연
+  setTimeout(boot, 200);
+})();
+</script>
+
+
+<script>
+/* [303 방식 이식] 방향 전환/리사이즈 시 도표 재드로 */
+(function(){
+  function poke(){ try{ window.dispatchEvent(new Event('resize')); }catch(e){} }
+  function pokeAll(){ poke(); requestAnimationFrame(poke); setTimeout(poke,120); setTimeout(poke,400); }
+  window.addEventListener('load', pokeAll);
+  window.addEventListener('orientationchange', pokeAll);
+  if(window.matchMedia){ try{ window.matchMedia('(orientation: portrait)').addEventListener('change', pokeAll); }
+    catch(e){ try{ window.matchMedia('(orientation: portrait)').addListener(pokeAll); }catch(_){} } }
+  if('ResizeObserver' in window){ var ro=new ResizeObserver(function(){ pokeAll(); });
+    function obs(){ ['#pipeDiagram','#barWrap','.bar-wrap','#lossWrap'].forEach(function(sel){ document.querySelectorAll(sel).forEach(function(el){ try{ ro.observe(el); }catch(e){} }); }); }
+    if(document.readyState!=='loading')obs(); else document.addEventListener('DOMContentLoaded',obs); }
+})();
+</script>
+
 </body>
 </html>
