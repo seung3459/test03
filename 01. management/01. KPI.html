@@ -5,7 +5,7 @@
 	<script src="../js/supabase-config.js"></script>
 	<script src="../js/auth-guard.js"></script>
 	<script src="../js/himec-supabase-sync.js"></script>
-	<script src="../js/himec-kpi-projects.js"></script>
+	<script src="../js/himec-project-delete.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - Performance Management </title>
@@ -456,7 +456,7 @@ function renderS1(){
  h+='</tbody>';t.innerHTML=h;
 }
 function addS1(){s1cur().push({name:'',fee:0,out:0,status:'미계약',month:1,note:'',type:'노후진단'});save();renderS1();renderAgg();}
-function delS1(i){if(confirm('이 수주 프로젝트를 삭제할까요?')){s1cur().splice(i,1);save();renderS1();renderAgg();renderProjs();}}
+async function delS1(i){var arr=s1cur();var syncId=arr[i]&&arr[i]._id;var ok=(window.HIMEC_DEL)?await HIMEC_DEL.ask():confirm('이 수주 프로젝트를 삭제할까요?');if(!ok)return;if(window.HIMEC_DEL&&syncId){try{await HIMEC_DEL.purgeKpiProject(syncId);}catch(e){}}arr.splice(i,1);save();renderS1();renderAgg();renderProjs();}
 
 /* ---------- 계약된 수주 프로젝트 목록 ---------- */
 function prevYear(){return (+S.curYear-1)+'';}
