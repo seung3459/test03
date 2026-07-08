@@ -412,7 +412,8 @@ function syncFromManage(){
         if(it.status !== '계약' && it.status !== '종료') return;   // 미계약 제외
         const nm = (it.name || '').trim();
         if(!nm) return;                                   // 빈 행 무시
-        if(!it._syncId){ it._syncId = _genSyncId(); changedManage = true; }
+        if(!it._id){ it._id = _genSyncId(); changedManage = true; }              // KPI 원본 id 확보
+        if(it._syncId !== it._id){ it._syncId = it._id; changedManage = true; }  // syncId = KPI의 _id 로 통일
         const dashStatus = (it.status === '종료') ? '종료' : '수행';  // KPI 상태 → 대시보드 상태
         const existing = bySync[it._syncId];
         if(existing){
