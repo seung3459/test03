@@ -1025,10 +1025,71 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeSrcPo
     "사진 6 (예: 제어반 / 기타)"
   ];
 
+  /* === 사진: 탭별 저장 (탭마다 독립 보관) === */
+  var photoStore = {};   /* key(탭 식별자) -> [{cap,img}, ...] */
+  var slotRefs   = [];   /* 사진 슬롯 DOM 참조 */
+  var lastKey    = null;
+
+  function activeTabKey(){
+    var el = document.querySelector('.tab.active');
+    if(el && el.id) return el.id;
+    var tabs = document.querySelectorAll('.tab:not(.add)');
+    for(var i=0;i<tabs.length;i++){ if(tabs[i].classList.contains('active')) return 'tabpos-'+i; }
+    return 'tab-default';
+  }
+
+  function ensureRec(key){
+    if(!photoStore[key]){
+      var arr = [];
+      for(var i=0;i<PHOTO_LABELS.length;i++){ arr.push({ cap:null, img:'' }); }
+      photoStore[key] = arr;
+    }
+    return photoStore[key];
+  }
+
+  function loadPhotosForTab(){
+    var grid = document.getElementById('photoGrid');
+    if(!grid || !grid.dataset.built) return;
+    var key = activeTabKey();
+    lastKey = key;
+    var rec = ensureRec(key);
+    for(var i=0;i<slotRefs.length;i++){
+      var s = slotRefs[i], r = rec[i];
+      s.cap.value = (r && r.cap != null) ? r.cap : PHOTO_LABELS[i];
+      var old = s.drop.querySelector('img');
+      if(old) old.remove();
+      if(r && r.img){
+        var img = document.createElement('img');
+        img.src = r.img;
+        s.drop.appendChild(img);
+        s.drop.classList.add('has-img');
+      } else {
+        s.drop.classList.remove('has-img');
+      }
+      s.input.value = '';
+    }
+  }
+  window.loadPhotosForTab = loadPhotosForTab;
+
+  /* 탭 전환/추가/삭제 자동 감지 → 해당 탭 사진 로드 */
+  function watchTabs(){
+    var anchor = document.querySelector('.tab.add') || document.querySelector('.tab');
+    var bar = anchor ? anchor.parentNode : document.body;
+    try{
+      var mo = new MutationObserver(function(){
+        if(activeTabKey() !== lastKey) loadPhotosForTab();
+      });
+      mo.observe(bar, { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
+    }catch(e){}
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchTabs);
+  else watchTabs();
+
   function buildPhotoGrid(){
     var grid = document.getElementById('photoGrid');
     if(!grid || grid.dataset.built) return;
     grid.dataset.built = "1";
+    slotRefs = [];
     for(var i=0;i<PHOTO_LABELS.length;i++){
       (function(idx){
         var slot = document.createElement('div');
@@ -1039,11 +1100,9 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeSrcPo
         cap.className = 'photo-cap';
         cap.title = '제목을 클릭하여 편집하세요';
         cap.placeholder = PHOTO_LABELS[idx];
-        var savedLabel = null;
-        try{ savedLabel = localStorage.getItem('photoCap_' + idx); }catch(e){}
-        cap.value = (savedLabel !== null) ? savedLabel : PHOTO_LABELS[idx];
+        cap.value = PHOTO_LABELS[idx];
         cap.addEventListener('input', function(){
-          try{ localStorage.setItem('photoCap_' + idx, cap.value); }catch(e){}
+          ensureRec(activeTabKey())[idx].cap = cap.value;
         });
         /* 입력창 클릭이 사진 촬영/선택으로 전파되지 않도록 차단 */
         cap.addEventListener('click', function(e){ e.stopPropagation(); });
@@ -1086,6 +1145,7 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeSrcPo
             img.src = ev.target.result;
             drop.appendChild(img);
             drop.classList.add('has-img');
+            ensureRec(activeTabKey())[idx].img = ev.target.result;
           };
           r.readAsDataURL(f);
         });
@@ -1096,13 +1156,16 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeSrcPo
           if(img) img.remove();
           drop.classList.remove('has-img');
           input.value = '';
+          ensureRec(activeTabKey())[idx].img = '';
         });
 
         slot.appendChild(cap);
         slot.appendChild(drop);
         grid.appendChild(slot);
+        slotRefs[idx] = { cap:cap, drop:drop, input:input, del:del };
       })(i);
     }
+    loadPhotosForTab();
   }
 
   window.switchCenterView = function(view){
