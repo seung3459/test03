@@ -110,6 +110,24 @@
     finally { _running = false; }
   }
 
+  /* KPI 저장(save/doSave) 직후 즉시 재조정 → 계약하면 바로 테이블 반영 */
+  var _reTimer = null;
+  function scheduleReconcile() { clearTimeout(_reTimer); _reTimer = setTimeout(reconcile, 600); }
+  function hookKpiSave() {
+    ['save', 'doSave'].forEach(function (fn) {
+      if (typeof w[fn] === 'function' && !w[fn].__kpiHooked) {
+        var orig = w[fn];
+        w[fn] = function () { var r = orig.apply(this, arguments); scheduleReconcile(); return r; };
+        w[fn].__kpiHooked = true;
+      }
+    });
+  }
+  // KPI 인라인 스크립트가 save/doSave 를 정의할 때까지 잠깐 재시도 후 훅
+  (function waitHook(n) {
+    hookKpiSave();
+    if ((typeof w.save !== 'function' || !w.save.__kpiHooked) && (n = (n || 0) + 1) < 40) setTimeout(function () { waitHook(n); }, 100);
+  })();
+
   function boot() { reconcile(); }
   if (d.readyState === 'complete') boot(); else w.addEventListener('load', boot);
   w.addEventListener('himec:hydrated', reconcile);
