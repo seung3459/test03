@@ -9237,6 +9237,32 @@ document.addEventListener('keydown', function(e){
   function loadCfg(){ choices = {}; try{ var o = JSON.parse(localStorage.getItem(cfgKey()) || '{}'); if(o && typeof o === 'object') choices = o; }catch(e){} }
   function saveCfg(){ try{ localStorage.setItem(cfgKey(), JSON.stringify(choices)); }catch(e){} }
 
+  /* ---------- 클라우드 공유(projects.equip_choices) ---------- */
+  function isUuid(s){ return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s||''); }
+  var _sbc = null;
+  async function sbClient(){ if(_sbc) return _sbc; try{ if(window.HIMEC_SYNC && window.HIMEC_SYNC.ready){ var c = await window.HIMEC_SYNC.ready(); if(c) return (_sbc = c); } }catch(e){} return null; }
+  async function cloudLoad(){
+    var id = pid(); if(!isUuid(id)) return;                 // UUID(실제 프로젝트)일 때만
+    var c = await sbClient(); if(!c) return;
+    try{
+      var r = await c.from('projects').select('equip_choices').eq('id', id).maybeSingle();
+      if(r && !r.error && r.data && r.data.equip_choices && typeof r.data.equip_choices === 'object'){
+        choices = r.data.equip_choices;
+        try{ localStorage.setItem(cfgKey(), JSON.stringify(choices)); }catch(e){}   // 로컬 캐시 갱신
+        apply(); if(panelEl && panelEl.classList.contains('open')) renderPanel();
+      }
+    }catch(e){}
+  }
+  var _cloudSaveTimer = null;
+  function cloudSave(){
+    var id = pid(); if(!isUuid(id)) return;
+    clearTimeout(_cloudSaveTimer);
+    _cloudSaveTimer = setTimeout(async function(){
+      var c = await sbClient(); if(!c) return;
+      try{ await c.from('projects').update({ equip_choices: choices }).eq('id', id); }catch(e){}
+    }, 400);
+  }
+
   function typeCount(type){ try{ return document.querySelectorAll('#' + type + 'Units .card').length; }catch(e){ return 0; } }
   function typeVisible(type){
     if(Object.prototype.hasOwnProperty.call(choices, type)) return !!choices[type];
@@ -9291,7 +9317,7 @@ document.addEventListener('keydown', function(e){
       var cb = e.target.closest ? e.target.closest('input[type=checkbox]') : null;
       if(!cb) return;
       var t = cb.getAttribute('data-type');
-      choices[t] = cb.checked; saveCfg(); apply(); renderPanel();
+      choices[t] = cb.checked; saveCfg(); cloudSave(); apply(); renderPanel();
     });
     panelEl.addEventListener('click', function(e){
       var foot = e.target.closest ? e.target.closest('[data-foot]') : null;
@@ -9367,6 +9393,8 @@ document.addEventListener('keydown', function(e){
     }, true);
     document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closePanel(); });
     apply();
+    cloudLoad();                                             // 클라우드에서 표시설정 당겨오기
+    window.addEventListener('himec:hydrated', cloudLoad);    // 로그인/복원 완료 시 재적용
   }
   if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
   else { init(); }
@@ -9374,7 +9402,7 @@ document.addEventListener('keydown', function(e){
   window.d1TabVisibility = {
     apply: apply,
     open: function(){ openPanel(anchorEl); },
-    set: function(t, v){ choices[t] = !!v; saveCfg(); apply(); },
+    set: function(t, v){ choices[t] = !!v; saveCfg(); cloudSave(); apply(); },
     choices: function(){ return JSON.parse(JSON.stringify(choices)); },
     visible: function(){ return ALL_TYPES.filter(typeVisible); }
   };
