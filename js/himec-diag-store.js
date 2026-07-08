@@ -187,7 +187,20 @@
   }
   function computeGrade1st(type, id) {
     try { if (typeof w.himecUnitGrade === 'function') return w.himecUnitGrade(type, id); } catch (e) {}
-    return null;   // 실제 가중치 공식 준비되면 여기 연결 (검색 기능 단계)
+    // 화면과 동일한 계산기(calculateGrade) 사용 → 화면 등급과 DB 값 일치
+    try {
+      if (typeof w.calculateGrade === 'function' && typeof getDiagItems === 'function'
+          && typeof diagApplyTypes !== 'undefined' && diagApplyTypes.includes(type)) {
+        var diag = {};
+        getDiagItems(type).forEach(function (item) {
+          var rEl = d.getElementById(type + '_' + id + '_diag_' + item.key + '_rate');
+          diag[item.key] = { rate: rEl ? rEl.value : '' };
+        });
+        var r = w.calculateGrade(diag, type);
+        if (r && r.grade && r.grade !== '-') return r.grade;   // 'A' | 'B' | 'C'
+      }
+    } catch (e) {}
+    return null;   // 평가 항목이 하나도 없으면 null
   }
 
   /* =================================================================
