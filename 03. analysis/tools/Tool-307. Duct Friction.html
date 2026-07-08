@@ -829,7 +829,7 @@ if(window.ResizeObserver){ new ResizeObserver(onResize).observe(document.getElem
 (function(){
   function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
   function fkey(el,i){ return el.id ? ('#'+el.id) : ('@'+i); }
-  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool'); }
+  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool') + '::' + (new URLSearchParams(location.search).get('projectId') || 'default'); }
 
   function himecSave(){
     try{
