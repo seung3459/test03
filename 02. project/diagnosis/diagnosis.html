@@ -3314,6 +3314,7 @@ function handlePhotoInput(input, type, id, idx){
       unitPhotos[`${type}_${id}`] = new Array(PHOTO_COUNT).fill(null).map(()=>({img:null, path:null, desc:''}));
     }
     var slotData = unitPhotos[`${type}_${id}`][idx] || {desc:''};
+    var _oldPath = slotData.path;   // 교체 전 기존 Storage 경로 (성공 시 삭제)
     slotData.img = dataURL;     // 즉시 미리보기(세션용)
     slotData.path = null;       // 새 사진 → 기존 경로 무효화(업로드 성공 시 채움)
     unitPhotos[`${type}_${id}`][idx] = slotData;
@@ -3332,6 +3333,7 @@ function handlePhotoInput(input, type, id, idx){
         var cur = unitPhotos[`${type}_${id}`] && unitPhotos[`${type}_${id}`][idx];
         if(cur && path){ cur.path = path; showToast(`✅ 사진 ${idx+1} 저장 완료`); }
         else { showToast(`✅ 사진 ${idx+1} (로컬 보관 · 다음 온라인 저장 시 반영)`); }
+        if(_oldPath && _oldPath !== path && window.HIMEC_PHOTO && HIMEC_PHOTO.remove){ try{ HIMEC_PHOTO.remove(_oldPath); }catch(e){} }  // 교체된 옛 파일 삭제
       }).catch(function(){ showToast(`✅ 사진 ${idx+1} (로컬 보관)`); });
     } else {
       showToast(`✅ 사진 ${idx+1} 업로드 완료`);
@@ -3341,8 +3343,10 @@ function handlePhotoInput(input, type, id, idx){
 
 function removePhoto(type, id, idx){
   if(!unitPhotos[`${type}_${id}`]) return;
+  var _rmPath = unitPhotos[`${type}_${id}`][idx] && unitPhotos[`${type}_${id}`][idx].path;
   unitPhotos[`${type}_${id}`][idx].img = null;
   unitPhotos[`${type}_${id}`][idx].path = null;
+  if(_rmPath && window.HIMEC_PHOTO && HIMEC_PHOTO.remove){ try{ HIMEC_PHOTO.remove(_rmPath); }catch(e){} }  // Storage 파일도 삭제
   const slot = document.getElementById(`${type}_${id}_slot_${idx}`);
   if(slot){
     const wrap = document.createElement('div');
@@ -9237,32 +9241,6 @@ document.addEventListener('keydown', function(e){
   function loadCfg(){ choices = {}; try{ var o = JSON.parse(localStorage.getItem(cfgKey()) || '{}'); if(o && typeof o === 'object') choices = o; }catch(e){} }
   function saveCfg(){ try{ localStorage.setItem(cfgKey(), JSON.stringify(choices)); }catch(e){} }
 
-  /* ---------- 클라우드 공유(projects.equip_choices) ---------- */
-  function isUuid(s){ return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s||''); }
-  var _sbc = null;
-  async function sbClient(){ if(_sbc) return _sbc; try{ if(window.HIMEC_SYNC && window.HIMEC_SYNC.ready){ var c = await window.HIMEC_SYNC.ready(); if(c) return (_sbc = c); } }catch(e){} return null; }
-  async function cloudLoad(){
-    var id = pid(); if(!isUuid(id)) return;                 // UUID(실제 프로젝트)일 때만
-    var c = await sbClient(); if(!c) return;
-    try{
-      var r = await c.from('projects').select('equip_choices').eq('id', id).maybeSingle();
-      if(r && !r.error && r.data && r.data.equip_choices && typeof r.data.equip_choices === 'object'){
-        choices = r.data.equip_choices;
-        try{ localStorage.setItem(cfgKey(), JSON.stringify(choices)); }catch(e){}   // 로컬 캐시 갱신
-        apply(); if(panelEl && panelEl.classList.contains('open')) renderPanel();
-      }
-    }catch(e){}
-  }
-  var _cloudSaveTimer = null;
-  function cloudSave(){
-    var id = pid(); if(!isUuid(id)) return;
-    clearTimeout(_cloudSaveTimer);
-    _cloudSaveTimer = setTimeout(async function(){
-      var c = await sbClient(); if(!c) return;
-      try{ await c.from('projects').update({ equip_choices: choices }).eq('id', id); }catch(e){}
-    }, 400);
-  }
-
   function typeCount(type){ try{ return document.querySelectorAll('#' + type + 'Units .card').length; }catch(e){ return 0; } }
   function typeVisible(type){
     if(Object.prototype.hasOwnProperty.call(choices, type)) return !!choices[type];
@@ -9317,7 +9295,7 @@ document.addEventListener('keydown', function(e){
       var cb = e.target.closest ? e.target.closest('input[type=checkbox]') : null;
       if(!cb) return;
       var t = cb.getAttribute('data-type');
-      choices[t] = cb.checked; saveCfg(); cloudSave(); apply(); renderPanel();
+      choices[t] = cb.checked; saveCfg(); apply(); renderPanel();
     });
     panelEl.addEventListener('click', function(e){
       var foot = e.target.closest ? e.target.closest('[data-foot]') : null;
@@ -9393,8 +9371,6 @@ document.addEventListener('keydown', function(e){
     }, true);
     document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closePanel(); });
     apply();
-    cloudLoad();                                             // 클라우드에서 표시설정 당겨오기
-    window.addEventListener('himec:hydrated', cloudLoad);    // 로그인/복원 완료 시 재적용
   }
   if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
   else { init(); }
@@ -9402,7 +9378,7 @@ document.addEventListener('keydown', function(e){
   window.d1TabVisibility = {
     apply: apply,
     open: function(){ openPanel(anchorEl); },
-    set: function(t, v){ choices[t] = !!v; saveCfg(); cloudSave(); apply(); },
+    set: function(t, v){ choices[t] = !!v; saveCfg(); apply(); },
     choices: function(){ return JSON.parse(JSON.stringify(choices)); },
     visible: function(){ return ALL_TYPES.filter(typeVisible); }
   };
