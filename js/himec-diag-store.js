@@ -94,8 +94,17 @@
       return map;
     } catch (e) { return {}; }
   }
+  async function photoRemove(path) {
+    if (!path) return false;
+    var c = await client(); if (!c) return false;
+    try {
+      var r = await c.storage.from(BUCKET).remove([path]);
+      if (r && r.error) { warn('remove err', r.error.message || r.error); return false; }
+      return true;
+    } catch (e) { warn('remove throw', e); return false; }
+  }
   if (!w.HIMEC_PHOTO) w.HIMEC_PHOTO = {
-    upload: photoUpload, signOne: photoSignOne, signMany: photoSignMany,
+    upload: photoUpload, signOne: photoSignOne, signMany: photoSignMany, remove: photoRemove,
     dataURLtoBlob: dataURLtoBlob, companyId: companyId, projectId: photoProjectId, bucket: BUCKET
   };
 
