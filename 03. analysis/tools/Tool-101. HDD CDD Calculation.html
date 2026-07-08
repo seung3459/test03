@@ -1265,7 +1265,7 @@ function parseCsvData(text, fileName) {
 }
 
 // ====== 저장 / 내보내기 / 메인 ======
-const STORE_KEY = 'HIMEC_HDD_CDD_SAVE';
+const STORE_KEY = 'HIMEC_SAVE::hdd_cdd::' + (new URLSearchParams(location.search).get('projectId') || 'default');
 
 function himecSave(){
   try {
