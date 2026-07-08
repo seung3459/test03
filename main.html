@@ -335,7 +335,17 @@ function goEP(){ window.open('https://ep.himec.co.kr/default_HIMEC.aspx', '_blan
 function goProject(){ location.href = PROJECT_PAGE; }
 function goAnalysis(){ location.href = ANALYSIS_PAGE; }
 function goSearch(){ alert('준비 중인 기능입니다. (동일한 방식으로 페이지 연결 예정)');}
-function goLogout(){ if(confirm('로그아웃 하시겠습니까?')){ location.href = 'login.html'; } }
+async function goLogout(){
+  if(!confirm('로그아웃 하시겠습니까?')) return;
+  try{
+    var c = (window.HIMEC_SYNC && window.HIMEC_SYNC.ready) ? await window.HIMEC_SYNC.ready() : null;
+    if(!c && window.supabase && window.HIMEC_SUPABASE_CONFIG){
+      c = window.supabase.createClient(window.HIMEC_SUPABASE_CONFIG.SUPABASE_URL, window.HIMEC_SUPABASE_CONFIG.SUPABASE_ANON_KEY);
+    }
+    if(c) await c.auth.signOut();          // ★ Supabase 세션 실제 종료 (안 하면 로그인 페이지가 도로 튕겨보냄)
+  }catch(e){}
+  location.href = '/index.html';           // 로그인 화면
+}
 
 /* ===== Project 박스: KPI(수주 예상&추적) 상태 연동 =====
    출처: localStorage['himec_pm_tool_v23'].s1[연도]  (KPI 파일과 동일 키)
