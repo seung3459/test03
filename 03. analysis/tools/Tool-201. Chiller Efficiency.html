@@ -1019,7 +1019,7 @@ function delManual(i){ curEq().manual.splice(i,1); update(); showPlrSrc(); }
 function renderAll(){ renderTabs(); renderOverview(); renderDataTable(); renderPerf(); renderTemp(); renderMetrics(); renderGauge(); renderDiag(); renderEqBox(); drawChart(); }
 
 /* ===== 저장 / 내보내기 / 메인 ===== */
-const STORE_KEY='HIMEC_CHILLER_SAVE';
+const STORE_KEY='HIMEC_SAVE::chiller::' + (new URLSearchParams(location.search).get('projectId') || 'default');
 function himecSave(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify({curIdx,equips})); alert('현재 화면의 입력값이 저장되었습니다.'); }catch(e){ alert('저장 실패: '+e.message); } }
 function loadSaved(){ try{ const r=localStorage.getItem(STORE_KEY); if(r){const d=JSON.parse(r); if(d.equips&&d.equips.length){equips=d.equips;curIdx=d.curIdx||0;return true;}} }catch(e){} return false; }
 function himecMain(){
