@@ -313,8 +313,9 @@
       if (typeof unitCount === 'undefined' || typeof addUnit !== 'function') return;
       var nextId = (unitCount[type] || 0) + 1, ukey = type + '_' + nextId;
       if (dat._subtype && typeof unitSubtype !== 'undefined') unitSubtype[ukey] = dat._subtype;
-      if (dat._photos && typeof unitPhotos !== 'undefined') unitPhotos[ukey] = dat._photos;
       addUnit(type);
+      // ★ addUnit 이 unitPhotos[ukey] 를 빈 슬롯으로 초기화하므로, 사진 경로는 그 "뒤"에 넣어야 함
+      if (dat._photos && typeof unitPhotos !== 'undefined') unitPhotos[ukey] = dat._photos;
       Object.keys(dat).forEach(function (k) {
         if (k.charAt(0) === 'f' && !isNaN(+k.slice(1))) { var el = d.getElementById(ukey + '_' + k); if (el) el.value = dat[k]; }
       });
