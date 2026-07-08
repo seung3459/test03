@@ -1124,7 +1124,7 @@ window.addEventListener('resize', function(){ recalc(); });
 (function(){
   function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
   function fkey(el,i){ return el.id?('#'+el.id):('@'+i); }
-  function storeKey(){ return 'HIMEC_SAVE::'+(location.pathname||document.title||'tool'); }
+  function storeKey(){ return 'HIMEC_SAVE::'+(location.pathname||document.title||'tool') + '::' + (new URLSearchParams(location.search).get('projectId') || 'default'); }
   function himecSave(){ try{ var data={}; fields().forEach(function(el,i){ var k=fkey(el,i);
     if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk',v:el.checked}; } else { data[k]={t:'val',v:el.value}; } });
     localStorage.setItem(storeKey(), JSON.stringify(data)); alert('현재 화면의 입력값이 저장되었습니다.');
