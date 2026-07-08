@@ -2125,7 +2125,7 @@ const ChartRenderer = {
 /* ============================================================
    저장소 키 (Tool-201 방식 localStorage 통합)
    ============================================================ */
-const STORE_KEY = 'HIMEC_BIN_LOAD_SAVE';
+const STORE_KEY = 'HIMEC_SAVE::bin_load::' + (new URLSearchParams(location.search).get('projectId') || 'default');
 
 const App = {
     currentResult: null,
