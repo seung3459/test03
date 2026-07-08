@@ -77,6 +77,21 @@
     }
   }
 
+  /* KPI에서 계약이 빠진(더 이상 없는) projects 행 삭제
+   * → FK cascade 로 diag_units·improvements 도 함께 삭제 → 대시보드에서 사라짐
+   * 안전: kpi_sync_id 가 있는(KPI에서 온) 행만 대상. NULL(수동/기타) 은 안 건드림. */
+  async function prune(c, cid, keepSet) {
+    var q = c.from('projects').select('id,kpi_sync_id').not('kpi_sync_id', 'is', null);
+    if (cid && cid !== 'default') q = q.eq('company_id', cid);
+    var r = await q;
+    if (!r || r.error || !r.data) return;
+    var stale = r.data.filter(function (row) { return row.kpi_sync_id && keepSet.indexOf(row.kpi_sync_id) === -1; });
+    for (var i = 0; i < stale.length; i++) {
+      var del = await c.from('projects').delete().eq('id', stale[i].id);
+      if (del && del.error) warn('prune delete', stale[i].kpi_sync_id, del.error.message || del.error);
+    }
+  }
+
   var _lastSig = null, _running = false;
   async function reconcile() {
     if (_running) return;
@@ -88,6 +103,8 @@
       var c = await client(); if (!c) return;
       var cid = companyId();
       for (var i = 0; i < rows.length; i++) { await upsertOne(c, cid, rows[i]); }
+      var keep = rows.map(function (x) { return x.kpi_sync_id; });   // 지금 계약된 것들
+      await prune(c, cid, keep);                                     // 나머지(계약 빠진 것) 삭제
       _lastSig = sig;
     } catch (e) { warn('reconcile', e); }
     finally { _running = false; }
