@@ -5,6 +5,7 @@
 	<script src="../js/supabase-config.js"></script>
 	<script src="../js/auth-guard.js"></script>
 	<script src="../js/himec-supabase-sync.js"></script>
+	<script src="../js/himec-project-delete.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HIMEC - Project Dashboard</title>
@@ -1433,7 +1434,8 @@ async function confirmAddProject() {
 
 async function deleteProject(toolId, projectId, event) {
   if (event) event.stopPropagation();
-  if (!confirm('프로젝트를 삭제하시겠습니까?')) return;
+  const ok = (window.HIMEC_DEL) ? await HIMEC_DEL.ask() : confirm('프로젝트를 삭제하시겠습니까?');
+  if (!ok) return;
 
   if (toolProjects[toolId]) {
     toolProjects[toolId] = toolProjects[toolId].filter(p => p.id !== projectId);
