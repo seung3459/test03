@@ -367,11 +367,36 @@ let projectModalMode = 'add';
 let projectModalEditIdx = -1;
 let yearCollapseState = {};
 
+// 카테고리 코드 → 활동유형(한글)
+const CAT_REV = { '01':'노후진단', '02':'컨설팅', '03':'BEMS', '09':'기타' };
+async function _sbClient(){
+  try{ if(window.HIMEC_SYNC && window.HIMEC_SYNC.ready){ const c = await window.HIMEC_SYNC.ready(); if(c) return c; } }catch(e){}
+  return null;
+}
 async function loadProjectsList(){
   try{
     showLoading('프로젝트 목록 로드 중...');
-    const data = await ghLoadProjectsList();
-    projectsList = data.projects || [];
+    const c = await _sbClient();
+    if(c){
+      // 공용 소스: Supabase projects 테이블 (계정 무관 동일 목록)
+      let q = c.from('projects').select('*').order('contract_year',{ascending:false});
+      const cid = (typeof himecCompanyId==='function') ? himecCompanyId() : null;
+      if(cid && cid !== 'default') q = q.eq('company_id', cid);
+      const r = await q;
+      if(r.error) throw r.error;
+      projectsList = (r.data||[]).map(row => ({
+        id: row.id,                                 // 진짜 UUID → activeProjectId 로 그대로 사용
+        _syncId: row.kpi_sync_id || null,
+        name: row.name || '',
+        year: String(row.contract_year || '기타'),
+        status: row.status || '수행',
+        activity: CAT_REV[row.category] || '노후진단'
+      }));
+    } else {
+      // 오프라인/미로그인 폴백: 기존 로컬 목록
+      const data = await ghLoadProjectsList();
+      projectsList = data.projects || [];
+    }
     hideLoading();
   } catch(e){
     hideLoading();
@@ -412,8 +437,7 @@ function syncFromManage(){
         if(it.status !== '계약' && it.status !== '종료') return;   // 미계약 제외
         const nm = (it.name || '').trim();
         if(!nm) return;                                   // 빈 행 무시
-        if(!it._id){ it._id = _genSyncId(); changedManage = true; }              // KPI 원본 id 확보
-        if(it._syncId !== it._id){ it._syncId = it._id; changedManage = true; }  // syncId = KPI의 _id 로 통일
+        if(!it._syncId){ it._syncId = _genSyncId(); changedManage = true; }
         const dashStatus = (it.status === '종료') ? '종료' : '수행';  // KPI 상태 → 대시보드 상태
         const existing = bySync[it._syncId];
         if(existing){
@@ -873,7 +897,6 @@ window.addEventListener('DOMContentLoaded', async function(){
   updateDashboardAuthUI();
   currentProjectId = localStorage.getItem('activeProjectId') || null;
   await loadProjectsList();
-  if(syncFromManage()){ await saveProjectsList(); }
   renderProjectsTable();
 });
 
@@ -881,7 +904,6 @@ window.addEventListener('DOMContentLoaded', async function(){
 window.addEventListener('himec:hydrated', async function(){
   try{
     await loadProjectsList();
-    if(syncFromManage()){ await saveProjectsList(); }
     renderProjectsTable();
   }catch(e){ if(window.console) console.warn('hydrated reload fail', e); }
 });
