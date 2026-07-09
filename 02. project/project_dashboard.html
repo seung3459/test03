@@ -363,16 +363,55 @@ function syncToManage(){
 /* ========== 연동 함수 끝 ========== */
 
 let projectsList = [];
+const CAT_REV = {'01':'노후진단','02':'컨설팅','03':'BEMS','09':'기타'};
 let currentProjectId = null;
 let projectModalMode = 'add';
 let projectModalEditIdx = -1;
 let yearCollapseState = {};
 
 async function loadProjectsList(){
+  // 1순위: Supabase projects 테이블 (KPI 계약·삭제가 정확히 반영되는 단일 원천)
+  let tableRows = null;
+  try{
+    if(window.HIMEC_SYNC && HIMEC_SYNC.isEnabled && HIMEC_SYNC.isEnabled()){
+      const c = await HIMEC_SYNC.ready();
+      if(c){
+        const r = await c.from('projects')
+          .select('id,name,kpi_sync_id,category,contract_year,status')
+          .order('created_at',{ascending:true});
+        if(r && !r.error && Array.isArray(r.data)) tableRows = r.data;
+        else if(r && r.error && window.console) console.warn('projects select err:', r.error.message||r.error);
+      }
+    }
+  }catch(e){ if(window.console) console.warn('projects 테이블 로드 실패:', e); }
+
+  if(tableRows){
+    // 문서(계약서 등) 메타는 테이블에 없으므로 옛 blob 에서 _syncId 매칭해 보존
+    let docMap = {};
+    try{
+      const blob = await ghLoadProjectsList();
+      ((blob && blob.projects) || []).forEach(p => { if(p && p._syncId && p.documents) docMap[p._syncId] = p.documents; });
+    }catch(e){}
+    projectsList = tableRows.map(row => {
+      const sync = row.kpi_sync_id || null;
+      return {
+        id: row.id,                                   // projects UUID (진단 activeProjectId)
+        _syncId: sync,
+        name: row.name || '',
+        year: row.contract_year ? String(row.contract_year) : '기타',
+        status: row.status || '수행',
+        activity: CAT_REV[row.category] || '노후진단',
+        documents: (sync && docMap[sync]) ? docMap[sync] : {}
+      };
+    });
+    return;
+  }
+
+  // 폴백: 오프라인/실패 시 옛 blob 그대로
   try{
     showLoading('프로젝트 목록 로드 중...');
     const data = await ghLoadProjectsList();
-    projectsList = data.projects || [];
+    projectsList = (data && data.projects) || [];
     hideLoading();
   } catch(e){
     hideLoading();
@@ -873,7 +912,6 @@ window.addEventListener('DOMContentLoaded', async function(){
   updateDashboardAuthUI();
   currentProjectId = localStorage.getItem('activeProjectId') || null;
   await loadProjectsList();
-  if(syncFromManage()){ await saveProjectsList(); }
   renderProjectsTable();
 });
 
@@ -881,7 +919,6 @@ window.addEventListener('DOMContentLoaded', async function(){
 window.addEventListener('himec:hydrated', async function(){
   try{
     await loadProjectsList();
-    if(syncFromManage()){ await saveProjectsList(); }
     renderProjectsTable();
   }catch(e){ if(window.console) console.warn('hydrated reload fail', e); }
 });
