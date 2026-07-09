@@ -1437,6 +1437,11 @@ async function deleteProject(toolId, projectId, event) {
   const ok = (window.HIMEC_DEL) ? await HIMEC_DEL.ask() : confirm('프로젝트를 삭제하시겠습니까?');
   if (!ok) return;
 
+  // 그 프로젝트의 툴 입력값 찌꺼기(app_state HIMEC_SAVE::…/std_…) 정리
+  if (window.HIMEC_DEL && HIMEC_DEL.purgeToolProject) {
+    try { await HIMEC_DEL.purgeToolProject(projectId); } catch (e) {}
+  }
+
   if (toolProjects[toolId]) {
     toolProjects[toolId] = toolProjects[toolId].filter(p => p.id !== projectId);
 
