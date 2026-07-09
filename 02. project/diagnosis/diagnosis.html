@@ -1101,64 +1101,6 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   .np-uni-grid{ grid-template-columns:1fr; }
 }
 </style>
-<style>
-/* ===== HVAC Diagram — 계통도 문서 뷰어 ===== */
-.hvac-wrap{ display:flex; flex-direction:column; flex:1; min-height:0; }
-.hvac-tabrow{ display:flex; align-items:stretch; background:#fff; border-bottom:1px solid #e5e7eb; padding:0; overflow-x:auto; }
-.hvac-tab{ flex:0 0 auto; text-align:center; padding:12px 22px; font-size:13px; font-weight:600; color:#6b7280; background:transparent; cursor:pointer; border:none; border-bottom:2px solid transparent; transition:color .2s,border-color .2s,background .2s; font-family:inherit; white-space:nowrap; }
-.hvac-tab:hover{ color:#374151; background:#f9fafb; }
-.hvac-tab.active{ color:#00838f; border-bottom-color:#00838f; background:#f0fafb; }
-.hvac-tab-add{ flex:0 0 auto; padding:12px 16px; font-size:13px; font-weight:700; color:#00838f; background:transparent; border:none; cursor:pointer; white-space:nowrap; }
-.hvac-tab-add:hover{ background:#f0fafb; }
-.hvac-tab-kind{ font-size:9px; font-weight:800; letter-spacing:.3px; color:#00838f; background:#e6f5f6; padding:2px 5px; border-radius:4px; vertical-align:middle; }
-.hvac-tab.active .hvac-tab-kind{ background:#00838f; color:#fff; }
-.hvac-body{ flex:1; min-height:0; padding:14px 22px 18px; display:flex; flex-direction:column; }
-.hvac-preview{ flex:1; min-height:0; margin-top:12px; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; background:#f4f6f8; display:flex; }
-.hvac-preview iframe{ width:100%; height:100%; border:none; background:#fff; }
-.hvac-preview-img{ width:100%; height:100%; overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:14px; background:#eef1f4; cursor:zoom-in; }
-.hvac-preview-img img{ max-width:100%; height:auto; display:block; box-shadow:0 2px 12px rgba(0,0,0,.12); background:#fff; }
-.hvac-preview-msg{ margin:auto; color:#9ca3af; font-size:13px; }
-.hvac-pdf-note{ margin-top:8px; font-size:11.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:7px; padding:7px 10px; }
-.hvac-cat-head{ display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
-.hvac-cat-title{ font-size:15px; font-weight:800; color:#1f2937; }
-.hvac-cat-actions{ display:flex; gap:6px; margin-left:auto; flex-wrap:wrap; }
-.hvac-btn{ font-size:12px; font-weight:600; padding:7px 12px; border-radius:7px; border:1px solid #d1d5db; background:#fff; color:#374151; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:6px; font-family:inherit; }
-.hvac-btn:hover{ background:#f3f4f6; }
-.hvac-btn svg{ width:14px; height:14px; }
-.hvac-btn-primary{ border-color:#00838f; background:#00838f; color:#fff; }
-.hvac-btn-primary:hover{ background:#006c76; }
-.hvac-btn-danger{ color:#dc2626; border-color:#f0b4b4; }
-.hvac-btn-danger:hover{ background:#fef2f2; }
-.hvac-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px; }
-.hvac-card{ border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.04); transition:box-shadow .15s,transform .15s; display:flex; flex-direction:column; }
-.hvac-card:hover{ box-shadow:0 6px 18px rgba(0,0,0,.10); transform:translateY(-2px); }
-.hvac-thumb{ position:relative; height:150px; background:#f3f4f6; cursor:pointer; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.hvac-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
-.hvac-thumb .hvac-pdf-ic{ display:flex; flex-direction:column; align-items:center; gap:6px; color:#9ca3af; }
-.hvac-thumb .hvac-pdf-ic svg{ width:40px; height:40px; }
-.hvac-badge-a3{ position:absolute; top:8px; left:8px; font-size:10px; font-weight:700; background:rgba(0,131,143,.92); color:#fff; padding:3px 7px; border-radius:4px; letter-spacing:.4px; }
-.hvac-card-foot{ display:flex; align-items:center; gap:8px; padding:10px 12px; border-top:1px solid #f0f0f0; }
-.hvac-card-name{ font-size:12.5px; color:#374151; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
-.hvac-card-x{ background:none; border:none; color:#b0b0b0; cursor:pointer; font-size:18px; line-height:1; padding:2px 6px; border-radius:5px; flex:0 0 auto; }
-.hvac-card-x:hover{ color:#dc2626; background:#fef2f2; }
-.hvac-empty{ text-align:center; padding:70px 20px; color:#9ca3af; }
-.hvac-empty .hvac-empty-ic{ width:64px; height:64px; margin:0 auto 14px; background:#f3f4f6; border-radius:14px; display:flex; align-items:center; justify-content:center; }
-.hvac-empty .hvac-empty-ic svg{ width:32px; height:32px; color:#c4c4c4; }
-.hvac-empty p{ font-size:13px; margin-bottom:16px; line-height:1.7; }
-/* 계통도 전체 뷰어 오버레이 */
-.hvac-viewer{ position:fixed; inset:0; z-index:4000; background:rgba(17,24,39,.93); display:none; flex-direction:column; }
-.hvac-viewer.open{ display:flex; }
-.hvac-viewer-bar{ display:flex; align-items:center; gap:8px; padding:10px 16px; color:#fff; background:rgba(0,0,0,.35); flex:0 0 auto; }
-.hvac-viewer-title{ font-size:14px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:auto; }
-.hvac-viewer-btn{ background:rgba(255,255,255,.12); border:none; color:#fff; width:36px; height:36px; border-radius:8px; cursor:pointer; font-size:17px; line-height:1; display:flex; align-items:center; justify-content:center; }
-.hvac-viewer-btn:hover{ background:rgba(255,255,255,.24); }
-.hvac-viewer-zoom{ font-size:12px; color:#e5e7eb; min-width:50px; text-align:center; }
-.hvac-stage{ flex:1; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
-.hvac-stage.pannable{ cursor:grab; }
-.hvac-stage.panning{ cursor:grabbing; }
-.hvac-stage img{ max-width:none; transform-origin:center center; user-select:none; -webkit-user-drag:none; will-change:transform; }
-.hvac-stage iframe{ width:100%; height:100%; border:none; background:#fff; }
-</style>
 </head>
 <body>
 
@@ -1324,11 +1266,18 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 <!-- =============================================================== -->
 
 <div class="main-panel" id="mainPanel1">
-  <div class="hvac-wrap">
-    <div class="hvac-tabrow" id="hvacTabRow"></div>
-    <div class="hvac-body" id="hvacBody"></div>
+  <div class="content-area">
+    <div class="dev-placeholder">
+      <div class="dev-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
+        </svg>
+      </div>
+      <div class="dev-title">HVAC Diagram</div>
+      <div class="dev-desc">HVAC 계통도 화면입니다.<br>추후 업데이트를 통해 제공될 예정입니다.</div>
+      <span class="dev-badge">추후 개발 예정</span>
+    </div>
   </div>
-  <input type="file" id="hvacFileInput" accept="image/*,application/pdf" multiple style="display:none" onchange="HIMEC_HVAC.onPick(event)">
 </div>
 
 <!-- =============================================================== -->
@@ -2152,11 +2101,6 @@ function switchMainTab(el, idx) {
     });
   }
 
-  /* HVAC Diagram 패널 진입 시 렌더 (기본 계통 탭 보장) */
-  if (idx === 1) {
-    if (window.HIMEC_HVAC && typeof HIMEC_HVAC.render === 'function') HIMEC_HVAC.render();
-  }
-
   /* 2nd Diagnosis 패널 진입 시 시트 재구성 (1차 '2차 진단 유무' 체크 기준) */
   if (idx === 3) {
     if (typeof window.d2Refresh === 'function') window.d2Refresh();
@@ -2381,19 +2325,6 @@ function confirmAdd() {
 <div class="photo-viewer" id="photoViewer" onclick="closePhotoViewer()">
   <button class="photo-viewer-close" onclick="closePhotoViewer()">×</button>
   <img id="photoViewerImg" src="" alt="">
-</div>
-
-<!-- 계통도 전체 뷰어 (이미지: 확대/이동 · PDF: 네이티브 뷰어) -->
-<div class="hvac-viewer" id="hvacViewer">
-  <div class="hvac-viewer-bar">
-    <span class="hvac-viewer-title" id="hvacViewerTitle">계통도</span>
-    <button class="hvac-viewer-btn" id="hvacZoomOut" title="축소" onclick="HIMEC_HVAC.zoom(-1)">−</button>
-    <span class="hvac-viewer-zoom" id="hvacZoomLabel">100%</span>
-    <button class="hvac-viewer-btn" id="hvacZoomIn" title="확대" onclick="HIMEC_HVAC.zoom(1)">＋</button>
-    <button class="hvac-viewer-btn" id="hvacZoomFit" title="화면 맞춤" onclick="HIMEC_HVAC.zoomFit()">&#10530;</button>
-    <button class="hvac-viewer-btn" title="닫기 (Esc)" onclick="HIMEC_HVAC.closeViewer()">×</button>
-  </div>
-  <div class="hvac-stage" id="hvacStage"></div>
 </div>
 
 <div class="loading-overlay" id="loadingOverlay">
@@ -5138,7 +5069,11 @@ function d1ShowL2Sub(l1Idx, l2Idx) {
 </script>
 
 
-<!-- fanef 사진 뷰어 제거됨: 사용처·CSS·닫기 함수 없는 orphan 마크업이 우측에 ×로 노출되어 삭제 -->
+<!-- fanef 사진 뷰어 -->
+<div class="fanEff-photo-viewer" id="fanefPhotoViewer" onclick="closeFanefPhotoViewer()">
+  <button class="fanEff-photo-viewer-close" onclick="closeFanefPhotoViewer()">×</button>
+  <img id="fanefPhotoViewerImg" src="" alt="">
+</div>
 
 
 
@@ -5323,11 +5258,6 @@ function _collectAllData() {
   });
 
 
-  /* --- HVAC Diagram (계통도 문서) --- */
-  if (window.HIMEC_HVAC && typeof HIMEC_HVAC.collect === 'function') {
-    allData.hvacDiagram = HIMEC_HVAC.collect();
-  }
-
   return allData;
 }
 
@@ -5442,11 +5372,6 @@ function _restoreAllData(allData) {
       if (typeof renderUnitTabs === 'function') renderUnitTabs(t);
     });
   } catch (e) {}
-
-  /* --- HVAC Diagram 복원 --- */
-  if (window.HIMEC_HVAC && typeof HIMEC_HVAC.restore === 'function') {
-    HIMEC_HVAC.restore(allData.hvacDiagram);
-  }
 
   return true;
 }
@@ -7001,24 +6926,20 @@ function _buildOverviewPDFContent() {
 // ── HVAC Diagram PDF ──
 function _buildHvacPDFContent() {
   var html = '<div class="section-h">HVAC Diagram</div>';
-  var st = (window.HIMEC_HVAC && typeof HIMEC_HVAC.getState === 'function') ? HIMEC_HVAC.getState() : null;
-  var items = (st && st.items) ? st.items : [];
-  if (!items.length) {
-    html += '<p style="color:#999;padding:20px;">HVAC Diagram 자료가 없습니다.</p>';
-    return html;
-  }
-  var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]; }); };
-  var imgs = items.filter(function(it){ return it.kind === 'image' && (it._url || it.data); });
-  var pdfs = items.filter(function(it){ return it.kind === 'pdf'; });
-  imgs.forEach(function(it){
-    html += '<div style="margin:10px 0;page-break-inside:avoid;">'
-         +  '<div style="font-size:12px;font-weight:700;color:#00838f;margin-bottom:4px;">■ ' + esc(it.name) + '</div>'
-         +  '<img src="' + (it._url || it.data) + '" style="max-width:100%;border:1px solid #ddd;">'
-         +  '</div>';
-  });
-  if (pdfs.length) {
-    html += '<p style="color:#666;font-size:11px;padding:6px 0;">※ PDF 자료(' + pdfs.length + '건)는 화면 뷰어에서 확인해 주세요: '
-         +  pdfs.map(function(it){ return esc(it.name); }).join(', ') + '</p>';
+  var panel = document.getElementById('mainPanel1');
+  if (panel) {
+    var imgs = panel.querySelectorAll('img');
+    if (imgs.length > 0) {
+      html += '<div class="photo-grid">';
+      imgs.forEach(function(img) {
+        if (img.src && img.src !== '' && img.style.display !== 'none') {
+          html += '<img src="' + img.src + '" alt="HVAC">';
+        }
+      });
+      html += '</div>';
+    } else {
+      html += '<p style="color:#999;padding:20px;">HVAC Diagram 이미지가 없습니다.</p>';
+    }
   }
   return html;
 }
@@ -9460,260 +9381,6 @@ document.addEventListener('keydown', function(e){
     set: function(t, v){ choices[t] = !!v; saveCfg(); apply(); },
     choices: function(){ return JSON.parse(JSON.stringify(choices)); },
     visible: function(){ return ALL_TYPES.filter(typeVisible); }
-  };
-})();
-</script>
-
-<script>
-/* =====================================================================
-   HVAC Diagram — 계통도 문서 뷰어 모듈  (window.HIMEC_HVAC)
-   · 계통(탭) 추가/이름변경/삭제 · 도면(이미지·PDF) 추가/삭제
-   · 이미지: 확대·이동 뷰어 / PDF: 브라우저 네이티브 뷰어
-   · 저장: 사진과 동일 — Storage 업로드 후 경로(path)만 blob 에 보관,
-           업로드 실패 시 base64 폴백. 프로젝트별 저장/복원 흐름에 편승.
-   ===================================================================== */
-(function(){
-  var IMG_MAX = 2400, IMG_Q = 0.82;                    // A3 도면 가독성 확보(사진 1200 보다 크게)
-  var state = { items: [], active: null };             // item: {id,name,kind:'image'|'pdf',path,data,_url}
-  var pickMode = 'add', replaceId = null;
-
-  function uid(p){ return (p||'x')+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
-  function toast(m){ if(typeof showToast==='function') showToast(m); }
-  function stripExt(n){ return String(n||'').replace(/\.[^.]+$/,''); }
-  function isHttp(u){ return typeof u==='string' && /^https?:/i.test(u); }
-  function itemById(id){ for(var i=0;i<state.items.length;i++) if(state.items[i].id===id) return state.items[i]; return null; }
-  function activeItem(){ return itemById(state.active); }
-  function ensureActive(){ if(!activeItem()) state.active = state.items[0] ? state.items[0].id : null; }
-
-  /* ---------------- 렌더 ---------------- */
-  function renderTabs(){
-    var row = document.getElementById('hvacTabRow'); if(!row) return;
-    var h = '';
-    state.items.forEach(function(it){
-      h += '<button class="hvac-tab'+(it.id===state.active?' active':'')+'" onclick="HIMEC_HVAC.select(\''+it.id+'\')">'
-         + '<span class="hvac-tab-kind">'+(it.kind==='pdf'?'PDF':'IMG')+'</span> ' + esc(it.name) + '</button>';
-    });
-    h += '<button class="hvac-tab-add" title="자료 추가" onclick="HIMEC_HVAC.add()">＋ 자료 추가</button>';
-    row.innerHTML = h;
-  }
-
-  function renderBody(){
-    var body = document.getElementById('hvacBody'); if(!body) return;
-    ensureActive();
-    var it = activeItem();
-    if(!it){
-      var emptyIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v6h6"/><path d="M8 14h8M8 17h5"/></svg>';
-      body.innerHTML = '<div class="hvac-empty" style="margin:auto;">'
-        + '<div class="hvac-empty-ic">'+emptyIco+'</div>'
-        + '<p>아직 등록된 자료가 없습니다.<br>A3 도면(이미지 또는 PDF)을 올리면 여기에서 바로 볼 수 있습니다.</p>'
-        + '<button class="hvac-btn hvac-btn-primary" onclick="HIMEC_HVAC.add()">＋ 자료 추가</button></div>';
-      return;
-    }
-    var head = '<div class="hvac-cat-head">'
-      + '<span class="hvac-cat-title">'+esc(it.name)+'</span>'
-      + '<span style="font-size:11px;color:#9ca3af;font-weight:600;">'+(it.kind==='pdf'?'PDF 문서':'이미지 도면')+'</span>'
-      + '<div class="hvac-cat-actions">'
-        + '<button class="hvac-btn" onclick="HIMEC_HVAC.openFull()">전체화면</button>'
-        + '<button class="hvac-btn" onclick="HIMEC_HVAC.replace()">파일 교체</button>'
-        + '<button class="hvac-btn" onclick="HIMEC_HVAC.rename()">이름 변경</button>'
-        + '<button class="hvac-btn hvac-btn-danger" onclick="HIMEC_HVAC.remove()">삭제</button>'
-      + '</div></div>';
-
-    var src = it._url || it.data || '';
-    var preview;
-    if(it.kind==='pdf'){
-      var note = (src.indexOf('data:')===0)
-        ? '<div class="hvac-pdf-note">PDF 미리보기가 비어 보이면, 저장(클라우드 업로드) 후 새로고침 하면 정상 표시됩니다.</div>' : '';
-      preview = '<div class="hvac-preview">'
-        + (src ? '<iframe src="'+src+'#toolbar=1&navpanes=0&view=Fit" title="PDF"></iframe>' : '<div class="hvac-preview-msg">PDF를 불러올 수 없습니다.</div>')
-        + '</div>' + note;
-    } else {
-      preview = '<div class="hvac-preview"><div class="hvac-preview-img" onclick="HIMEC_HVAC.openFull()" title="클릭하면 확대·이동 보기">'
-        + (src ? '<img src="'+src+'" alt="'+esc(it.name)+'">' : '<div class="hvac-preview-msg">이미지를 불러올 수 없습니다.</div>')
-        + '</div></div>';
-    }
-    body.innerHTML = head + preview;
-  }
-
-  function render(){ renderTabs(); renderBody(); }
-
-  /* ---------------- 자료(탭) 조작 ---------------- */
-  function select(id){ state.active = id; render(); }
-  function rename(){
-    var it = activeItem(); if(!it) return;
-    var n = prompt('자료 이름을 변경합니다.', it.name);
-    if(n===null) return;
-    it.name = (n||'').trim() || it.name; render();
-  }
-  function remove(){
-    var it = activeItem(); if(!it) return;
-    if(!confirm('“'+it.name+'” 자료를 삭제할까요?')) return;
-    if(it.path && window.HIMEC_PHOTO && HIMEC_PHOTO.remove){ try{ HIMEC_PHOTO.remove(it.path); }catch(e){} }
-    var i = state.items.map(function(x){return x.id;}).indexOf(it.id);
-    if(i>=0) state.items.splice(i,1);
-    state.active = state.items[0] ? state.items[0].id : null;
-    render();
-  }
-  function add(){ pickMode='add'; replaceId=null; pickFile(); }
-  function replace(){ var it=activeItem(); if(!it) return; pickMode='replace'; replaceId=it.id; pickFile(); }
-  function pickFile(){ var el=document.getElementById('hvacFileInput'); if(el) el.click(); }
-
-  function readFileAs(file, cb){
-    var isPdf = /pdf$/i.test(file.type||'') || /\.pdf$/i.test(file.name||'');
-    var isImg = (file.type||'').indexOf('image/')===0;
-    if(isPdf){
-      var r = new FileReader(); r.onload = function(e){ cb('pdf', e.target.result); }; r.readAsDataURL(file);
-    } else if(isImg){
-      var done = function(u){ cb('image', u); };
-      if(typeof resizeImage==='function') resizeImage(file, IMG_MAX, IMG_Q).then(done).catch(function(){ var rr=new FileReader(); rr.onload=function(e){done(e.target.result);}; rr.readAsDataURL(file); });
-      else { var rr=new FileReader(); rr.onload=function(e){done(e.target.result);}; rr.readAsDataURL(file); }
-    } else {
-      toast('❌ 이미지 또는 PDF만 올릴 수 있습니다: ' + (file.name||''));
-    }
-  }
-
-  function onPick(ev){
-    var files = Array.prototype.slice.call((ev.target && ev.target.files) || []);
-    if(ev.target) ev.target.value = '';       // 같은 파일 재선택 허용
-    var mode = pickMode; pickMode = 'add';
-    if(!files.length) return;
-
-    if(mode==='replace'){
-      var it = itemById(replaceId); if(!it) return;
-      readFileAs(files[0], function(kind, url){
-        if(it.path && window.HIMEC_PHOTO && HIMEC_PHOTO.remove){ try{ HIMEC_PHOTO.remove(it.path); }catch(e){} }
-        it.kind = kind; it.data = url; it._url = url; it.path = null; render(); uploadItem(it);
-      });
-      return;
-    }
-
-    if(files.length===1){
-      var f = files[0];
-      readFileAs(f, function(kind, url){
-        var def = stripExt(f.name);
-        var name = prompt('자료 이름을 입력하세요.', def || '자료');   // ← 업로드 시 이름 지정
-        if(name===null) return;                                     // 취소 → 등록 안 함
-        createItem((name||'').trim() || def || '자료', kind, url);
-      });
-    } else {
-      files.forEach(function(f){ readFileAs(f, function(kind, url){ createItem(stripExt(f.name)||'자료', kind, url); }); });
-    }
-  }
-
-  function createItem(name, kind, url){
-    var it = { id:uid('f'), name:name, kind:kind, path:null, data:url, _url:url };
-    state.items.push(it); state.active = it.id; render(); uploadItem(it);
-  }
-
-  function uploadItem(it){
-    if(!(window.HIMEC_PHOTO && HIMEC_PHOTO.upload)) return;
-    HIMEC_PHOTO.upload(it.data, 'hvac_'+it.id).then(function(p){
-      if(!p) return;                            // 업로드 실패 → base64 폴백 유지
-      it.path = p; it.data = null;
-      if(HIMEC_PHOTO.signOne){                  // 서명 https URL 로 교체(특히 PDF 미리보기 안정화)
-        HIMEC_PHOTO.signOne(p).then(function(u){ if(u){ it._url = u; if(state.active===it.id) render(); } }).catch(function(){});
-      }
-    }).catch(function(){});
-  }
-
-  /* ---------------- 전체화면 뷰어 (이미지 확대·이동 / PDF 네이티브) ---------------- */
-  var vw = { scale:1, tx:0, ty:0, img:null, drag:null };
-  function applyTransform(){
-    if(!vw.img) return;
-    vw.img.style.transform = 'translate('+vw.tx+'px,'+vw.ty+'px) scale('+vw.scale+')';
-    var l = document.getElementById('hvacZoomLabel'); if(l) l.textContent = Math.round(vw.scale*100)+'%';
-  }
-  function zoomFit(){
-    if(!vw.img) return;
-    var s = document.getElementById('hvacStage');
-    var nw = vw.img.naturalWidth||1, nh = vw.img.naturalHeight||1;
-    var z = Math.min((s.clientWidth-48)/nw, (s.clientHeight-48)/nh);
-    if(!isFinite(z) || z<=0) z = 1; if(z>1) z = 1;
-    vw.scale = z; vw.tx = 0; vw.ty = 0; applyTransform();
-  }
-  function zoom(d){ vw.scale = Math.min(8, Math.max(0.1, vw.scale*(d>0?1.2:1/1.2))); applyTransform(); }
-  function openFull(){
-    var it = activeItem(); if(!it) return;
-    var stage = document.getElementById('hvacStage'), title = document.getElementById('hvacViewerTitle');
-    var zb = ['hvacZoomIn','hvacZoomOut','hvacZoomFit','hvacZoomLabel'].map(function(id){ return document.getElementById(id); });
-    if(title) title.textContent = it.name;
-    var src = it._url || it.data || ''; vw.img = null; vw.scale = 1; vw.tx = 0; vw.ty = 0;
-    if(it.kind==='pdf'){
-      stage.classList.remove('pannable'); zb.forEach(function(b){ if(b) b.style.display='none'; });
-      stage.innerHTML = src ? '<iframe src="'+src+'#toolbar=1&navpanes=0&view=Fit" title="PDF"></iframe>' : '<div style="color:#fff;padding:40px;">PDF를 불러올 수 없습니다.</div>';
-    } else {
-      zb.forEach(function(b){ if(b) b.style.display=''; });
-      stage.classList.add('pannable');
-      stage.innerHTML = src ? '<img id="hvacViewImg" src="'+src+'" alt="">' : '<div style="color:#fff;padding:40px;">이미지를 불러올 수 없습니다.</div>';
-      vw.img = document.getElementById('hvacViewImg'); if(vw.img){ vw.img.onload = zoomFit; setTimeout(zoomFit, 40); }
-    }
-    document.getElementById('hvacViewer').classList.add('open');
-  }
-  function closeViewer(){
-    var v = document.getElementById('hvacViewer'); if(v) v.classList.remove('open');
-    var s = document.getElementById('hvacStage'); if(s) s.innerHTML = '';
-    vw.img = null; vw.drag = null;
-  }
-  function bindStage(){
-    var stage = document.getElementById('hvacStage'); if(!stage || stage._bound) return; stage._bound = true;
-    stage.addEventListener('wheel', function(e){ if(!vw.img) return; e.preventDefault(); zoom(e.deltaY<0?1:-1); }, {passive:false});
-    stage.addEventListener('mousedown', function(e){ if(!vw.img) return; vw.drag={x:e.clientX,y:e.clientY,tx:vw.tx,ty:vw.ty}; stage.classList.add('panning'); });
-    window.addEventListener('mousemove', function(e){ if(!vw.drag) return; vw.tx = vw.drag.tx+(e.clientX-vw.drag.x); vw.ty = vw.drag.ty+(e.clientY-vw.drag.y); applyTransform(); });
-    window.addEventListener('mouseup', function(){ if(vw.drag){ vw.drag=null; stage.classList.remove('panning'); } });
-    document.addEventListener('keydown', function(e){ var v=document.getElementById('hvacViewer'); if(e.key==='Escape'&&v&&v.classList.contains('open')) closeViewer(); });
-  }
-
-  /* ---------------- 저장 / 복원 (+ 이전 계통형 데이터 자동 이관) ---------------- */
-  function normalize(f){ return { id:f.id||uid('f'), name:f.name||'자료', kind:(f.kind==='pdf'?'pdf':'image'), path:f.path||null, data:f.data||null, _url:f.data||null }; }
-  function collect(){
-    return { active:state.active, items: state.items.map(function(it){
-      var o = { id:it.id, name:it.name, kind:it.kind };
-      if(it.path) o.path = it.path;             // 클라우드: 경로만
-      else if(it.data) o.data = it.data;        // 폴백: base64
-      return o;
-    })};
-  }
-  function restore(saved){
-    var items = [];
-    if(saved && Array.isArray(saved.items) && saved.items.length){
-      items = saved.items.map(normalize);       // 신규 형식
-    } else if(saved && Array.isArray(saved.cats) && saved.cats.length){
-      // 구 형식(계통→파일) 자동 이관: 파일 1건당 자료 1개
-      saved.cats.forEach(function(c){
-        var fs = c.files || [];
-        fs.forEach(function(f, i){
-          var nm = fs.length>1 ? ((c.name||'자료')+' ('+(i+1)+')') : (c.name || f.name || '자료');
-          items.push(normalize({ id:f.id, name:nm, kind:f.kind, path:f.path, data:f.data }));
-        });
-      });
-    }
-    state.items = items;
-    state.active = (saved && saved.active && items.some(function(x){return x.id===saved.active;})) ? saved.active : (items[0] ? items[0].id : null);
-    render();
-    // 경로만 있는 자료는 서명 URL 발급 후 미리보기에 반영
-    var paths = [];
-    state.items.forEach(function(it){ if(it.path && !isHttp(it._url)) paths.push(it.path); });
-    if(paths.length && window.HIMEC_PHOTO && HIMEC_PHOTO.signMany){
-      HIMEC_PHOTO.signMany(paths).then(function(map){
-        if(!map) return;
-        state.items.forEach(function(it){ if(it.path && map[it.path]) it._url = map[it.path]; });
-        render();
-      }).catch(function(){});
-    }
-  }
-
-  /* ---------------- 초기화 & 공개 API ---------------- */
-  function init(){ bindStage(); render(); }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
-
-  window.HIMEC_HVAC = {
-    render: render, select: select,
-    add: add, replace: replace, rename: rename, remove: remove,
-    onPick: onPick, openFull: openFull, closeViewer: closeViewer, zoom: zoom, zoomFit: zoomFit,
-    collect: collect, restore: restore,
-    getState: function(){ return state; }
   };
 })();
 </script>
