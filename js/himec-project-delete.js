@@ -97,5 +97,35 @@
     return { ok: true };
   }
 
-  w.HIMEC_DEL = { ask: ask, verify: verify, purgeKpiProject: purgeKpiProject };
+  /* ---------- Tool 프로젝트 값 찌꺼기 삭제 (app_state 값 행) ----------
+   * 삭제 대상: 그 projectId 로 저장된 툴 입력값 행
+   *   · HIMEC_SAVE::<툴경로>::<projectId>
+   *   · std_<툴>_<projectId>   (308·701)
+   * LIKE 와일드카드 사고 방지를 위해 키 목록을 읽어와 JS 에서 정확히 끝나는 것만 매칭.
+   */
+  async function purgeToolProject(projectId) {
+    if (!projectId) return { ok: true, note: 'no-pid', deleted: 0 };
+    var c = await client(); if (!c) return { ok: false, error: 'no-client' };
+    try {
+      var r = await c.from('app_state').select('key');
+      if (r && r.error) return { ok: false, error: r.error.message || r.error };
+      var rows = (r && r.data) || [];
+      var sfxSave = '::' + projectId;   // HIMEC_SAVE::…::<pid>
+      var sfxStd  = '_' + projectId;    // std_…_<pid>
+      var toDel = rows.map(function (x) { return x.key; }).filter(function (k) {
+        if (!k) return false;
+        var isSave = k.indexOf('HIMEC_SAVE::') === 0 && k.slice(-sfxSave.length) === sfxSave;
+        var isStd  = k.indexOf('std_') === 0 && k.slice(-sfxStd.length) === sfxStd;
+        return isSave || isStd;
+      });
+      if (!toDel.length) return { ok: true, note: 'none', deleted: 0 };
+      var del = await c.from('app_state').delete().in('key', toDel);
+      if (del && del.error) return { ok: false, error: del.error.message || del.error };
+      // 이 브라우저 localStorage 에서도 제거 → 재동기화로 되살아나는 것 방지
+      try { toDel.forEach(function (k) { localStorage.removeItem(k); localStorage.removeItem(k + '__cts'); }); } catch (e) {}
+      return { ok: true, deleted: toDel.length, keys: toDel };
+    } catch (e) { warn('purgeTool', e); return { ok: false, error: String(e) }; }
+  }
+
+  w.HIMEC_DEL = { ask: ask, verify: verify, purgeKpiProject: purgeKpiProject, purgeToolProject: purgeToolProject };
 })(window, document);
