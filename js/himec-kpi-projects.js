@@ -86,9 +86,17 @@
     var r = await q;
     if (!r || r.error || !r.data) return;
     var stale = r.data.filter(function (row) { return row.kpi_sync_id && keepSet.indexOf(row.kpi_sync_id) === -1; });
+    // 행만 지우면 Storage 사진·툴값이 고아로 남음 → 가능하면 purgeKpiProject 로 위임(사진+툴+중복행 일괄).
+    var seen = {};
     for (var i = 0; i < stale.length; i++) {
+      var sid = stale[i].kpi_sync_id;
+      if (seen[sid]) continue; seen[sid] = 1;            // 같은 sync_id 중복 행은 purge 가 한 번에 처리
+      if (w.HIMEC_DEL && typeof w.HIMEC_DEL.purgeKpiProject === 'function') {
+        try { await w.HIMEC_DEL.purgeKpiProject(sid); continue; } catch (e) { warn('prune purge', sid, e); }
+      }
+      // 폴백: purge 모듈이 없을 때만 행 단독 삭제(이 경우 사진은 못 지움)
       var del = await c.from('projects').delete().eq('id', stale[i].id);
-      if (del && del.error) warn('prune delete', stale[i].kpi_sync_id, del.error.message || del.error);
+      if (del && del.error) warn('prune delete', sid, del.error.message || del.error);
     }
   }
 
