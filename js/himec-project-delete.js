@@ -70,31 +70,48 @@
     });
   }
 
-  /* ---------- KPI 프로젝트 완전 삭제 (사진 + projects 행) ---------- */
-  async function purgeKpiProject(syncId) {
-    if (!syncId) return { ok: true, note: 'no-sync' };
-    var c = await client(); if (!c) return { ok: false, error: 'no-client' };
-    var cid = companyId();
-    // 1) UUID 조회
-    var q = c.from('projects').select('id').eq('kpi_sync_id', syncId);
-    if (cid && cid !== 'default') q = q.eq('company_id', cid);
-    var r = await q.maybeSingle();
-    var uuid = (r && r.data && r.data.id) || null;
-    if (!uuid) return { ok: true, note: 'no-row' };   // 이미 없음 (사진도 없다고 봄)
-    // 2) Storage 사진 삭제: <companyId>/<uuid>/ 폴더의 파일 목록 → remove
+  /* ---------- KPI 프로젝트 완전 삭제 (사진 + 툴값 + projects 행) ----------
+   * · 같은 kpi_sync_id 에 중복 행이 있어도 전부 처리 (maybeSingle 금지 — 2건이면 에러로 null 반환됨)
+   * · 사진: 각 행의 UUID 폴더 + 전환전(pj_syncId / syncId) 후보 폴더까지 훑어 삭제
+   * · 툴 입력값(app_state)도 각 UUID 기준으로 정리 → "더미 없이" 완전 삭제 */
+  async function _rmFolder(c, folder) {
     try {
-      var folder = (cid && cid !== 'default' ? cid : 'default') + '/' + uuid;
       var lst = await c.storage.from(BUCKET).list(folder, { limit: 1000 });
       if (lst && !lst.error && lst.data && lst.data.length) {
         var paths = lst.data.map(function (f) { return folder + '/' + f.name; });
         var rm = await c.storage.from(BUCKET).remove(paths);
-        if (rm && rm.error) warn('photo remove', rm.error.message || rm.error);
+        if (rm && rm.error) warn('photo remove', folder, rm.error.message || rm.error);
       }
-    } catch (e) { warn('photo purge', e); }
-    // 3) projects 행 삭제 → FK cascade 로 diag_units·improvements 자동 삭제
-    var del = await c.from('projects').delete().eq('id', uuid);
-    if (del && del.error) return { ok: false, error: del.error.message || del.error };
-    return { ok: true };
+    } catch (e) { warn('photo purge', folder, e); }
+  }
+  async function purgeKpiProject(syncId) {
+    if (!syncId) return { ok: true, note: 'no-sync' };
+    var c = await client(); if (!c) return { ok: false, error: 'no-client' };
+    var cid = companyId();
+    // 1) 이 kpi_sync_id 의 "모든" 행 조회 (중복 대비)
+    var q = c.from('projects').select('id').eq('kpi_sync_id', syncId);
+    if (cid && cid !== 'default') q = q.eq('company_id', cid);
+    var r = await q;
+    var rows = (r && !r.error && r.data) || [];
+    // company_id 로 못 찾으면(옛 NULL company 행) 필터 없이 재조회
+    if (!rows.length) {
+      var r2 = await c.from('projects').select('id').eq('kpi_sync_id', syncId);
+      rows = (r2 && !r2.error && r2.data) || [];
+    }
+    var uuids = rows.map(function (x) { return x.id; }).filter(Boolean);
+    var base = (cid && cid !== 'default' ? cid : 'default');
+    // 2) 사진 삭제: 각 UUID 폴더 + 전환전 후보 폴더(syncId / pj_syncId)
+    var folders = uuids.slice();
+    folders.push(syncId, 'pj_' + syncId);
+    for (var i = 0; i < folders.length; i++) { await _rmFolder(c, base + '/' + folders[i]); }
+    // 3) 툴 입력값(app_state) 정리 — 각 UUID
+    for (var j = 0; j < uuids.length; j++) { try { await purgeToolProject(uuids[j]); } catch (e) {} }
+    // 4) projects 행 삭제(모든 중복 행) → FK cascade 로 diag_units·improvements 자동 삭제
+    for (var k = 0; k < uuids.length; k++) {
+      var del = await c.from('projects').delete().eq('id', uuids[k]);
+      if (del && del.error) warn('row delete', uuids[k], del.error.message || del.error);
+    }
+    return { ok: true, rows: uuids.length };
   }
 
   /* ---------- Tool 프로젝트 값 찌꺼기 삭제 (app_state 값 행) ----------
