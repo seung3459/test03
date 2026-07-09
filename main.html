@@ -5,6 +5,7 @@
 	<script src="/js/supabase-config.js"></script>
 	<script src="/js/auth-guard.js"></script>
 	<script src="/js/himec-supabase-sync.js"></script>
+	<script src="/js/himec-project-delete.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HIMEC – Commissioning Dept.2 (Mechanical)</title>
@@ -277,7 +278,7 @@ body{margin:0;background:#f7f8fa;}
           파일 업로드
         </button>
         <input type="file" id="docFileInput" multiple style="display:none" onchange="onDocFilesSelected(event)">
-        <span class="doc-hint">브라우저(localStorage)에 저장됩니다 · 파일당 권장 4MB 이하</span>
+        <span class="doc-hint">Storage(project-docs/_documents)에 저장 · 모든 파일 형식 지원</span>
       </div>
       <ul class="doc-list" id="docList"></ul>
     </div>
@@ -473,7 +474,33 @@ function renderKpi(){
 
 /* ===== (3) Document 보관함 : himec_documents_v1 연동 ===== */
 var DOC_KEY='himec_documents_v1';
-var DOC_PW='6340';
+var DOC_BUCKET=(window.HIMEC_SUPABASE_CONFIG&&window.HIMEC_SUPABASE_CONFIG.BACKUP_BUCKET)||'project-docs';
+var DOC_FOLDER='_documents';
+
+async function docClient(){
+  try{ if(window.HIMEC_SYNC && HIMEC_SYNC.ready){ var c=await HIMEC_SYNC.ready(); if(c) return c; } }catch(e){}
+  var C=window.HIMEC_SUPABASE_CONFIG||{};
+  if(C.SUPABASE_URL && window.supabase && window.supabase.createClient) return window.supabase.createClient(C.SUPABASE_URL,C.SUPABASE_ANON_KEY);
+  return null;
+}
+function docCompanyId(){ try{ return (typeof window.himecCompanyId==='function')?window.himecCompanyId():'default'; }catch(e){ return 'default'; } }
+function setDocBusy(busy,msg){
+  var hint=document.querySelector('.doc-hint');
+  if(hint) hint.textContent = busy ? msg : ('Storage('+DOC_BUCKET+'/'+DOC_FOLDER+')에 저장 · 모든 파일 형식 지원');
+  Array.prototype.forEach.call(document.querySelectorAll('.doc-up-btn, .dc-up'),function(b){ b.disabled=!!busy; b.style.opacity=busy?'0.5':''; });
+}
+async function docUpload(file){
+  var c=await docClient(); if(!c) return null;
+  var dot=file.name.lastIndexOf('.');
+  var ext=(dot>=0)?file.name.slice(dot+1).toLowerCase().replace(/[^\w]/g,''):'';
+  var base=(dot>=0?file.name.slice(0,dot):file.name).replace(/[^\w.\-가-힣]/g,'_').slice(0,60)||'file';
+  var path=docCompanyId()+'/'+DOC_FOLDER+'/'+base+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+(ext?('.'+ext):'');
+  try{
+    var r=await c.storage.from(DOC_BUCKET).upload(path,file,{ contentType:file.type||'application/octet-stream', upsert:true });
+    if(r&&r.error){ console.warn('[doc] upload',r.error.message||r.error); return null; }
+    return path;
+  }catch(e){ console.warn('[doc] upload throw',e); return null; }
+}
 
 function docLoad(){
   try{var raw=localStorage.getItem(DOC_KEY);if(raw){var a=JSON.parse(raw);if(Array.isArray(a))return a;}}catch(e){}
@@ -547,46 +574,81 @@ function renderDocList(){
   });
 }
 
-function onDocFilesSelected(ev){
+async function onDocFilesSelected(ev){
   var files=ev.target.files; if(!files||!files.length)return;
+  var list=Array.prototype.slice.call(files);
+  ev.target.value='';
   var arr=docLoad();
-  var pending=files.length;
-  Array.prototype.forEach.call(files,function(file){
-    var reader=new FileReader();
-    reader.onload=function(){
+  var total=list.length, done=0, failed=0;
+  setDocBusy(true,'업로드 중… (0/'+total+')');
+  for(var i=0;i<total;i++){
+    var file=list[i];
+    var path=await docUpload(file);
+    if(path){
       arr.push({
         id:'d'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
         name:file.name, size:file.size, type:file.type||'',
-        data:reader.result, uploadedAt:Date.now()
+        path:path, uploadedAt:Date.now()
       });
-      pending--;
-      if(pending===0){ docSave(arr); renderDocList(); renderDocCard(); }
-    };
-    reader.onerror=function(){ pending--; if(pending===0){docSave(arr);renderDocList();renderDocCard();} };
-    reader.readAsDataURL(file);
-  });
-  ev.target.value='';
+    } else { failed++; }
+    done++;
+    setDocBusy(true,'업로드 중… ('+done+'/'+total+')');
+  }
+  docSave(arr);
+  try{ if(window.HIMEC_SYNC && HIMEC_SYNC.mirrorKey) HIMEC_SYNC.mirrorKey(DOC_KEY); }catch(e){}
+  setDocBusy(false);
+  renderDocList(); renderDocCard();
+  if(failed) alert(failed+'개 파일 업로드에 실패했습니다.\n연결 상태(로그인/네트워크)를 확인한 뒤 다시 시도해주세요.');
 }
 
-function downloadDoc(id){
+async function downloadDoc(id){
   var arr=docLoad();
   var f=arr.filter(function(x){return x.id===id;})[0];
   if(!f)return;
-  var a=document.createElement('a');
-  a.href=f.data; a.download=f.name;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  // 구버전(localStorage base64) 항목 호환
+  if(f.data){
+    var a0=document.createElement('a'); a0.href=f.data; a0.download=f.name;
+    document.body.appendChild(a0); a0.click(); document.body.removeChild(a0); return;
+  }
+  if(!f.path){ alert('파일 경로가 없습니다.'); return; }
+  var c=await docClient(); if(!c){ alert('다운로드하려면 로그인/연결이 필요합니다.'); return; }
+  try{
+    var r=await c.storage.from(DOC_BUCKET).createSignedUrl(f.path, 60*60);
+    var url=r&&r.data&&r.data.signedUrl;
+    if(!url){ alert('다운로드 링크를 만들 수 없습니다.'); return; }
+    var resp=await fetch(url); var blob=await resp.blob();
+    var obj=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=obj; a.download=f.name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(obj); },4000);
+  }catch(e){ alert('다운로드 중 오류가 발생했습니다: '+(e.message||e)); }
 }
 
-function deleteDoc(id){
+async function deleteDoc(id){
   var arr=docLoad();
   var f=arr.filter(function(x){return x.id===id;})[0];
   if(!f)return;
-  var pw=prompt('파일 삭제 비밀번호를 입력하세요.');
-  if(pw===null)return;
-  if(pw!==DOC_PW){ alert('비밀번호가 일치하지 않습니다.'); return; }
-  if(!confirm('\u300c'+f.name+'\u300d 파일을 삭제하시겠습니까?'))return;
+  // 삭제 암호(프로젝트 삭제와 동일한 RPC 검증 — 소스에 암호 노출 없음)
+  var ok=false;
+  if(window.HIMEC_DEL && HIMEC_DEL.ask){ ok=await HIMEC_DEL.ask(); }
+  else {
+    var pw=prompt('삭제 암호를 입력하세요.');
+    if(pw===null) return;
+    try{ ok=(window.HIMEC_DEL && HIMEC_DEL.verify) ? await HIMEC_DEL.verify(pw) : false; }catch(e){ ok=false; }
+    if(!ok){ alert('암호가 올바르지 않습니다.'); return; }
+  }
+  if(!ok) return;
+  // Storage 파일 제거(경로 있는 신규 항목만)
+  if(f.path){
+    try{
+      var c=await docClient();
+      if(c){ var rm=await c.storage.from(DOC_BUCKET).remove([f.path]); if(rm&&rm.error) console.warn('[doc] remove',rm.error.message||rm.error); }
+    }catch(e){ console.warn('[doc] remove throw',e); }
+  }
   arr=arr.filter(function(x){return x.id!==id;});
-  docSave(arr); renderDocList(); renderDocCard();
+  docSave(arr);
+  try{ if(window.HIMEC_SYNC && HIMEC_SYNC.mirrorKey) HIMEC_SYNC.mirrorKey(DOC_KEY); }catch(e){}
+  renderDocList(); renderDocCard();
 }
 
 /* ===== INIT ===== */
