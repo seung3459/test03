@@ -578,7 +578,9 @@ function selectProject(idx){
   try { localStorage.setItem('activeProjectName', project.name || ''); } catch(e){}
   renderProjectsTable();
   showLoading('"' + project.name + '" 진입 중...');
-  window.location.href = 'diagnosis/diagnosis.html?project=' + encodeURIComponent(currentProjectId);
+  // 별명(slug)이 있으면 별명 주소로, 없으면 UUID로 이동 (주소 표시 통일)
+  var pref = (project.slug && project.slug.trim()) ? project.slug.trim() : currentProjectId;
+  window.location.href = 'diagnosis/diagnosis.html?project=' + encodeURIComponent(pref);
 }
 
 function openProjectModal(mode, idx){
