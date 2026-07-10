@@ -383,7 +383,7 @@ async function loadProjectsList(){
       const c = await HIMEC_SYNC.ready();
       if(c){
         const r = await c.from('projects')
-          .select('id,name,kpi_sync_id,category,contract_year,status,slug')
+          .select('id,name,kpi_sync_id,category,contract_year,status,slug,meta')
           .order('created_at',{ascending:true});
         if(r && !r.error && Array.isArray(r.data)) tableRows = r.data;
         else if(r && r.error && window.console) console.warn('projects select err:', r.error.message||r.error);
@@ -408,7 +408,8 @@ async function loadProjectsList(){
         status: row.status || '수행',
         activity: CAT_REV[row.category] || '노후진단',
         slug: row.slug || '',
-        documents: (sync && docMap[sync]) ? docMap[sync] : {}
+        documents: (row.meta && row.meta.documents) ? row.meta.documents
+                    : ((sync && docMap[sync]) ? docMap[sync] : {})
       };
     });
     return;
@@ -703,10 +704,6 @@ const DOC_TYPE_LABELS = {
   estimate: '견적서'
 };
 
-function getDocStorageKey(projectId, docType) {
-  return 'himec_doc_' + docType + '_' + projectId;
-}
-
 function openUploadModal(docType, reupload = false) {
   if (projectModalEditIdx < 0 || !projectsList[projectModalEditIdx]) {
     showToast('프로젝트를 먼저 선택해주세요.');
@@ -738,180 +735,156 @@ function closeUploadModal(e) {
 function updateFileStatus(projectId, docType) {
   const statusEl = document.getElementById('fileStatus');
   const fileNameEl = document.getElementById('currentFileName');
-  const storageKey = getDocStorageKey(projectId, docType);
-
-  try {
-    const savedData = localStorage.getItem(storageKey);
-    if (savedData) {
-      const fileData = JSON.parse(savedData);
-      fileNameEl.textContent = fileData.fileName || '저장된 파일';
-      statusEl.classList.add('has-file');
-    } else {
-      statusEl.classList.remove('has-file');
-    }
-  } catch (e) {
+  const project = projectsList[projectModalEditIdx];
+  const doc = project && project.documents && project.documents[docType];
+  if (doc && doc.path) {
+    fileNameEl.textContent = doc.fileName || '저장된 파일';
+    statusEl.classList.add('has-file');
+  } else {
     statusEl.classList.remove('has-file');
   }
 }
 
-function deleteUploadedFile() {
+async function deleteUploadedFile() {
   if (projectModalEditIdx < 0 || !currentDocType) return;
-
   const project = projectsList[projectModalEditIdx];
-  const storageKey = getDocStorageKey(project.id, currentDocType);
-
+  const doc = project.documents && project.documents[currentDocType];
   if (!confirm(DOC_TYPE_LABELS[currentDocType] + ' 파일을 삭제하시겠습니까?')) return;
 
-  localStorage.removeItem(storageKey);
-
-  if (!project.documents) project.documents = {};
-  delete project.documents[currentDocType];
-  saveProjectsList();
-
-  updateFileStatus(project.id, currentDocType);
-  updateDocButtonStates();
-  showToast(DOC_TYPE_LABELS[currentDocType] + '가 삭제되었습니다.');
+  showLoading('삭제 중...');
+  try {
+    const c = await docClient();
+    if (c && doc && doc.path) {
+      try { await c.storage.from(DOC_BUCKET).remove([doc.path]); } catch(e){}   // Storage 파일 제거
+    }
+    if (project.documents) delete project.documents[currentDocType];
+    await saveProjectDocsMeta(project);                                          // meta 갱신
+    updateFileStatus(project.id, currentDocType);
+    updateDocButtonStates();
+    showToast(DOC_TYPE_LABELS[currentDocType] + '가 삭제되었습니다.');
+  } catch (e) {
+    console.error('[deleteUploadedFile] 오류:', e);
+    showToast('삭제 중 오류가 발생했습니다.');
+  } finally {
+    hideLoading();
+  }
 }
 
-function readFileAsBase64(file) {
-  return new Promise(function(resolve, reject) {
-    var reader = new FileReader();
-    reader.onload = function() {
-      var result = reader.result;
-      var base64 = result.split(',')[1];
-      resolve(base64);
-    };
-    reader.onerror = function() {
-      reject(new Error('파일 읽기 실패'));
-    };
-    reader.readAsDataURL(file);
-  });
+// ===== 문서 저장: Supabase Storage(project-docs) 방식 =====
+const DOC_BUCKET = 'project-docs';
+const DOC_MIME = {
+  pdf:'application/pdf', doc:'application/msword',
+  docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt:'application/vnd.ms-powerpoint',
+  pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xls:'application/vnd.ms-excel',
+  xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+};
+function docMime(ext){ return DOC_MIME[ext] || 'application/octet-stream'; }
+function docPath(projectId, docType, ext){ return docType + '/' + projectId + '.' + ext; }  // 종류별 폴더 + 프로젝트UUID
+
+// Supabase 클라이언트 얻기 (없으면 null)
+async function docClient(){
+  try{
+    if(window.HIMEC_SYNC && HIMEC_SYNC.ready){ const c = await HIMEC_SYNC.ready(); return c || null; }
+  }catch(e){}
+  return null;
+}
+
+// 문서 정보를 projects.meta 에 저장(다른 PC 동기화). 기존 meta 는 보존.
+async function saveProjectDocsMeta(project){
+  const c = await docClient();
+  if(!c) return false;
+  let meta = {};
+  try{
+    const r = await c.from('projects').select('meta').eq('id', project.id).maybeSingle();
+    if(r && r.data && r.data.meta) meta = r.data.meta;
+  }catch(e){}
+  meta.documents = project.documents || {};
+  const w = await c.from('projects').update({ meta }).eq('id', project.id);
+  return !(w && w.error);
 }
 
 async function uploadDocument() {
   const fileInput = document.getElementById('docFile');
   const file = fileInput.files[0];
 
-  if (!file) {
-    alert('업로드할 파일을 선택해 주세요.');
-    return;
-  }
-
+  if (!file) { alert('업로드할 파일을 선택해 주세요.'); return; }
   if (projectModalEditIdx < 0 || !currentDocType) {
-    alert('프로젝트 또는 문서 유형이 선택되지 않았습니다.');
-    return;
+    alert('프로젝트 또는 문서 유형이 선택되지 않았습니다.'); return;
   }
-
   const project = projectsList[projectModalEditIdx];
 
-  if (file.size > 4 * 1024 * 1024) {
-    alert('파일 크기가 4MB를 초과합니다.');
-    return;
-  }
+  if (file.size > 20 * 1024 * 1024) { alert('파일 크기가 20MB를 초과합니다.'); return; }
 
   showLoading('파일 업로드 중...');
-
   try {
-    const base64 = await readFileAsBase64(file);
-    const ext = file.name.split('.').pop().toLowerCase();
-    const safeName = currentDocType + '_' + project.id + '_' + Date.now() + '.' + ext;
+    const c = await docClient();
+    if (!c) { showToast('저장소에 연결할 수 없습니다(로그인/네트워크 확인).'); hideLoading(); return; }
 
-    const fileData = {
-      base64: base64,
+    const ext = file.name.split('.').pop().toLowerCase();
+    const path = docPath(project.id, currentDocType, ext);
+
+    // 재업로드 시 확장자가 다르면 옛 파일이 남을 수 있으므로 먼저 제거(고아파일 방지)
+    const prev = project.documents && project.documents[currentDocType];
+    if (prev && prev.path && prev.path !== path) {
+      try { await c.storage.from(DOC_BUCKET).remove([prev.path]); } catch(e){}
+    }
+
+    const up = await c.storage.from(DOC_BUCKET).upload(path, file, {
+      upsert: true, contentType: docMime(ext)
+    });
+    if (up && up.error) {
+      showToast('업로드 실패: ' + (up.error.message || ''));
+      hideLoading(); return;
+    }
+
+    if (!project.documents) project.documents = {};
+    project.documents[currentDocType] = {
+      path: path,
       fileName: file.name,
-      safeName: safeName,
       ext: ext,
       size: file.size,
       uploadedAt: new Date().toISOString()
     };
 
-    const storageKey = getDocStorageKey(project.id, currentDocType);
+    const ok = await saveProjectDocsMeta(project);
+    if (!ok) { showToast('파일은 올라갔지만 정보 저장에 실패했어요. 다시 시도해 주세요.'); }
 
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(fileData));
-    } catch (e) {
-      alert('저장소 용량이 부족합니다.');
-      hideLoading();
-      return;
-    }
-
-    if (!project.documents) project.documents = {};
-    project.documents[currentDocType] = {
-      fileName: file.name,
-      safeName: safeName,
-      ext: ext,
-      uploadedAt: new Date().toISOString()
-    };
-
-    await saveProjectsList();
+    updateFileStatus(project.id, currentDocType);
     updateDocButtonStates();
     showToast(DOC_TYPE_LABELS[currentDocType] + '가 업로드되었습니다.');
-
   } catch (e) {
     console.error('[uploadDocument] 오류:', e);
-    showToast('업로드 중 오류가 발생했습니다: ' + e.message);
+    showToast('업로드 중 오류가 발생했습니다: ' + (e.message || e));
   } finally {
     hideLoading();
   }
-
   closeUploadModal();
 }
 
-function viewDocument(docType) {
+async function viewDocument(docType) {
   if (projectModalEditIdx < 0 || !projectsList[projectModalEditIdx]) {
-    showToast('프로젝트를 먼저 선택해주세요.');
-    return;
+    showToast('프로젝트를 먼저 선택해주세요.'); return;
   }
-
   const project = projectsList[projectModalEditIdx];
-  const storageKey = getDocStorageKey(project.id, docType);
+  const doc = project.documents && project.documents[docType];
+  if (!doc || !doc.path) { showToast(DOC_TYPE_LABELS[docType] + '가 등록되지 않았습니다.'); return; }
 
+  showLoading('문서 여는 중...');
   try {
-    const savedData = localStorage.getItem(storageKey);
-    if (!savedData) {
-      showToast(DOC_TYPE_LABELS[docType] + '가 등록되지 않았습니다.');
-      return;
+    const c = await docClient();
+    if (!c) { showToast('저장소에 연결할 수 없습니다.'); hideLoading(); return; }
+    const r = await c.storage.from(DOC_BUCKET).createSignedUrl(doc.path, 120);   // 2분짜리 임시 링크
+    if (r && r.error || !r.data || !r.data.signedUrl) {
+      showToast('문서를 열 수 없습니다.'); hideLoading(); return;
     }
-
-    const fileData = JSON.parse(savedData);
-    const byteCharacters = atob(fileData.base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-
-    const mimeTypes = {
-      pdf: 'application/pdf',
-      doc: 'application/msword',
-      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      ppt: 'application/vnd.ms-powerpoint',
-      pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      xls: 'application/vnd.ms-excel',
-      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    };
-    const mimeType = mimeTypes[fileData.ext] || 'application/octet-stream';
-
-    const blob = new Blob([byteArray], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-
-    if (fileData.ext === 'pdf') {
-      window.open(url, '_blank');
-    } else {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileData.fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      showToast(fileData.fileName + ' 다운로드 시작');
-    }
-
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-
+    window.open(r.data.signedUrl, '_blank');   // PDF·Office 모두 새 탭에서 열기/다운로드
   } catch (e) {
     console.error('[viewDocument] 오류:', e);
     showToast('파일을 열 수 없습니다.');
+  } finally {
+    hideLoading();
   }
 }
 
@@ -923,8 +896,8 @@ function updateDocButtonStates() {
   const labels = { contract: '계약서', proposal: '제안서', estimate: '견적서' };
 
   docTypes.forEach(docType => {
-    const storageKey = getDocStorageKey(project.id, docType);
-    const hasFile = localStorage.getItem(storageKey) !== null;
+    const doc = project.documents && project.documents[docType];
+    const hasFile = !!(doc && doc.path);
 
     const uploadBtn = document.getElementById('btnUpload' + docType.charAt(0).toUpperCase() + docType.slice(1));
     const viewBtn = document.getElementById('btnView' + docType.charAt(0).toUpperCase() + docType.slice(1));
