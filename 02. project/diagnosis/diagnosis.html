@@ -2,13 +2,46 @@
 <html lang="ko">
 <head>
 	<script>
-	/* [HIMEC] 주소(?project=<UUID>)로 들어온 프로젝트 아이디를 가장 먼저 저장.
-	   이 한 곳만 있으면 아래 기존 코드들은 손대지 않아도 됨. */
-	(function(){
-		try {
-			var pid = new URLSearchParams(location.search).get('project');
-			if (pid) { localStorage.setItem('activeProjectId', pid); }
-		} catch (e) {}
+	/* [HIMEC] 주소(?project=...)로 들어온 값 처리. 이 한 곳만 있으면 아래 기존 코드는 그대로 둠.
+	   - UUID 면        → 그대로 저장하고 평소대로 진행
+	   - 별명(slug)이면  → projects.slug 로 UUID를 조회해 UUID 주소로 자동 전환 */
+	(function () {
+		var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		var val;
+		try { val = new URLSearchParams(location.search).get('project'); } catch (e) { val = null; }
+		if (!val) return;
+
+		// 1) 이미 UUID → 바로 저장하고 평소대로 진행 (대시보드에서 클릭해 들어온 경우)
+		if (UUID_RE.test(val)) {
+			try { localStorage.setItem('activeProjectId', val); } catch (e) {}
+			return;
+		}
+
+		// 2) 별명(slug) → UUID 조회 후 UUID 주소로 전환.
+		//    조회 끝날 때까지 엉뚱한 프로젝트가 로드되지 않도록 아이디를 잠시 비워둔다.
+		try { localStorage.removeItem('activeProjectId'); } catch (e) {}
+
+		var tries = 0;
+		(function resolve() {
+			var CFG = window.HIMEC_SUPABASE_CONFIG || {};
+			if (!window.supabase || !window.supabase.createClient || !CFG.SUPABASE_URL) {
+				if (tries++ < 50) setTimeout(resolve, 100);   // 라이브러리/설정 로드 대기(최대 5초)
+				return;
+			}
+			var c = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+			c.auth.getSession().then(function (res) {
+				// 로그인 안 됨 → auth-guard 가 로그인시키고 이 주소로 되돌려보냄 → 그때 다시 조회됨
+				if (!res || !res.data || !res.data.session) return;
+				c.from('projects').select('id').eq('slug', val).maybeSingle().then(function (r) {
+					if (r && !r.error && r.data && r.data.id) {
+						var u = new URL(location.href);
+						u.searchParams.set('project', r.data.id);   // 별명 → UUID 로 주소 교체
+						location.replace(u.toString());
+					}
+					// 못 찾으면 그대로 둠(오타 시 주소만 고치면 됨)
+				}).catch(function () {});
+			}).catch(function () {});
+		})();
 	})();
 	</script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
