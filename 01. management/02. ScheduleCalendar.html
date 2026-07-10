@@ -1161,6 +1161,15 @@ window.addEventListener('DOMContentLoaded', function(){
   renderCalendar();
   startAutoSave();
 });
+
+// 클라우드 복원(hydrate) 완료 시 다시 읽어 재렌더 (다른 기기/새 기기 대응)
+window.addEventListener('himec:hydrated', function(){
+  const cur = activeMonth;   // 보고 있던 달 유지
+  loadStore();               // 클라우드에서 내려온 값 다시 읽기
+  activeMonth = cur;
+  renderCalendar();
+});
+
 window.addEventListener('resize', function(){
   // grid is fully responsive via CSS; no recompute required
 });
