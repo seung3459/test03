@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+	<script>
+	/* [HIMEC] 주소(?project=<UUID>)로 들어온 프로젝트 아이디를 가장 먼저 저장.
+	   이 한 곳만 있으면 아래 기존 코드들은 손대지 않아도 됨. */
+	(function(){
+		try {
+			var pid = new URLSearchParams(location.search).get('project');
+			if (pid) { localStorage.setItem('activeProjectId', pid); }
+		} catch (e) {}
+	})();
+	</script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="../../js/supabase-config.js"></script>
 	<script src="../../js/auth-guard.js"></script>
@@ -1100,11 +1110,6 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 @media (max-width:680px){
   .np-uni-grid{ grid-template-columns:1fr; }
 }
-
-/* ===== 발표(읽기전용) 계정 모드 ===== */
-body.present-mode .btn-save { display: none !important; }  /* 저장 버튼 숨김 */
-body.present-mode .btn-file { display: none !important; }  /* 내보내기 버튼 숨김 (유지하려면 이 줄 삭제) */
-/* 홈 버튼(.btn-main)은 숨기지 않고, 발표 계정에선 '로그아웃'으로 동작 (아래 스크립트) */
 </style>
 </head>
 <body>
@@ -8037,6 +8042,32 @@ document.addEventListener('keydown', function(e){
 
   // 프로젝트명 시딩: 저장 blob에 이름이 없으면(신규 프로젝트) 대시보드가 넘긴 이름을 사용하고,
   // 이름이 있으면 헤더 표시·Project Tracker까지 전파.
+  var _nameLookupTried = false;
+  // 다른 PC/브라우저에서 주소(?project=<UUID>)로 바로 들어와 로컬에 이름이 없을 때,
+  // 프로젝트 아이디로 Supabase projects 테이블에서 이름을 조회해 채운다.
+  function fillNameFromCloud() {
+    if (_nameLookupTried) return;
+    var p = pid();
+    if (!p || p === 'default') return;
+    _nameLookupTried = true;
+    try {
+      cloud().then(function (c) {
+        if (!c) return;
+        return c.from('projects').select('name').eq('id', p).maybeSingle().then(function (r) {
+          if (!r || r.error || !r.data) return;
+          var nm = (r.data.name || '').trim();
+          if (!nm) return;
+          try { localStorage.setItem('activeProjectName', nm); } catch (e) {}   // 다음부터는 이 PC에서 즉시 표시
+          var el = d.getElementById('projectName');
+          if (el && !(el.value || '').trim()) {                                 // 그 사이 이름이 채워졌으면 덮지 않음
+            el.value = nm;
+            if (typeof w.updateOverviewTitle === 'function') w.updateOverviewTitle();
+          }
+        });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   function syncProjectName() {
     try {
       var el = d.getElementById('projectName');
@@ -8047,6 +8078,8 @@ document.addEventListener('keydown', function(e){
         try { nm = localStorage.getItem('activeProjectName') || ''; } catch (e) {}
         if (nm) el.value = nm;
       }
+      // 로컬에도 이름이 없으면(다른 PC 등) 클라우드에서 아이디로 조회해 채운다.
+      if (!(el.value || '').trim()) { fillNameFromCloud(); }
       if (typeof w.updateOverviewTitle === 'function') w.updateOverviewTitle();
     } catch (e) {}
   }
@@ -9387,48 +9420,6 @@ document.addEventListener('keydown', function(e){
     choices: function(){ return JSON.parse(JSON.stringify(choices)); },
     visible: function(){ return ALL_TYPES.filter(typeVisible); }
   };
-})();
-</script>
-
-
-<!-- ===== 발표(읽기전용) 계정: 버튼 숨김 + 홈→로그아웃 재정의 ===== -->
-<script>
-(function () {
-  // ▼ 실제로 만들 발표 계정 이메일로 교체하세요 (예: presentation@himec.app)
-  var PRESENT_EMAIL = 'present@himec.app';
-
-  function apply(session) {
-    var email = session && session.user && session.user.email;
-    if (!email || email.toLowerCase() !== PRESENT_EMAIL.toLowerCase()) return;
-
-    // 1) 읽기전용 표시 → CSS가 저장/내보내기 버튼을 숨김
-    document.body.classList.add('present-mode');
-
-    // 2) 홈 버튼을 '로그아웃'으로 재정의 (대시보드로 안 나가고 로그인 화면으로)
-    window.appGoMain = function () {
-      if (typeof window.himecLogout === 'function') window.himecLogout();
-      else window.location.replace('/index.html');
-    };
-    var homeBtn = document.querySelector('.btn-main');
-    if (homeBtn) {
-      homeBtn.title = '로그아웃';
-      homeBtn.setAttribute('aria-label', '로그아웃');
-    }
-  }
-
-  function run() {
-    try {
-      if (window.HIMEC_SYNC && HIMEC_SYNC.ready) {
-        HIMEC_SYNC.ready().then(function (c) {
-          if (!c) return;
-          c.auth.getSession().then(function (r) { apply(r && r.data && r.data.session); });
-        });
-      }
-    } catch (e) {}
-  }
-
-  if (document.readyState !== 'loading') run();
-  else document.addEventListener('DOMContentLoaded', run);
 })();
 </script>
 
