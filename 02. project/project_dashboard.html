@@ -571,7 +571,7 @@ function selectProject(idx){
   try { localStorage.setItem('activeProjectName', project.name || ''); } catch(e){}
   renderProjectsTable();
   showLoading('"' + project.name + '" 진입 중...');
-  window.location.href = 'diagnosis/diagnosis.html';
+  window.location.href = 'diagnosis/diagnosis.html?project=' + encodeURIComponent(currentProjectId);
 }
 
 function openProjectModal(mode, idx){
