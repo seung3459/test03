@@ -198,6 +198,12 @@ body{margin:0;background:#fff;}
     <div class="modal-header"><h3 id="projectModalTitle">새 프로젝트 추가</h3></div>
     <div class="modal-body">
       <div class="project-form">
+        <div class="form-group" id="pmSlugGroup">
+          <label class="form-label" for="pmSlug">발표용 별명 <span style="font-weight:400;color:#9ca3af;font-size:12px;">(주소에 쓸 짧은 이름 · 영문·숫자·_ 만)</span></label>
+          <input type="text" id="pmSlug" placeholder="예: 2019_tradecenter" autocomplete="off" oninput="onPmSlugInput()"
+                 style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;" />
+          <div id="pmSlugHint" style="font-size:12px;color:#9ca3af;margin-top:5px;word-break:break-all;"></div>
+        </div>
         <div class="form-group">
           <label class="form-label"><span class="required">*</span> Documents</label>
           <div class="doc-list">
@@ -377,7 +383,7 @@ async function loadProjectsList(){
       const c = await HIMEC_SYNC.ready();
       if(c){
         const r = await c.from('projects')
-          .select('id,name,kpi_sync_id,category,contract_year,status')
+          .select('id,name,kpi_sync_id,category,contract_year,status,slug')
           .order('created_at',{ascending:true});
         if(r && !r.error && Array.isArray(r.data)) tableRows = r.data;
         else if(r && r.error && window.console) console.warn('projects select err:', r.error.message||r.error);
@@ -401,6 +407,7 @@ async function loadProjectsList(){
         year: row.contract_year ? String(row.contract_year) : '기타',
         status: row.status || '수행',
         activity: CAT_REV[row.category] || '노후진단',
+        slug: row.slug || '',
         documents: (sync && docMap[sync]) ? docMap[sync] : {}
       };
     });
@@ -580,15 +587,22 @@ function openProjectModal(mode, idx){
 
   const titleEl = document.getElementById('projectModalTitle');
   const submitBtn = document.getElementById('pmSubmitBtn');
+  const slugGroup = document.getElementById('pmSlugGroup');
+  const slugInput = document.getElementById('pmSlug');
 
   if(mode === 'edit' && projectModalEditIdx >= 0){
     const project = projectsList[projectModalEditIdx];
     if(!project) return;
     titleEl.textContent = 'Documents';
     submitBtn.textContent = '저장';
+    if(slugGroup) slugGroup.style.display = '';
+    if(slugInput) slugInput.value = project.slug || '';
+    onPmSlugInput();
   } else {
     titleEl.textContent = '새 프로젝트 추가';
     submitBtn.textContent = '추가';
+    if(slugGroup) slugGroup.style.display = 'none';   // 새 프로젝트는 KPI에서 생성 → 별명은 편집 때만
+    if(slugInput) slugInput.value = '';
   }
 
   document.getElementById('projectModal').classList.add('active');
@@ -607,12 +621,51 @@ async function submitProjectForm(){
   // activity(Type)는 KPI에서 결정되므로 대시보드에서는 설정하지 않음 (Documents만 저장)
   if(projectModalEditIdx >= 0 && projectsList[projectModalEditIdx]){
     await saveProjectsList();
+    const ok = await savePmSlug();       // 발표용 별명(slug) → Supabase projects 테이블
+    if(ok === false){ hideLoading(); return; }   // 중복 등 실패 시 창 유지
   }
 
   hideLoading();
   showToast('저장 완료');
   closeProjectModal();
   renderProjectsTable();
+}
+
+// 별명 입력 정리(영문·숫자·_·- 만) + 주소 미리보기
+function onPmSlugInput(){
+  const input = document.getElementById('pmSlug');
+  if(!input) return;
+  input.value = (input.value || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const hint = document.getElementById('pmSlugHint');
+  if(hint){
+    hint.textContent = input.value
+      ? ('주소: .../diagnosis.html?project=' + input.value)
+      : '';
+  }
+}
+
+// 별명을 Supabase projects.slug 에 저장. 성공 true / 실패(중복 등) false / 대상없음·변경없음 true
+async function savePmSlug(){
+  const project = projectsList[projectModalEditIdx];
+  if(!project || !project.id) return true;
+  const input = document.getElementById('pmSlug');
+  if(!input) return true;
+  const slug = (input.value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  if(slug === (project.slug || '')) return true;          // 변경 없음 → 통과
+  try{
+    if(!(window.HIMEC_SYNC && HIMEC_SYNC.ready)){ showToast('별명 저장 불가(오프라인)'); return false; }
+    const c = await HIMEC_SYNC.ready();
+    if(!c){ showToast('별명 저장 불가(연결 안 됨)'); return false; }
+    const r = await c.from('projects').update({ slug: slug || null }).eq('id', project.id);
+    if(r && r.error){
+      const m = (r.error.message || '') + ' ' + (r.error.code || '');
+      if(/duplicate|unique|23505/i.test(m)) showToast('이미 사용 중인 별명이에요. 다른 이름을 써주세요.');
+      else showToast('별명 저장 실패: ' + (r.error.message || ''));
+      return false;
+    }
+    project.slug = slug;                                   // 로컬 목록도 갱신
+    return true;
+  }catch(e){ showToast('별명 저장 실패: ' + (e.message || e)); return false; }
 }
 
 document.addEventListener('keydown', function(e){
