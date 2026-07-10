@@ -11,9 +11,17 @@
 		try { val = new URLSearchParams(location.search).get('project'); } catch (e) { val = null; }
 		if (!val) return;
 
-		// 1) 이미 UUID → 바로 저장하고 평소대로 진행 (대시보드에서 클릭해 들어온 경우)
+		// 1) 이미 UUID → 저장하고 평소대로 진행 (대시보드 클릭 경로)
 		if (UUID_RE.test(val)) {
 			try { localStorage.setItem('activeProjectId', val); } catch (e) {}
+			// 별명으로 들어와 UUID로 전환된 경우: 주소창만 다시 별명으로 되돌림(표시만, 새로고침 X).
+			try {
+				var pretty = JSON.parse(sessionStorage.getItem('himec_pretty') || 'null');
+				sessionStorage.removeItem('himec_pretty');
+				if (pretty && pretty.uuid === val && pretty.slug) {
+					history.replaceState(null, '', location.pathname + '?project=' + encodeURIComponent(pretty.slug));
+				}
+			} catch (e) {}
 			return;
 		}
 
@@ -34,8 +42,10 @@
 				if (!res || !res.data || !res.data.session) return;
 				c.from('projects').select('id').eq('slug', val).maybeSingle().then(function (r) {
 					if (r && !r.error && r.data && r.data.id) {
+						// 데이터는 UUID로 안전하게 로드하되, 로드 후 주소창은 다시 별명으로 복원하도록 표시해 둠
+						try { sessionStorage.setItem('himec_pretty', JSON.stringify({ slug: val, uuid: r.data.id })); } catch (e) {}
 						var u = new URL(location.href);
-						u.searchParams.set('project', r.data.id);   // 별명 → UUID 로 주소 교체
+						u.searchParams.set('project', r.data.id);
 						location.replace(u.toString());
 					}
 					// 못 찾으면 그대로 둠(오타 시 주소만 고치면 됨)
