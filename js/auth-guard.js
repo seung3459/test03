@@ -70,6 +70,29 @@
   function reveal() { root.style.visibility = "visible"; }
   function goLogin() { window.location.replace("/index.html"); }
 
+  // ---- 딥링크 복귀 ----------------------------------------------------------
+  // 로그인 때문에 튕겨나가기 직전 '원래 가려던 주소'(쿼리스트링 포함)를 기억했다가,
+  // 로그인 성공 후 이 가드가 다시 실행될 때 그 주소로 되돌려 보낸다.
+  // (모든 보호 페이지에 이 가드가 들어가 있으므로 index.html 은 수정할 필요 없음)
+  function currentUrl() { return location.pathname + location.search + location.hash; }
+  function saveReturnTo() {
+    try { sessionStorage.setItem("himec_return_to", currentUrl()); } catch (e) {}
+  }
+  function returnToIfPending() {
+    try {
+      var target = sessionStorage.getItem("himec_return_to");
+      if (!target) return false;
+      sessionStorage.removeItem("himec_return_to");          // 한 번만 사용 → 무한이동 방지
+      // 같은 사이트 경로("/"로 시작)만 허용 → 외부 주소로 튕기는 것 차단(안전)
+      if (target.charAt(0) === "/" && target !== currentUrl()) {
+        window.location.replace(target);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+  // --------------------------------------------------------------------------
+
   var safety = setTimeout(reveal, 6000);
 
   // 인증 OK 후, 복원(hydrate)까지 기다렸다 화면 표시 → 모바일에서 빈 화면이
@@ -89,12 +112,15 @@
     getClient().auth.getSession().then(function (res) {
       clearTimeout(safety);
       if (res.data.session) {
+        if (returnToIfPending()) return;   // 로그인 전 가려던 주소가 있으면 그리로 복귀
         revealWhenReady();
       } else {
+        saveReturnTo();                    // 로그인 후 돌아올 주소(쿼리 포함) 저장
         goLogin();
       }
     }).catch(function () {
       clearTimeout(safety);
+      saveReturnTo();
       goLogin();
     });
   });
