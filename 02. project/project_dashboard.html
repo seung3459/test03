@@ -781,7 +781,10 @@ const DOC_MIME = {
   xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 };
 function docMime(ext){ return DOC_MIME[ext] || 'application/octet-stream'; }
-function docPath(projectId, docType, ext){ return docType + '/' + projectId + '.' + ext; }  // 종류별 폴더 + 프로젝트UUID
+// 사진과 동일한 규칙: <회사ID>/<프로젝트ID>/<문서종류>.<확장자>
+// → 프로젝트 삭제 시 purgeKpiProject 가 이 폴더째 정리하므로 고아파일이 안 남는다.
+function docCompanyId(){ try { return (typeof himecCompanyId === 'function') ? himecCompanyId() : 'default'; } catch(e){ return 'default'; } }
+function docPath(projectId, docType, ext){ return docCompanyId() + '/' + projectId + '/' + docType + '.' + ext; }
 
 // Supabase 클라이언트 얻기 (없으면 null)
 async function docClient(){
