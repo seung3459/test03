@@ -7,6 +7,703 @@
 	<script src="../../js/himec-supabase-sync.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
+<title>HIMEC - Pipe Wall Thickness & Remaining Life Analysis Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { font-family:'Noto Sans KR', sans-serif; background:#f5f5f5; color:#333;
+    overflow:hidden; height:100vh; width:100vw; }
+  body { display:flex; flex-direction:column; }
+  .page-container { padding:0 100px; flex:1; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0; background:#fff; }
+
+  /* Header */
+  .header { background:#fff; padding:8px 20px; border-bottom:1px solid #ddd; flex-shrink:0;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px; position:relative; }
+  .header h1 { font-size:20px; font-weight:700; color:#222; }
+  .header .sub { font-size:11px; color:#888; margin-top:2px; }
+  .header h2 { font-size:15px; font-weight:600; color:#333; margin-top:4px; }
+  .header h2 #project-name:not(:empty)::before { content:"["; }
+  .header h2 #project-name:not(:empty)::after { content:"]"; }
+  .header h2 #project-name:not(:empty) { margin-right:6px; }
+  .header-right { position:absolute; bottom:8px; right:20px; display:flex; gap:8px; }
+  .header-right button { padding:8px 0; width:44px; height:34px; border:none; border-radius:4px;
+    font-size:10px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+  .header-right button svg { width:17px; height:17px; }
+  .btn-save, .btn-file { background:#e85d24; color:#fff; }
+  .btn-main { background:#555; color:#fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity:.85; }
+
+  /* Tabs */
+  .tab-bar { display:flex; padding:4px 20px 0; background:#fff; gap:4px; flex-shrink:0; }
+  .tab { padding:5px 20px; border-radius:6px 6px 0 0; font-size:12px; font-weight:600;
+    cursor:pointer; border:none; background:#bbb; color:#fff; position:relative; padding-right:28px; }
+  .tab.active { background:#00838f; color:#fff; }
+  .tab.add { background:#999; color:#fff; font-size:14px; padding:5px 16px; }
+  .tab .tab-close { position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:50%; border:none; background:transparent;
+    color:rgba(255,255,255,.7); font-size:13px; line-height:16px; text-align:center; cursor:pointer; padding:0; }
+  .tab .tab-close:hover { background:rgba(255,0,0,.6); color:#fff; }
+
+  /* Main 3-column */
+  .main { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; padding:0 0 30px 0;
+    flex:1; min-height:0; overflow:hidden; }
+  .panel { background:#fff; padding:10px 12px; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0; }
+  .panel + .panel { border-left:1px solid #eee; }
+  #left-panel { overflow-y:auto; overflow-x:hidden; justify-content:flex-start; }
+  #center-panel { overflow-y:auto; }
+  #right-panel { overflow-y:auto; }
+
+  .section-title { font-size:12px; font-weight:700; margin-bottom:4px; color:#222; flex-shrink:0; }
+  .section-title.mt { margin-top:10px; }
+
+  /* info-table */
+  .info-table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;
+    margin-bottom:6px; font-size:10px; flex-shrink:0; }
+  .info-table th, .info-table td { border:1px solid #fff; padding:5.1px 5px; border-bottom:1.5px solid #ccc; text-align:center; }
+  .info-table th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:11px; }
+  .info-table tr:first-child th:first-child { border-top-left-radius:8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius:8px; }
+  .info-table td { background:#fff; }
+  .info-table input, .info-table select { width:100%; border:none; text-align:center; font-size:12px;
+    background:transparent; outline:none; padding:4px 2px; font-family:inherit; color:#333; }
+  .info-table select { text-align:left; cursor:pointer; }
+  #left-panel .info-table th:first-child, #left-panel .info-table td:first-child { border-left-color:transparent; }
+  #left-panel .info-table th:last-child, #left-panel .info-table td:last-child { border-right-color:transparent; }
+
+  /* cdt table */
+  .cdt { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; margin-bottom:6px; font-size:10px; flex-shrink:0; }
+  .cdt th, .cdt td { border:1px solid #fff; padding:3.75px 4px; border-bottom:1.5px solid #ccc; text-align:center; }
+  .cdt th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:10.5px; }
+  .cdt tr:first-child th:first-child { border-top-left-radius:8px; }
+  .cdt tr:first-child th:last-child { border-top-right-radius:8px; }
+  .cdt td { background:#fff; }
+  .cdt td.grp { background:#f3f5f6; color:#3A4A57; font-weight:700; }
+  .cdt td.calc { background:#e0f7fa; color:#00838f; font-weight:700; }
+  .cdt input, .cdt select { width:100%; border:none; text-align:center; font-size:11px; background:transparent;
+    outline:none; padding:2px 1px; font-family:inherit; color:#1a4f8b; font-weight:600; }
+  .cdt input:focus { background:#fff7ee; }
+  .cdt th.th-src { cursor:pointer; }
+  .cdt th.th-src:hover { background:#b2ebf2; }
+  .th-i { font-size:9px; color:#00838f; vertical-align:top; }
+  .cdt select.sel-toggle { -webkit-appearance:none; -moz-appearance:none; appearance:none;
+    text-align:center; text-align-last:center; padding:2px 15px 2px 3px; cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M1 3l4 4 4-4' fill='none' stroke='%231a4f8b' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat:no-repeat; background-position:right 3px center; background-size:9px; }
+  .cdt select.sel-toggle:hover { background-color:#fff7ee; }
+  .cdt select.sel-toggle:focus { background-color:#fff7ee; }
+  .cdt th:first-child, #left-panel .cdt td:first-child { border-left-color:transparent; }
+  .cdt th:last-child, #left-panel .cdt td:last-child { border-right-color:transparent; }
+
+  /* measure grid */
+  .mgrid { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:9.5px; margin-bottom:4px; }
+  .mgrid th, .mgrid td { border:1px solid #fff; border-bottom:1.5px solid #ccc; padding:4px 1px; text-align:center; }
+  .mgrid th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:9px; }
+  .mgrid td.ang { background:#f3f5f6; color:#3A4A57; font-weight:700; font-size:9px; }
+  .mgrid input { width:100%; border:none; text-align:center; font-size:10px; background:transparent;
+    outline:none; padding:2px 0; font-family:inherit; color:#1a4f8b; font-weight:600; }
+  .mgrid input:focus { background:#fff7ee; }
+
+  .residual { font-size:8px; color:#555; background:#f2f2f2; border:0.5px solid #ddd; border-radius:6px;
+    padding:8px 10px; margin-top:8px; flex-shrink:0; line-height:1.55; }
+  .residual b { color:#00838f; }
+
+  .refs-card { border:none; background:transparent; padding:0 2px; margin-top:8px; text-align:right; cursor:pointer; }
+  .refs-card h3 { font-size:10px; font-weight:700; color:#333; }
+  .refs-more { font-size:8px; font-weight:700; color:#999; margin-left:4px; }
+
+  /* diagram */
+  .pipe-diagram { margin-top:8px; flex-shrink:0; }
+
+  /* calc-table (center) */
+  .tbl-cap { font-size:10.5px; font-weight:700; color:#333; margin:6px 0 4px; display:flex; align-items:center; gap:6px; }
+  .tbl-cap .src { font-size:9px; font-weight:400; color:#808080; }
+  .calc-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px; margin-bottom:8px; }
+  .calc-table th, .calc-table td { padding:5.5px 8px; border-bottom:1px solid #e2e2e2; text-align:center; vertical-align:middle; }
+  .calc-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:10.5px; }
+  .calc-table tr:first-child th:first-child { border-top-left-radius:6px; }
+  .calc-table tr:first-child th:last-child { border-top-right-radius:6px; }
+  .calc-table td.lbl { text-align:left; color:#444; font-weight:600; }
+  .calc-table td.fx { color:#888; font-size:9px; text-align:left; }
+  .calc-table td.num { font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .calc-table tr.out td { background:#f2f2f2; font-weight:800; }
+  .calc-table tr.eff td { background:#e2e2e2; font-weight:800; border-top:1.5px solid #c9c9c9; }
+
+  .bar-wrap { margin-top:6px; }
+
+  /* metric cards */
+  .metrics-area { display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
+  .metric-card { background:transparent; border:none; border-bottom:1.5px solid #ccc; border-radius:5px;
+    padding:5.5px 1px 2px; display:flex; justify-content:space-between; align-items:center; }
+  .metric-card .ml { flex:1; }
+  .metric-label { font-size:11px; color:#00838f; line-height:1.2; font-weight:bold; }
+  .metric-sub { font-size:8.5px; color:#999; font-weight:500; margin-top:2px; }
+  .metric-value { font-size:26px; font-weight:700; color:#ff8c00; min-width:45px; text-align:right; }
+  .metric-unit { font-size:12px; color:#888; margin-left:2px; vertical-align:super; }
+
+  /* diagnosis */
+  .diag { display:flex; flex-direction:column; gap:5px; }
+  .diag .d { display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; border-radius:5px; border:none; border-left:3px solid #ccc; background:#fafafa; line-height:1.35; }
+  .diag .d .dhead { font-size:11.5px; font-weight:700; color:#333; white-space:nowrap; flex:none; }
+  .diag .d .dhead .dstat { font-weight:800; margin-left:2px; }
+  .diag .d .dbody { text-align:right; font-size:10px; color:#555; }
+  .diag .d .dsrc { display:block; font-size:8.5px; color:#999; font-weight:600; margin-top:1px; cursor:pointer; }
+  .d.ok { border-left-color:#00838f; } .d.ok .dstat { color:#00838f; }
+  .d.warn { border-left-color:#e0a800; } .d.warn .dstat { color:#e0a800; }
+  .d.bad { border-left-color:#ED7458; } .d.bad .dstat { color:#ED7458; }
+
+  /* src modal */
+  .src-modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42); z-index:9999;
+    align-items:center; justify-content:center; }
+  .src-modal-mask.on { display:flex; }
+  .src-modal { background:#fff; width:420px; max-width:92vw; max-height:82vh; overflow-y:auto;
+    border-radius:8px; box-shadow:0 10px 36px rgba(0,0,0,.25); }
+  .src-modal .sm-head { display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
+    border-bottom:1px solid #eee; background:#00838f; border-radius:8px 8px 0 0; }
+  .src-modal .sm-head h3 { font-size:14px; font-weight:700; color:#fff; }
+  .src-modal .sm-head .sm-close { border:none; background:transparent; color:#fff; font-size:20px; cursor:pointer; }
+  .src-modal .sm-body { padding:14px 16px; }
+  .src-modal .sm-std { font-size:9px; font-weight:700; color:#00838f; margin-bottom:8px; }
+  .src-modal .sm-desc { font-size:9px; color:#555; line-height:1.5; margin-bottom:10px; }
+  .src-modal table { width:100%; border-collapse:collapse; font-size:9px; }
+  .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; word-break:break-word; }
+  .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
+  .src-modal .lv-ok { color:#00838f; font-weight:700; }
+  .src-modal .lv-warn { color:#e0a800; font-weight:700; }
+  .src-modal .lv-bad { color:#ED7458; font-weight:700; }
+  .src-modal tr.cur td { background:#fff8e1; }
+
+  /* Copyright */
+  .copyright { background:#fff; border-top:1px solid #ddd; padding:6px 20px;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+    text-align:center; font-size:10px; color:#888; flex-shrink:0; }
+
+  @media (max-width:1600px) {
+    .page-container { padding:0 60px; }
+    .header { margin-left:-60px; margin-right:-60px; padding-left:80px; padding-right:80px; }
+    .copyright { padding:6px 80px; margin-left:-60px; margin-right:-60px; }
+  }
+  @media (max-width:1300px) {
+    .page-container { padding:0 30px; }
+    .header { margin-left:-30px; margin-right:-30px; padding-left:50px; padding-right:50px; }
+    .copyright { padding:6px 50px; margin-left:-30px; margin-right:-30px; }
+  }
+  @media (max-width:1100px) {
+    .page-container { padding:0 15px; overflow:auto; }
+    .header { margin-left:-15px; margin-right:-15px; padding-left:35px; padding-right:35px; }
+    .copyright { padding:6px 35px; margin-left:-15px; margin-right:-15px; }
+    .main { grid-template-columns:1fr 1fr; overflow:visible; }
+    .panel { overflow:visible; }
+  }
+  @media (max-width:700px) { .main { grid-template-columns:1fr; } }
+
+  /* placeholder(미입력) 표시: 회색 이탤릭 10px */
+  /* 미입력 안내(placeholder) 표시: 회색 이탤릭 10px */
+  select.ph { color:#9aa0a6 !important; font-style:italic !important; font-size:10px !important; font-weight:400 !important; }
+  input::placeholder { color:#9aa0a6 !important; font-style:italic !important; font-size:10px !important; font-weight:400 !important; opacity:1; }
+  input::-webkit-input-placeholder { color:#9aa0a6 !important; font-style:italic !important; font-size:10px !important; font-weight:400 !important; }
+  .photo-cap::placeholder { color:#b0b0b0 !important; font-style:normal !important; font-size:10px !important; }
+</style>
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (Tool-402 동일 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+<style id="himec-centerview-style">
+/* === 센터 뷰 토글 아이콘 + 현장 사진 (Tool-402 동일) === */
+.center-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.center-head .section-title{ margin-bottom:0; }
+.center-icons{ display:flex; gap:6px; flex-shrink:0; }
+.ci-btn{
+  width:30px; height:30px; padding:0; cursor:pointer;
+  background:#fff; color:#666; border:1px solid #d0d0d0; border-radius:7px;
+  display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.ci-btn svg{ width:17px; height:17px; }
+.ci-btn:hover{ background:#f5f5f5; }
+.ci-btn.active{ color:#00838f; border-color:#00838f; background:#e0f7fa; }
+
+.photo-view{ flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+.photo-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding-top:6px; }
+.photo-slot{ display:flex; flex-direction:column; min-width:0; }
+.photo-cap{ font-size:10px; color:#555; padding:5px 8px; background:#f7f7f7;
+  border:1px solid #e2e2e2; border-bottom:none; border-radius:6px 6px 0 0;
+  width:100%; box-sizing:border-box; font-family:inherit; outline:none; cursor:text;
+  transition:background .15s, border-color .15s; }
+.photo-cap::placeholder{ color:#b0b0b0; }
+.photo-cap:hover{ background:#eef1f3; }
+.photo-cap:focus{ background:#fff; border-color:#00838f; color:#222; }
+.photo-drop{ position:relative; border:1px dashed #cfcfcf; border-radius:0 0 6px 6px;
+  min-height:170px; background:#f2f3f5; cursor:pointer; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#9aa0a6; }
+.photo-drop:hover{ background:#f0fbfc; border-color:#00838f; }
+.photo-drop svg{ width:26px; height:26px; }
+.photo-drop .pd-title{ font-size:12px; font-weight:600; color:#666; }
+.photo-drop .pd-sub{ font-size:10px; }
+.photo-drop img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; background:#fff; }
+.photo-del{ position:absolute; top:6px; right:6px; z-index:2; width:22px; height:22px;
+  border:none; border-radius:5px; cursor:pointer; background:rgba(0,0,0,.55); color:#fff;
+  font-size:14px; line-height:1; display:none; align-items:center; justify-content:center; }
+.photo-drop.has-img .photo-del{ display:inline-flex; }
+</style>
+
+<style id="himec-unify-portrait">
+/* ===== [303 방식 이식] 세로(portrait) 모드 표시 통일 =====
+   가로: 3-column 고정 / 세로: 1-column 세로 스택 + 페이지 스크롤 ===== */
+
+/* [TABLE UNIFY] .calc-table 헤더색/테두리/라운드/폰트 통일 (숫자정렬·의미색 보존) */
+.calc-table { border-collapse:separate !important; border-spacing:0 !important; }
+.calc-table th, .calc-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:3.5px 5px !important; text-align:center !important; }
+.calc-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.calc-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.calc-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.calc-table input { font-size:12px !important; }
+.calc-table select { font-size:11px !important; }
+
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* 세로 모드에서 좌우 구분선 대신 상단 구분선 */
+  body .main .panel + .panel{ border-left:none !important; border-top:1px solid #eee !important; }
+  /* 도표(SVG/막대/게이지) 컨테이너: 부모 붕괴로 사라지지 않도록 auto 높이 보장.
+     ※ 303의 전체 svg 규칙은 버튼 아이콘(24px)까지 늘리므로 실제 도표만 스코프 */
+  body .main #pipeDiagram, body .main #pipeDiagram svg,
+  body .main #barWrap, body .main .bar-wrap,
+  body .main #lossWrap{
+    width:100% !important; height:auto !important; min-height:0 !important; overflow:visible !important;
+  }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+</style>
+
+</head>
+<body>
+<div class="page-container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+    <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+    <h2 id="pageTitle"><span id="project-name"></span>Pipe Wall Thickness &amp; Remaining Life Analysis Tool (배관 두께&middot;잔존수명 분석)</h2>
+    <div class="header-right">
+      <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+      <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+      <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar" id="eqTabs">
+    <button class="tab active">측정점-01 #P1<span class="tab-close">&#10005;</span></button>
+    <button class="tab add">+</button>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- LEFT -->
+    <div class="panel" id="left-panel">
+      <div class="section-title">&#9632; 배관 개요</div>
+      <table class="info-table">
+        <tr><th>배관명</th><th>측정 위치</th><th>POINT NO</th><th>비고</th></tr>
+        <tr>
+          <td><input id="inp-name" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><input id="inp-loc" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><input id="inp-no" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><input id="inp-note" placeholder="- 입력 -" onchange="recalc()"></td>
+        </tr>
+      </table>
+
+      <div class="section-title mt">&#9632; 배관 사양 Data</div>
+      <table class="cdt">
+        <thead><tr><th>재질</th><th>호칭경<br>[A]</th><th>외경 D<br>[mm]</th><th>공칭두께 Ti<br>[mm]</th></tr></thead>
+        <tbody><tr>
+          <td><select id="inp-mat" onchange="onMat()"></select></td>
+          <td><select id="inp-size" onchange="recalc()"></select></td>
+          <td class="calc"><span id="calc-od"></span></td>
+          <td class="calc"><span id="calc-ti"></span></td>
+        </tr></tbody>
+      </table>
+      <table class="cdt">
+        <thead><tr><th>운전압력 P<br>[MPa]</th><th>허용응력 S<br>[MPa]</th><th class="th-src" onclick="showFactorSrc('E')" title="기준·출처 보기">이음효율 E <span class="th-i">&#9432;</span></th><th class="th-src" onclick="showFactorSrc('CA')" title="기준·출처 보기">부식여유 CA<br>[mm] <span class="th-i">&#9432;</span></th><th>사용연수<br>[year]</th></tr></thead>
+        <tbody><tr>
+          <td><input id="inp-p" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><input id="inp-s" placeholder="- 입력 -" onchange="recalc()"></td>
+          <td><select id="inp-e" class="sel-toggle" onchange="recalc()"><option value="" selected>- 입력 -</option><option value="1.0">1.00 · Seamless</option><option value="1.0">1.00 · EFW+100%RT</option><option value="0.90">0.90 · EFW+Spot RT</option><option value="0.85">0.85 · ERW</option><option value="0.80">0.80 · EFW Single</option><option value="0.60">0.60 · Furnace Butt</option></select></td>
+          <td><select id="inp-ca" class="sel-toggle" onchange="recalc()"><option value="" selected>- 입력 -</option><option value="0">0 · STS/라이닝</option><option value="1.0">1.0 · 비부식성</option><option value="1.6">1.6 · 탄소강 최소</option><option value="3.0">3.0 · 경미부식</option><option value="6.0">6.0 · 심한부식</option></select></td>
+          <td><input id="inp-yr" placeholder="- 입력 -" onchange="recalc()"></td>
+        </tr></tbody>
+      </table>
+
+      <div class="section-title mt">&#9632; 초음파 두께 측정 Data <span style="font-size:9px;color:#888;font-weight:400">[단위: mm]</span></div>
+      <table class="mgrid" id="measGrid"></table>
+      <table class="cdt">
+        <thead><tr><th>최대두께</th><th>최소두께</th><th>평균두께</th></tr></thead>
+        <tbody><tr>
+          <td class="calc"><span id="calc-max"></span></td>
+          <td class="calc"><span id="calc-min"></span></td>
+          <td class="calc"><span id="calc-avg"></span></td>
+        </tr></tbody>
+      </table>
+
+      <div class="section-title mt">&#9632; 배관 두께 프로파일</div>
+      <div class="pipe-diagram" id="pipeDiagram"></div>
+    </div>
+
+    <!-- CENTER -->
+    <div class="panel" id="center-panel">
+      <div class="center-head">
+        <div class="section-title" id="centerTitle">&#9632; 두께 건전성 분석표</div>
+        <div class="center-icons">
+          <button type="button" class="ci-btn active" id="ciDoc" onclick="switchCenterView('perf')" title="두께 건전성 분석표 보기" aria-label="두께 건전성 분석표">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>
+          </button>
+          <button type="button" class="ci-btn" id="ciCam" onclick="switchCenterView('photo')" title="현장 사진 등록/촬영" aria-label="현장 사진 등록/촬영">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="perfView">
+      <div class="tbl-cap">배관 두께 분석 <span class="src">ASME B31.3 &middot; API 570 기준</span></div>
+      <table class="calc-table" id="analTable"></table>
+      <div class="tbl-cap" style="margin-top:36px">두께 비교 <span class="src">공칭 &middot; 최소허용 &middot; 측정최소</span></div>
+      <div class="bar-wrap" id="barWrap"></div>
+
+      <div class="residual">
+        &#8251; 압력설계두께 <b>t = P&middot;D &divide; (2&middot;(S&middot;E + P&middot;Y))</b> &nbsp;[mm] &nbsp;(ASME B31.3 &sect;304.1.1)<br>
+        &#8251; 최소허용두께 <b>t<sub>min</sub> = t + CA</b> &nbsp;(부식여유 포함, 구조최소두께와 비교하여 큰 값)<br>
+        &#8251; 부식속도 <b>CR = (Ti &minus; t<sub>측정최소</sub>) &divide; 사용연수</b> &nbsp;[mm/y] &nbsp;(API 570 &sect;7.1.2 장기부식률)<br>
+        &#8251; 잔존수명 <b>RL = (t<sub>측정최소</sub> &minus; t<sub>min</sub>) &divide; CR</b> &nbsp;[year] &nbsp;(API 570 &sect;7.2)<br>
+        &#8251; 최대사용압력 <b>MAWP = 2&middot;S&middot;E&middot;t<sub>측정최소</sub> &divide; D</b> &nbsp;[MPa] &nbsp;&middot;&nbsp; Y=0.4(강, T&lt;482&#8451;)
+      </div>
+
+      <div class="refs-card" onclick="showRefsSrc()" title="적용 표준 보기">
+        <h3>기준 및 출처 <span class="refs-more">&#9432; 상세 보기</span></h3>
+      </div>
+      </div><!-- /perfView -->
+
+      <div class="photo-view" id="photoView" style="display:none;">
+        <div class="tbl-cap">현장 사진 <span class="src">아이콘/영역을 클릭하여 촬영 또는 파일 선택</span></div>
+        <div class="photo-grid" id="photoGrid"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="panel" id="right-panel">
+      <div class="section-title">&#9632; 분석 결과</div>
+      <div class="metrics-area" id="metricsArea"></div>
+      <div class="section-title mt" style="margin-top:16px">&#9632; 두께 감육 현황</div>
+      <div id="lossWrap"></div>
+      <div class="section-title mt" style="margin-top:16px">&#9632; 건전성 진단</div>
+      <div class="diag" id="diag"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="copyright">
+  &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<!-- Source Modal -->
+<div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
+  <div class="src-modal">
+    <div class="sm-head"><h3 id="srcModalTitle"></h3><button class="sm-close" onclick="closeSrcPopup()">&times;</button></div>
+    <div class="sm-body" id="srcModalBody"></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const PIPE_DB={"CU_K": {"label": "동관 Copper K (상수도·의료)", "std": "KS D 5301", "sizes": {"8": {"od": 9.52, "thk": 0.89}, "10": {"od": 12.7, "thk": 1.24}, "15": {"od": 15.88, "thk": 1.24}, "19": {"od": 19.05, "thk": 1.24}, "20": {"od": 22.22, "thk": 1.65}, "25": {"od": 28.58, "thk": 1.65}, "32": {"od": 34.92, "thk": 1.65}, "40": {"od": 41.28, "thk": 1.83}, "50": {"od": 53.98, "thk": 2.11}, "65": {"od": 66.68, "thk": 2.41}, "80": {"od": 79.38, "thk": 2.77}, "90": {"od": 92.08, "thk": 3.05}, "100": {"od": 104.78, "thk": 3.4}, "125": {"od": 130.18, "thk": 4.06}, "150": {"od": 155.58, "thk": 4.88}, "200": {"od": 206.38, "thk": 6.88}}}, "CU_L1": {"label": "동관 Copper L (상수도·공조·급수급탕)", "std": "KS D 5301", "sizes": {"8": {"od": 9.52, "thk": 0.76}, "10": {"od": 12.7, "thk": 0.89}, "15": {"od": 15.88, "thk": 1.02}, "19": {"od": 19.05, "thk": 1.07}, "20": {"od": 22.22, "thk": 1.14}, "25": {"od": 28.58, "thk": 1.27}, "32": {"od": 34.92, "thk": 1.4}, "40": {"od": 41.28, "thk": 1.52}, "50": {"od": 53.98, "thk": 1.78}, "65": {"od": 66.68, "thk": 2.03}, "80": {"od": 79.38, "thk": 2.29}, "90": {"od": 92.08, "thk": 2.54}, "100": {"od": 104.78, "thk": 2.79}, "125": {"od": 130.18, "thk": 3.18}, "150": {"od": 155.58, "thk": 3.56}, "200": {"od": 206.38, "thk": 5.08}, "250": {"od": 257.18, "thk": 6.35}}}, "CU_L2": {"label": "동관 Copper L (공조·급수급탕)", "std": "KS D 5301", "sizes": {"10": {"od": 12.7, "thk": 0.64}, "15": {"od": 15.88, "thk": 0.71}, "20": {"od": 22.22, "thk": 0.81}, "25": {"od": 28.58, "thk": 0.89}, "32": {"od": 34.92, "thk": 1.07}, "40": {"od": 41.28, "thk": 1.24}, "50": {"od": 53.98, "thk": 1.47}, "65": {"od": 66.68, "thk": 1.65}, "80": {"od": 79.38, "thk": 1.83}, "90": {"od": 92.08, "thk": 2.11}, "100": {"od": 104.78, "thk": 2.41}, "125": {"od": 130.18, "thk": 2.77}, "150": {"od": 155.58, "thk": 3.1}, "200": {"od": 206.38, "thk": 4.38}, "250": {"od": 257.18, "thk": 5.38}}}, "ST_GEN": {"label": "강관 (일반배관용)", "std": "KS D 3507", "sizes": {"13": {"od": 17.3, "thk": 2.35}, "15": {"od": 21.7, "thk": 2.65}, "20": {"od": 27.2, "thk": 2.65}, "25": {"od": 34.0, "thk": 3.25}, "32": {"od": 42.7, "thk": 3.25}, "40": {"od": 48.6, "thk": 3.25}, "50": {"od": 60.5, "thk": 3.65}, "65": {"od": 76.3, "thk": 3.65}, "80": {"od": 89.1, "thk": 4.05}, "90": {"od": 101.6, "thk": 4.04}, "100": {"od": 114.3, "thk": 4.5}, "125": {"od": 139.8, "thk": 4.85}, "150": {"od": 165.2, "thk": 4.85}, "200": {"od": 216.3, "thk": 5.85}, "250": {"od": 267.4, "thk": 6.4}, "300": {"od": 318.5, "thk": 7.0}, "350": {"od": 355.6, "thk": 7.6}, "400": {"od": 406.4, "thk": 7.9}, "450": {"od": 467.2, "thk": 7.9}, "500": {"od": 508.0, "thk": 7.9}, "550": {"od": 558.8, "thk": 7.9}}}, "ST_S40": {"label": "강관 SCH 40 (압력배관용)", "std": "KS D 3562", "sizes": {"13": {"od": 17.3, "thk": 2.3}, "15": {"od": 21.7, "thk": 2.8}, "20": {"od": 27.2, "thk": 2.9}, "25": {"od": 34.0, "thk": 3.4}, "32": {"od": 42.7, "thk": 3.6}, "40": {"od": 48.6, "thk": 3.7}, "50": {"od": 60.5, "thk": 3.9}, "65": {"od": 76.3, "thk": 5.2}, "80": {"od": 89.1, "thk": 5.5}, "90": {"od": 101.6, "thk": 5.7}, "100": {"od": 114.3, "thk": 6.0}, "125": {"od": 139.8, "thk": 6.0}, "150": {"od": 165.2, "thk": 7.1}, "200": {"od": 216.3, "thk": 8.2}, "250": {"od": 267.4, "thk": 9.3}, "300": {"od": 318.5, "thk": 10.3}, "350": {"od": 355.6, "thk": 11.1}, "400": {"od": 406.4, "thk": 12.7}, "450": {"od": 467.2, "thk": 14.3}, "500": {"od": 508.0, "thk": 15.1}, "550": {"od": 558.8, "thk": 15.9}}}, "ST_S80": {"label": "강관 SCH 80 (압력배관용)", "std": "KS D 3562", "sizes": {"13": {"od": 17.3, "thk": 2.8}, "15": {"od": 21.7, "thk": 3.2}, "20": {"od": 27.2, "thk": 3.4}, "25": {"od": 34.0, "thk": 3.9}, "32": {"od": 42.7, "thk": 4.5}, "40": {"od": 48.6, "thk": 4.5}, "50": {"od": 60.5, "thk": 4.9}, "65": {"od": 76.3, "thk": 6.0}, "80": {"od": 89.1, "thk": 6.6}, "90": {"od": 101.6, "thk": 7.0}, "100": {"od": 114.3, "thk": 7.1}, "125": {"od": 139.8, "thk": 8.1}, "150": {"od": 165.2, "thk": 9.3}, "200": {"od": 216.3, "thk": 10.3}, "250": {"od": 267.4, "thk": 12.7}, "300": {"od": 318.5, "thk": 14.3}, "350": {"od": 355.6, "thk": 15.1}, "400": {"od": 406.4, "thk": 16.7}, "450": {"od": 467.2, "thk": 19.0}, "500": {"od": 508.0, "thk": 20.6}}}, "STS_5": {"label": "STS 강관 SCH 5S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 1.0}, "8": {"od": 13.8, "thk": 1.2}, "10": {"od": 17.3, "thk": 1.2}, "15": {"od": 21.7, "thk": 1.65}, "20": {"od": 27.2, "thk": 1.65}, "25": {"od": 34.0, "thk": 1.65}, "32": {"od": 42.7, "thk": 1.65}, "40": {"od": 48.6, "thk": 1.65}, "50": {"od": 60.5, "thk": 1.65}, "65": {"od": 76.3, "thk": 2.1}, "80": {"od": 89.1, "thk": 2.1}, "90": {"od": 101.6, "thk": 2.1}, "100": {"od": 114.3, "thk": 2.1}, "125": {"od": 139.8, "thk": 2.8}, "150": {"od": 165.2, "thk": 2.8}, "200": {"od": 216.3, "thk": 2.8}, "250": {"od": 267.4, "thk": 3.4}, "300": {"od": 318.5, "thk": 4.0}}}, "STS_10": {"label": "STS 강관 SCH 10S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 1.2}, "8": {"od": 13.8, "thk": 1.65}, "10": {"od": 17.3, "thk": 1.65}, "15": {"od": 21.7, "thk": 2.1}, "20": {"od": 27.2, "thk": 2.1}, "25": {"od": 34.0, "thk": 2.8}, "32": {"od": 42.7, "thk": 2.8}, "40": {"od": 48.6, "thk": 2.8}, "50": {"od": 60.5, "thk": 2.8}, "65": {"od": 76.3, "thk": 3.0}, "80": {"od": 89.1, "thk": 3.0}, "90": {"od": 101.6, "thk": 3.0}, "100": {"od": 114.3, "thk": 3.0}, "125": {"od": 139.8, "thk": 3.4}, "150": {"od": 165.2, "thk": 3.4}, "200": {"od": 216.3, "thk": 4.0}, "250": {"od": 267.4, "thk": 4.0}, "300": {"od": 318.5, "thk": 4.5}}}, "STS_20": {"label": "STS 강관 SCH 20S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 1.5}, "8": {"od": 13.8, "thk": 2.0}, "10": {"od": 17.3, "thk": 2.0}, "15": {"od": 21.7, "thk": 2.5}, "20": {"od": 27.2, "thk": 2.5}, "25": {"od": 34.0, "thk": 3.0}, "32": {"od": 42.7, "thk": 3.0}, "40": {"od": 48.6, "thk": 3.0}, "50": {"od": 60.5, "thk": 3.5}, "65": {"od": 76.3, "thk": 3.5}, "80": {"od": 89.1, "thk": 4.0}, "90": {"od": 101.6, "thk": 4.0}, "100": {"od": 114.3, "thk": 4.0}, "125": {"od": 139.8, "thk": 5.0}, "150": {"od": 165.2, "thk": 5.0}, "200": {"od": 216.3, "thk": 6.5}, "250": {"od": 267.4, "thk": 6.5}, "300": {"od": 318.5, "thk": 6.5}}}, "STS_40": {"label": "STS 강관 SCH 40S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 1.7}, "8": {"od": 13.8, "thk": 2.2}, "10": {"od": 17.3, "thk": 2.3}, "15": {"od": 21.7, "thk": 2.8}, "20": {"od": 27.2, "thk": 2.9}, "25": {"od": 34.0, "thk": 3.4}, "32": {"od": 42.7, "thk": 3.6}, "40": {"od": 48.6, "thk": 3.7}, "50": {"od": 60.5, "thk": 3.9}, "65": {"od": 76.3, "thk": 5.2}, "80": {"od": 89.1, "thk": 5.5}, "90": {"od": 101.6, "thk": 5.7}, "100": {"od": 114.3, "thk": 6.0}, "125": {"od": 139.8, "thk": 6.6}, "150": {"od": 165.2, "thk": 7.1}, "200": {"od": 216.3, "thk": 8.2}, "250": {"od": 267.4, "thk": 9.3}, "300": {"od": 318.5, "thk": 10.3}}}, "STS_80": {"label": "STS 강관 SCH 80S", "std": "KS D 3576", "sizes": {"6": {"od": 10.5, "thk": 2.4}, "8": {"od": 13.8, "thk": 3.0}, "10": {"od": 17.3, "thk": 3.2}, "15": {"od": 21.7, "thk": 3.7}, "20": {"od": 27.2, "thk": 3.9}, "25": {"od": 34.0, "thk": 4.5}, "32": {"od": 42.7, "thk": 4.9}, "40": {"od": 48.6, "thk": 5.1}, "50": {"od": 60.5, "thk": 5.5}, "65": {"od": 76.3, "thk": 7.0}, "80": {"od": 89.1, "thk": 7.6}, "90": {"od": 101.6, "thk": 8.1}, "100": {"od": 114.3, "thk": 8.6}, "125": {"od": 139.8, "thk": 9.5}, "150": {"od": 165.2, "thk": 11.0}, "200": {"od": 216.3, "thk": 12.7}, "250": {"od": 267.4, "thk": 15.1}, "300": {"od": 318.5, "thk": 17.4}}}, "CAST": {"label": "주철관 (Cast Iron)", "std": "KS D 4307", "sizes": {"80": {"od": 98.0, "thk": 6.7}, "100": {"od": 118.0, "thk": 6.8}, "150": {"od": 170.0, "thk": 7.0}, "200": {"od": 222.0, "thk": 7.1}, "250": {"od": 274.0, "thk": 7.5}, "300": {"od": 326.0, "thk": 8.0}, "350": {"od": 378.0, "thk": 8.5}, "400": {"od": 429.0, "thk": 9.0}, "450": {"od": 480.0, "thk": 9.5}, "500": {"od": 532.0, "thk": 10.0}, "600": {"od": 635.0, "thk": 11.0}, "700": {"od": 738.0, "thk": 12.0}, "800": {"od": 842.0, "thk": 13.0}, "900": {"od": 945.0, "thk": 14.0}, "1000": {"od": 1048.0, "thk": 15.0}, "1100": {"od": 1144.0, "thk": 16.0}, "1200": {"od": 1255.0, "thk": 17.0}}}};
+const Y_COEF=0.4;   /* ASME B31.3 Table 304.1.1 : ferritic/austenitic steel, T<482C */
+
+/* ---------- init selects & grid ---------- */
+(function init(){
+  var mo='<option value="" selected>- 입력 -</option>';
+  for(var k in PIPE_DB){ mo+='<option value="'+k+'">'+PIPE_DB[k].label+'</option>'; }
+  $('inp-mat').innerHTML=mo;
+  buildSizes('',null);
+  /* measure grid : 8 points x 4 angles */
+  var samp=[[5.9,5.8,5.7,5.9,5.8,5.7,5.9,5.8],
+            [5.6,5.5,5.4,5.5,5.3,5.4,5.5,5.6],
+            [5.2,5.0,4.9,4.8,5.0,5.1,5.2,5.3],
+            [5.7,5.6,5.5,5.6,5.7,5.6,5.5,5.6]];
+  var ang=['0&deg;','90&deg;','180&deg;','270&deg;'];
+  var h='<thead><tr><th style="width:26px">각도</th>';
+  for(var c=1;c<=8;c++) h+='<th>'+c+'</th>';
+  h+='</tr></thead><tbody>';
+  for(var r=0;r<4;r++){
+    h+='<tr><td class="ang">'+ang[r]+'</td>';
+    for(var c=0;c<8;c++){ h+='<td><input class="mc" data-r="'+r+'" data-c="'+c+'" placeholder="- 입력 -" onchange="recalc()"></td>'; }
+    h+='</tr>';
+  }
+  h+='</tbody>';
+  $('measGrid').innerHTML=h;
+  recalc();
+})();
+
+
+function applyPH(){
+  document.querySelectorAll('select').forEach(function(el){
+    var v=(el.value||'').trim();
+    if(v===''){ el.classList.add('ph'); } else { el.classList.remove('ph'); }
+  });
+}
+function buildSizes(mat,sel){
+  if(!mat||!PIPE_DB[mat]){ $('inp-size').innerHTML='<option value="" selected>- 입력 -</option>'; return; }
+  var s=PIPE_DB[mat].sizes, o='<option value="" selected>- 입력 -</option>';
+  for(var n in s){ o+='<option value="'+n+'"'+(n===sel?' selected':'')+'>'+n+'A</option>'; }
+  $('inp-size').innerHTML=o;
+}
+function onMat(){ var m=$('inp-mat').value; buildSizes(m,null); recalc(); }
+
+function fnum(id){ var v=parseFloat($(id).value); return isNaN(v)?0:v; }
+function fmt(v,d){ if(!isFinite(v))return '-'; return v.toFixed(d==null?2:d); }
+
+/* ---------- core calc ---------- */
+function recalc(){
+  var mat=$('inp-mat').value, size=$('inp-size').value;
+  var rec=((PIPE_DB[mat]&&PIPE_DB[mat].sizes[size]))||{od:0,thk:0};
+  var D=rec.od, Ti=rec.thk;
+  $('calc-od').textContent=fmt(D,2);
+  $('calc-ti').textContent=fmt(Ti,2);
+
+  /* measured grid */
+  var vals=[];
+  document.querySelectorAll('.mc').forEach(function(el){ var v=parseFloat(el.value); if(!isNaN(v))vals.push(v); });
+  var tmax=vals.length?Math.max.apply(null,vals):0;
+  var tmin=vals.length?Math.min.apply(null,vals):0;
+  var tavg=vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:0;
+  $('calc-max').textContent=fmt(tmax,2);
+  $('calc-min').textContent=fmt(tmin,2);
+  $('calc-avg').textContent=fmt(tavg,2);
+
+  var P=fnum('inp-p'), S=fnum('inp-s'), E=fnum('inp-e'), CA=fnum('inp-ca'), yr=fnum('inp-yr');
+
+  /* ASME B31.3 pressure design thickness */
+  var tPress=(S>0)?(P*D)/(2*(S*E+P*Y_COEF)):0;
+  var tMin=tPress+CA;                 /* 최소 허용 두께 */
+  var corr=Ti-tmin;                   /* 부식(감육) 두께 */
+  var cr=(yr>0)?corr/yr:0;            /* 부식속도 mm/y (API570 장기) */
+  var rl=(cr>0)?(tmin-tMin)/cr:Infinity; /* 잔존수명 */
+  var mawp=(D>0)?(2*S*E*tmin)/D:0;    /* MAWP */
+  var lossPct=(Ti>0)?corr/Ti*100:0;  /* 감육률 */
+  var rlDisp=(!isFinite(rl))?'∞':(rl>=100?'100+':fmt(rl,1));
+  var rlCap=(rl>=10)?'10년 이상':fmt(rl,1)+'년';
+
+  /* judgments */
+  var ratio=(tMin>0)?tmin/tMin:0;
+  var jTh = ratio>=1.2?'ok':(ratio>=1.0?'warn':'bad');
+  var jCr = cr<=0.1?'ok':(cr<=0.25?'warn':'bad');
+  var jRl = (!isFinite(rl)||rl>=10)?'ok':(rl>=5?'warn':'bad');
+  var jLoss = lossPct<=20?'ok':(lossPct<=40?'warn':'bad');
+
+  /* ---- center table ---- */
+  var t='<thead><tr><th>항목</th><th>기호 / 산출식</th><th>값</th><th>단위</th></tr></thead><tbody>';
+  function row(l,f,v,u,cls){ return '<tr class="'+(cls||'')+'"><td class="lbl">'+l+'</td><td class="fx">'+f+'</td><td class="num">'+v+'</td><td>'+u+'</td></tr>'; }
+  t+=row('공칭 두께','Ti',fmt(Ti,2),'mm');
+  t+=row('압력설계두께','t = P·D / (2(S·E+P·Y))',fmt(tPress,3),'mm');
+  t+=row('최소 허용 두께','t<sub>min</sub> = t + CA',fmt(tMin,3),'mm','out');
+  t+=row('측정 최소 두께','A = min(측정값)',fmt(tmin,2),'mm','out');
+  t+=row('부식(감육) 두께','B = Ti − A',fmt(corr,2),'mm');
+  t+=row('부식속도','CR = B / 사용연수',fmt(cr,3),'mm/y');
+  t+=row('최대사용압력','MAWP = 2·S·E·A / D',fmt(mawp,3),'MPa');
+  t+=row('추정 잔존수명','RL = (A − t<sub>min</sub>) / CR',rlCap,'','eff');
+  t+='</tbody>';
+  $('analTable').innerHTML=t;
+
+  /* ---- bar compare ---- */
+  var maxv=Math.max(Ti,tMin,tmin,0.001);
+  function bar(lbl,v,color){
+    var w=(v/maxv*100).toFixed(1);
+    return '<div style="display:flex;align-items:center;gap:6px;margin:5px 0;font-size:10px">'+
+      '<div style="width:74px;color:#555;font-weight:600">'+lbl+'</div>'+
+      '<div style="flex:1;background:#f0f0f0;border-radius:3px;height:32px;position:relative">'+
+      '<div style="width:'+w+'%;background:'+color+';height:100%;border-radius:3px"></div></div>'+
+      '<div style="width:42px;text-align:right;font-weight:700;color:#333;font-variant-numeric:tabular-nums">'+fmt(v,2)+'</div></div>';
+  }
+  $('barWrap').innerHTML=bar('공칭 Ti',Ti,'#7f8c8d')+bar('측정최소',tmin,'#00838f')+bar('최소허용',tMin,'#ED7458');
+
+  /* ---- metric cards ---- */
+  var m='';
+  function card(lbl,sub,val,unit){ return '<div class="metric-card"><div class="ml"><div class="metric-label">'+lbl+'</div><div class="metric-sub">'+sub+'</div></div><div class="metric-value">'+val+'<span class="metric-unit">'+unit+'</span></div></div>'; }
+  m+=card('추정 잔존수명','Remaining Life',(rl>=10?'10년':fmt(rl,1)),(rl>=10?'이상':'년'));
+  m+=card('최대 부식속도','Corrosion Rate',fmt(cr,3),'mm/y');
+  m+=card('감육률','Metal Loss',fmt(lossPct,1),'%');
+  m+=card('최대사용압력','MAWP',fmt(mawp,2),'MPa');
+  $('metricsArea').innerHTML=m;
+
+  /* ---- loss gauge ---- */
+  var lp=Math.max(0,Math.min(100,lossPct));
+  var lc=jLoss==='ok'?'#00838f':(jLoss==='warn'?'#e0a800':'#ED7458');
+  $('lossWrap').innerHTML='<div style="font-size:10px;color:#555;margin-bottom:4px">공칭두께 대비 감육 '+fmt(lossPct,1)+'%</div>'+
+    '<div style="background:#f0f0f0;border-radius:4px;height:33px;position:relative">'+
+    '<div style="width:'+lp+'%;background:'+lc+';height:100%;border-radius:4px"></div>'+
+    '<div style="position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:#fff">잔여 '+fmt(100-lossPct,1)+'%</div></div>';
+
+  /* ---- diagnosis ---- */
+  var stat={ok:'양호',warn:'점검',bad:'불량'};
+  var d='';
+  function dd(cat,key,body){ return '<div class="d '+key+'"><div class="dhead">'+cat+' <span class="dstat">'+stat[key]+'</span></div><div class="dbody">'+body+'<span class="dsrc" onclick="showSrcPopup(\''+cat+'\',\''+key+'\')">기준&#9432;</span></div></div>'; }
+  d+=dd('두께 건전성',jTh,'측정최소 '+fmt(tmin,2)+' / 허용 '+fmt(tMin,2)+'mm (여유율 '+fmt((ratio-1)*100,0)+'%)');
+  d+=dd('부식속도',jCr,fmt(cr,3)+' mm/year');
+  d+=dd('잔존수명',jRl,rlCap);
+  d+=dd('종합 평가',worst([jTh,jCr,jRl,jLoss]),'4개 항목 종합');
+  $('diag').innerHTML=d;
+
+  /* ---- pipe section diagram ---- */
+  drawPipe(D,Ti,tmin,tMin);
+  applyPH();
+}
+
+function worst(arr){ if(arr.indexOf('bad')>=0)return 'bad'; if(arr.indexOf('warn')>=0)return 'warn'; return 'ok'; }
+
+function drawPipe(D,Ti,tmin,tMin){
+  var R=48, cx=60, cy=60;
+  var rIn=R-(R*Ti/(D/2))*1.1;
+  var rMeas=R-(R*tmin/(D/2))*1.1;
+  if(!isFinite(rIn)||rIn<10)rIn=18; if(!isFinite(rMeas)||rMeas<8)rMeas=rIn+3;
+  var svg='<svg viewBox="0 0 300 120" width="100%" style="max-width:340px;display:block;margin:0 auto;overflow:visible">'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="#c9d3d8" stroke="#7f8c8d" stroke-width="1"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+rMeas+'" fill="#fff" stroke="#00838f" stroke-width="1.2" stroke-dasharray="3 2"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+rIn+'" fill="#eaf6f8" stroke="#00838f" stroke-width="1"/>'+
+    '<text x="130" y="34" font-size="9" fill="#555">외경 D = '+fmt(D,1)+' mm</text>'+
+    '<text x="130" y="54" font-size="9" fill="#7f8c8d">공칭 Ti = '+fmt(Ti,2)+' mm</text>'+
+    '<text x="130" y="74" font-size="9" fill="#00838f">측정최소 = '+fmt(tmin,2)+' mm</text>'+
+    '<text x="130" y="94" font-size="9" fill="#ED7458">최소허용 = '+fmt(tMin,2)+' mm</text>'+
+    '</svg>';
+  $('pipeDiagram').innerHTML=svg;
+}
+
+/* ---------- 판정 기준 팝업 (API/ASME 근거) ---------- */
+const SRC_INFO={
+ '두께 건전성':{ std:'ASME B31.3 §304.1.1 (압력설계두께) · API 570 §7 · API 574 (구조최소두께 Annex D) · API 579-1/ASME FFS-1', unit:'측정최소 ÷ 최소허용',
+   desc:'측정 최소두께(A)를 최소 허용두께(t_min = 압력설계두께 t + 부식여유 CA)와 비교합니다. 압력설계두께는 ASME B31.3 §304.1.1 식 t = P·D/(2(S·E+P·Y))로 산출하며, 최소허용두께는 이 값과 API 574 구조최소두께 중 큰 값을 적용합니다. ▸측정값이 최소허용두께 미만이면 API 570에 따라 즉시 정비·교체 또는 FFS(API 579) 평가 대상입니다.',
+   rows:[['ok','≥ 120% (여유 20%↑)','양호 — 충분한 두께 여유'],['warn','100 ~ 120%','점검 — 허용두께 근접, 감시 강화'],['bad','< 100%','불량 — 최소허용 미달, 정비·교체']] },
+ '부식속도':{ std:'API 570 §7.1.2 (장기/단기 부식률) · API 571 (손상기구) · NACE 부식등급', unit:'부식속도 [mm/year]',
+   desc:'장기 부식률 CR = (Ti − 측정최소두께) ÷ 사용연수 [mm/y] (API 570 §7.1.2). 초기두께로 공칭두께 Ti를, 현재두께로 초음파 측정 최소두께를 사용합니다. ▸판정구간은 일반 탄소강 기준으로 0.1mm/y 이하 경미, 0.25mm/y 초과 시 심한 부식(약 10mpy)으로 분류하며, 부식률이 높을수록 검사주기를 단축(API 570 잔존수명의 1/2)해야 합니다.',
+   rows:[['ok','≤ 0.10 mm/y','양호 — 경미한 부식'],['warn','0.10 ~ 0.25 mm/y','점검 — 중간 부식, 주기 단축'],['bad','> 0.25 mm/y','불량 — 심한 부식, 원인 조치']] },
+ '잔존수명':{ std:'API 570 §7.2 (Remaining Life) · API 574 · API 510', unit:'추정 잔존수명 [year]',
+   desc:'잔존수명 RL = (측정최소두께 − 최소허용두께) ÷ 부식속도 [year] (API 570 §7.2). ▸API 570은 잔존수명의 1/2 또는 최대 검사주기(배관 등급별 5~10년) 중 짧은 값을 다음 검사주기로 정합니다. 잔존수명 5년 미만은 정밀점검·교체계획 수립, 10년 이상은 정상 운영으로 판정합니다.',
+   rows:[['ok','≥ 10년','양호 — 정상 운영'],['warn','5 ~ 10년','점검 — 교체계획 검토'],['bad','< 5년','불량 — 정비·교체 시급']] },
+ '종합 평가':{ std:'API 570 · API 574 · ASME B31.3 · KS D 3562/3576 · 산업안전보건기준', unit:'두께·부식속도·잔존수명·감육률 종합',
+   desc:'두께 건전성·부식속도·잔존수명·감육률 4개 항목을 종합 판정하며, 가장 낮은 등급을 종합등급으로 채택합니다(최소값 지배). 배관 두께 검사·평가는 API 570(운전 배관 검사코드)과 초음파 두께측정(ASTM E797 / KS B 0817)을 근거로 합니다.',
+   rows:[['ok','전 항목 양호','정상 운전 — 유지관리 지속'],['warn','일부 항목 점검','부분 저하 — 정밀점검·주기단축'],['bad','불량 항목 존재','성능 저하 — 정비·교체 필요']] }
+};
+function showSrcPopup(cat,curLv){ var info=SRC_INFO[cat]; if(!info)return;
+  var lvName={ok:'양호',warn:'점검 필요',bad:'불량'};
+  var rows=info.rows.map(function(r){ return '<tr class="'+(r[0]===curLv?'cur':'')+'"><td>'+r[1]+'</td><td><span class="lv-'+r[0]+'">'+lvName[r[0]]+'</span></td><td>'+(r[2].split('—')[1]?r[2].split('—')[1].trim():r[2])+'</td></tr>'; }).join('');
+  $('srcModalTitle').textContent=cat+' 판정 기준';
+  $('srcModalBody').innerHTML='<div class="sm-std">출처: '+info.std+'</div><div class="sm-desc">'+info.desc+'</div>'+
+    '<table><thead><tr><th>'+info.unit+'</th><th>판정</th><th>의미</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 측정값의 판정 구간입니다.</div>';
+  $('srcModalMask').classList.add('on');
+}
+function closeSrcPopup(){ $('srcModalMask').classList.remove('on'); }
+
+var FACTOR_SRC = {
+  E: {
+    title: '이음효율 E (Weld Joint Quality Factor)',
+    std: 'ASME B31.3 §304.1.1 · Table A-1B',
+    desc: '압력설계두께 식 t = P·D / (2(S·E + P·Y)) 의 이음효율(E). 배관 제조·용접 방식과 방사선검사(RT) 수준에 따라 결정됩니다. E가 작을수록 요구 두께가 커집니다.',
+    unit: '제조 / 검사 방식',
+    rows: [
+      ['1.00','Seamless (이음매 없음)'],
+      ['1.00','EFW + 100% 방사선검사(RT)'],
+      ['0.90','EFW + 스폿 RT'],
+      ['0.85','ERW (전기저항용접)'],
+      ['0.80','EFW Single Butt (제조상태)'],
+      ['0.60','Furnace Butt Weld']
+    ]
+  },
+  CA: {
+    title: '부식여유 CA (Corrosion Allowance)',
+    std: 'ASME B31.3 §304.1.1 · API 570 §7 · ISO 21457',
+    desc: '최소허용두께 t_min = t + CA 에 더해지는 부식여유[mm]. 고정값이 아니라 유체 부식성·설계수명(CA ≈ 부식속도 × 사용연수)에 따라 설계자가 결정합니다.',
+    unit: '서비스(유체) 조건',
+    rows: [
+      ['0','스테인리스 / 라이닝 배관'],
+      ['1.0','비부식성 서비스'],
+      ['1.6','탄소강 통상 최소 (1/16 in)'],
+      ['3.0','경미 부식성 (정유·화학·해수)'],
+      ['6.0','심한 부식성 서비스']
+    ]
+  }
+};
+function showFactorSrc(which){
+  var info=FACTOR_SRC[which]; if(!info)return;
+  var curEl=$(which==='E'?'inp-e':'inp-ca');
+  var cur=curEl?curEl.value:'';
+  var rows=info.rows.map(function(r){
+    var on=(parseFloat(r[0])===parseFloat(cur));
+    return '<tr class="'+(on?'cur':'')+'"><td style="text-align:center;font-weight:700;color:#1a4f8b">'+r[0]+'</td><td>'+r[1]+'</td></tr>';
+  }).join('');
+  $('srcModalTitle').textContent=info.title;
+  $('srcModalBody').innerHTML='<div class="sm-std">출처: '+info.std+'</div><div class="sm-desc">'+info.desc+'</div>'+
+    '<table><thead><tr><th style="width:60px;">값</th><th>'+info.unit+'</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 선택된 값입니다. 표 제목을 클릭하면 언제든 이 기준을 볼 수 있습니다.</div>';
+  $('srcModalMask').classList.add('on');
+}
+
+function showRefsSrc(){
+  var stds=[
+   ['API 570 〔미국·국제〕','In-service Piping Inspection Code — §7.1.2 장기/단기 부식률, §7.2 잔존수명, 검사주기 산정의 핵심 근거'],
+   ['API 574 〔미국·국제〕','Inspection Practices for Piping System Components — 구조 최소두께 표(Annex D), 초음파 두께측정 실무'],
+   ['API 510 / API 579-1 (ASME FFS-1) 〔미국·국제〕','압력용기 검사코드 및 Fitness-For-Service — 최소허용 미달 시 적합성 평가'],
+   ['ASME B31.3 §304.1.1 〔미국·국제〕','Process Piping — 압력설계두께 t = P·D/(2(S·E+P·Y)), Y계수(Table 304.1.1)·이음효율 E'],
+   ['ASME B31.1 §104.1.2 〔미국·국제〕','Power Piping(동력배관) — 증기·고온배관 두께 t = P·D/(2(S·E+P·y))+A'],
+   ['ASME B31G 〔미국·국제〕','Manual for Determining Remaining Strength of Corroded Pipelines — 국부감육 잔존강도 평가'],
+   ['API 571 〔미국·국제〕','Damage Mechanisms — 부식·감육 손상기구 식별 및 부식속도 판정 근거'],
+   ['KS D 3562 / 3507 / 3576 / 5301 〔한국〕','압력배관용·일반배관용 탄소강관, 배관용 STS 강관, 이음매없는 동관 — 외경·공칭두께 규격'],
+   ['ASTM E797 / KS B 0817 〔국제·한국〕','초음파 펄스-에코 두께 측정 방법 — 측정 데이터 신뢰성 근거'],
+   ['산업안전보건기준·에너지이용합리화법 〔한국〕','압력배관 안전관리 및 에너지진단 — 노후배관 진단·관리 근거'],
+   ['적용 계산식 〔산출식〕','① 압력설계두께 t = P·D ÷ (2(S·E + P·Y)) [mm] · ② 최소허용두께 t_min = t + CA · ③ 부식속도 CR = (Ti − 측정최소) ÷ 사용연수 · ④ 잔존수명 RL = (측정최소 − t_min) ÷ CR · ⑤ MAWP = 2·S·E·측정최소 ÷ D'],
+   ['설계계수 〔표준값〕','Y = 0.4 (강, 운전온도 482℃ 미만, ASME B31.3 Table 304.1.1) · E = 1.0(이음매없음/방사선검사) · CA = 부식여유(설계값, 통상 1.0~3.0mm)']
+  ];
+  var rows=stds.map(function(s){ return '<tr><td style="font-weight:700;color:#00838f;white-space:normal;word-break:keep-all;vertical-align:top;">'+s[0]+'</td><td style="white-space:normal;word-break:break-word;">'+s[1]+'</td></tr>'; }).join('');
+  $('srcModalTitle').textContent='기준 및 출처 — 적용 표준 (상세)';
+  $('srcModalBody').innerHTML='<div class="sm-desc">본 도구의 배관 두께·부식속도·잔존수명 판정에 적용된 국내외 공식 표준입니다. 미국·국제(API 570/574/510/579·ASME B31.3/B31.1/B31G)와 한국(KS D 배관규격·산업안전보건기준·에너지이용합리화법) 기준을 교차 적용하였습니다.</div>'+
+    '<table><thead><tr><th>적용 표준</th><th>내용</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  $('srcModalMask').classList.add('on');
+}
+</script>
 <script>
 /* === HIMEC 저장/내보내기/메인 (Tool-402 동일) === */
 (function(){
