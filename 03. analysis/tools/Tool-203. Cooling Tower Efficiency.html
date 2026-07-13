@@ -7,6 +7,28 @@
 	<script src="../../js/himec-supabase-sync.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- HIMEC-VIEWPORT-FIT : 태블릿/모바일에서 1920 데스크톱 레이아웃을 화면폭에 맞춰 통째로 축소.
+     폰 세로(≤699px)에서는 기존 반응형(device-width) 유지. 이 블록만 지우면 원복됨. -->
+<script>
+(function(){
+  var meta = document.querySelector('meta[name="viewport"]');
+  if(!meta) return;
+  var phone = window.matchMedia('(max-width: 699px)');
+  function apply(){
+    if (phone.matches) meta.setAttribute('content','width=device-width, initial-scale=1.0');
+    else               meta.setAttribute('content','width=1920');
+  }
+  apply();
+  try { phone.addEventListener('change', apply); }
+  catch(e){ try { phone.addListener(apply); } catch(_){} }
+  window.addEventListener('orientationchange', function(){ setTimeout(apply, 50); });
+  // 뷰포트 확정 후 차트류가 최종 크기로 다시 그려지도록 한 번 nudge
+  window.addEventListener('load', function(){
+    setTimeout(function(){ try { window.dispatchEvent(new Event('resize')); } catch(e){} }, 150);
+  });
+})();
+</script>
+
 <title>HIMEC - Cooling Tower Performance Analysis Tool</title>
 <link rel="icon" href="data:,">
 <link rel="shortcut icon" href="data:,">
