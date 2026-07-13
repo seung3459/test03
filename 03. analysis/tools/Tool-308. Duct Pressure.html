@@ -7,6 +7,1971 @@
 	<script src="../../js/himec-supabase-sync.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
+<title>HIMEC - System Static Pressure Review Tool</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    background: #f5f5f5; color: #333;
+    height: 100vh; width: 100vw; overflow: hidden;
+  }
+  body { display: flex; flex-direction: column; }
+
+  .page-container {
+    padding: 0 100px; flex: 1; display: flex; flex-direction: column;
+    overflow: hidden; min-height: 0; background: #fff;
+  }
+
+  .header {
+    background: #fff; padding: 8px 20px; border-bottom: 1px solid #ddd;
+    flex-shrink: 0; margin-left: -100px; margin-right: -100px;
+    padding-left: 120px; padding-right: 120px; position: relative;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: #222; }
+  .header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .header h2 { font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+
+  /* 프로젝트명 앞뒤 대괄호 표시 (공통 템플릿) */
+  .header h2 #project-name:not(:empty)::before { content: "["; }
+  .header h2 #project-name:not(:empty)::after { content: "]"; }
+
+  .header-right { position: absolute; bottom: 8px; right: 20px; display: flex; gap: 8px; }
+
+  /* ─── TAB BAR ─── */
+  .tab-bar { display: flex; padding: 4px 20px 0; background: #fff; gap: 4px; flex-shrink: 0; }
+  .tab {
+    padding: 5px 20px; border-radius: 6px 6px 0 0; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: none; background: #bbb; color: #fff; position: relative;
+    padding-right: 28px !important;
+  }
+  .tab.active { background: #00838f; color: #fff; }
+  .tab.add { background: #999; color: #fff; font-size: 14px; padding: 5px 16px; padding-right: 16px !important; }
+  .tab .tab-close {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; border-radius: 50%; border: none; background: transparent;
+    color: rgba(255,255,255,0.7); font-size: 13px; line-height: 16px; text-align: center;
+    cursor: pointer; padding: 0;
+  }
+  .tab .tab-close:hover { background: rgba(255,0,0,0.6); color: #fff; }
+
+  .main {
+    display: grid; grid-template-columns: 3fr 2fr; gap: 0;
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+
+  /* ─── LEFT PANEL ─── */
+  .panel {
+    background: #fff; padding: 10px 14px;
+    display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+  }
+  #left-panel { border-right: 1px solid #e0e0e0; overflow-y: auto; overflow-x: hidden; }
+  #left-panel::-webkit-scrollbar { width: 4px; }
+  #left-panel::-webkit-scrollbar-track { background: #f5f5f5; }
+  #left-panel::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+  /* ─── SECTION STYLES ─── */
+  .section-title {
+    font-size: 12px; font-weight: 700; margin: 8px 0 4px; color: #222;
+    flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+  }
+
+  /* ─── INFO TABLE ─── */
+  .info-table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    margin-bottom: 4px; font-size: 10px; flex-shrink: 0;
+  }
+  .info-table th, .info-table td {
+    border: 1px solid #fff; padding: 5px 5px; border-bottom: 1.5px solid #ccc;
+    text-align: center; vertical-align: middle;
+  }
+  .info-table th { background: #e8e8e8; color: #555; font-weight: 600; font-size: 10px; }
+  .info-table td { background: #fff; }
+  .info-table tr:first-child th:first-child { border-top-left-radius: 6px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius: 6px; }
+  .info-table input {
+    width: 100%; border: none; text-align: center; font-size: 11px;
+    background: transparent; outline: none; padding: 3px 2px; color: #00838f; font-weight: 600;
+  }
+  .info-table input[type="number"] { -moz-appearance: textfield; }
+  .info-table input[type="number"]::-webkit-inner-spin-button,
+  .info-table input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .info-table input::placeholder { color: #9aa3ab; font-style: italic; font-weight: 400; }
+  .info-table select {
+    width: 100%; border: none; text-align: center; font-size: 10px;
+    background: transparent; outline: none; padding: 3px 22px 3px 4px; color: #00838f;
+    font-weight: 600; cursor: pointer; max-width: 100%;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  }
+  .info-table .computed {
+    color: #e85d24; font-weight: 700; font-size: 11px;
+  }
+  .info-table .unit-label { font-size: 9px; color: #888; }
+  /* ── 동압 표시 스타일 ── */
+  .dp-info { font-size: 8.5px; color: #e85d24; font-weight: 600; cursor: pointer; }
+  /* ── 동압 적용 토글 (기외손실 전용) ── */
+  .dp-toggle-wrap {
+    display: inline-flex; align-items: center; gap: 4px; position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  }
+  .dp-switch {
+    position: relative; display: inline-block; width: 26px; height: 14px; flex-shrink: 0; cursor: pointer;
+  }
+  .dp-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .dp-switch .dp-slider {
+    position: absolute; inset: 0; background: #ccc; border-radius: 14px;
+    transition: background 0.15s;
+  }
+  .dp-switch .dp-slider::before {
+    content: ""; position: absolute; width: 10px; height: 10px; left: 2px; top: 2px;
+    background: #fff; border-radius: 50%; transition: transform 0.15s;
+  }
+  .dp-switch input:checked + .dp-slider { background: #e85d24; }
+  .dp-switch input:checked + .dp-slider::before { transform: translateX(12px); }
+  .dp-toggle-label {
+    font-size: 8.5px; color: #888; font-weight: 500; cursor: pointer;
+    white-space: nowrap; user-select: none;
+  }
+  .dp-toggle-label.dp-active {
+    color: #e85d24; font-weight: 600;
+  }
+  .dp-pv-value {
+    font-size: 8.5px; color: #e85d24; font-weight: 600; cursor: pointer;
+    border: none; background: transparent; padding: 0; margin: 0;
+    width: 36px; min-width: 28px; max-width: 40px; text-align: right;
+    font-family: inherit; outline: none;
+    -moz-appearance: textfield;
+  }
+  .dp-pv-value::-webkit-inner-spin-button,
+  .dp-pv-value::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .dp-pv-value:focus { border-bottom: 1px solid #e85d24; background: #fff8f5; }
+  .dp-pv-value.dp-pv-auto { color: #e85d24; font-weight: 400; }
+  .info-table .action-btn {
+    padding: 2px 8px; border: 1px solid #00838f; border-radius: 3px;
+    background: transparent; color: #00838f; font-size: 9px; cursor: pointer;
+    font-weight: 600; white-space: nowrap;
+  }
+  .info-table .action-btn:hover { background: #00838f; color: #fff; }
+  .info-table .del-btn {
+    padding: 2px 6px; border: 1px solid #e85d24; border-radius: 3px;
+    background: transparent; color: #e85d24; font-size: 9px; cursor: pointer;
+    font-weight: 700;
+  }
+  .info-table .del-btn:hover { background: #e85d24; color: #fff; }
+
+  /* ─── 부품명 셀: 좌측 정렬 (기내/기외손실 공통) ─── */
+  .info-table td.part-name-cell { text-align: center; }
+  .info-table td.part-name-cell select { text-align: center; }
+  .info-table td.part-name-cell .direct-text { text-align: center; }
+
+  .note { font-size: 9px; color: #888; margin: 2px 0 6px; text-align: right; flex-shrink: 0; }
+  .divider { border: none; border-top: 1px solid #eee; margin: 6px 0; flex-shrink: 0; }
+
+  /* add-row button row */
+  .add-row-btn {
+    width: 100%; padding: 4px; border: 1px dashed #00838f; border-radius: 4px;
+    background: #f0fdfd; color: #00838f; font-size: 10px; font-weight: 600;
+    cursor: pointer; margin-bottom: 6px; transition: background 0.2s;
+  }
+  .add-row-btn:hover { background: #e0f7fa; }
+
+  /* ─── RIGHT PANEL ─── */
+  #right-panel { position: sticky; top: 0; height: 100%; overflow: hidden; }
+  .right-panel { display: flex; flex-direction: column; gap: 0; }
+
+  .metrics-area { display: flex; flex-direction: column; gap: 0; flex-shrink: 0; }
+  .metric-card {
+    border: none; border-bottom: 1.5px solid #ccc;
+    padding: 10px 10px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .metric-label { font-size: 11px; color: #00838f; flex: 1; line-height: 1.2; font-weight: 700; }
+  .metric-sub { font-size: 9px; color: #888; font-weight: 400; display: block; margin-top: 1px; }
+  .metric-value { font-size: 20px; font-weight: 700; color: #ff8c00; min-width: 60px; text-align: right; }
+  .metric-unit { font-size: 11px; color: #888; margin-left: 2px; vertical-align: super; }
+
+  /* ─── HORIZONTAL BAR CHART ─── */
+  .hbar-chart {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    gap: 14px; padding: 12px 10px 6px; overflow: hidden; min-height: 0;
+  }
+  .hbar-row { display: flex; align-items: center; gap: 8px; }
+  .hbar-label {
+    width: 100px; font-size: 9.5px; color: #444; font-weight: 600;
+    text-align: right; flex-shrink: 0; line-height: 1.3;
+  }
+  .hbar-track {
+    flex: 1; background: #f0f0f0; border-radius: 4px; height: 22px;
+    position: relative; overflow: hidden;
+  }
+  .hbar { height: 100%; border-radius: 4px; transition: width 0.5s ease; min-width: 2px; position: relative; }
+  .hbar-value {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; font-weight: 700; color: #333; white-space: nowrap;
+  }
+  .hbar-design  { background: #bbb; }
+  .hbar-total   { background: #00838f; }
+  .hbar-safe    { background: #7fc7cd; }
+  .hbar-legend {
+    display: flex; gap: 10px; justify-content: center; margin-top: 4px;
+    font-size: 9px; color: #555; flex-shrink: 0; flex-wrap: wrap;
+  }
+  .bar-legend-item { display: flex; align-items: center; gap: 3px; }
+  .bar-legend-color { width: 10px; height: 8px; border-radius: 2px; }
+
+  /* ─── VERDICT BOX ─── */
+  .verdict-box {
+    margin: 8px 10px; border: 1.5px solid #ccc; border-radius: 8px; padding: 12px 12px;
+    text-align: center; flex-shrink: 0;
+  }
+  .verdict-label { font-size: 12px; color: #555; font-weight: 700; margin-bottom: 6px; }
+  .verdict-value { font-size: 20px; font-weight: 700; }
+  .verdict-ok  { color: #00838f; }
+  .verdict-ng  { color: #e85d24; }
+  .verdict-sub { font-size: 10px; color: #888; margin-top: 4px; }
+
+  .source-note {
+    margin: 6px 10px; border-top: 1px solid #eee; padding-top: 6px; font-size: 9px;
+    color: #999; line-height: 1.6; white-space: pre-line; flex-shrink: 0;
+  }
+  .source-note b { color: #777; }
+
+  /* ─── SAFETY FACTOR ─── */
+  .safety-row {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 6px; font-size: 10px; flex-shrink: 0;
+    border: 1.5px solid #ccc;
+    background: #e8e8e8;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .safety-row .safety-th {
+    background: #e8e8e8; color: #555; font-weight: 600; font-size: 10px;
+    padding: 5px 5px; text-align: center; white-space: nowrap; flex-shrink: 0;
+  }
+  .safety-row .safety-td {
+    background: #fff; padding: 5px 5px; text-align: center;
+    flex-shrink: 0;
+  }
+  .safety-row input {
+    width: 60px; border: none; text-align: center;
+    font-size: 11px; padding: 3px 2px; color: #00838f; font-weight: 600;
+    outline: none; background: transparent;
+    -moz-appearance: textfield;
+  }
+  .safety-row input::-webkit-inner-spin-button,
+  .safety-row input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .safety-row .safety-hint { font-size: 9px; color: #aaa; padding: 5px 8px; background: #e8e8e8; }
+
+  /* ─── COPYRIGHT ─── */
+  .copyright {
+    background: #fff; border-top: 1px solid #ddd; padding: 6px 120px;
+    margin-left: -100px; margin-right: -100px;
+    text-align: center; font-size: 10px; color: #888; flex-shrink: 0;
+  }
+
+  /* ─── 직접입력 텍스트 필드 (select 대체) ─── */
+  .direct-input-wrap { position: relative; width: 100%; }
+  .direct-input-wrap select { width: 100%; }
+  .direct-input-wrap .direct-text {
+    display: none; width: 100%; border: none; text-align: center;
+    font-size: 10px; background: transparent; outline: none;
+    padding: 3px 22px 3px 4px; color: #00838f; font-weight: 600;
+    font-family: inherit;
+  }
+  
+  /* 직접입력 모드일 때 셀렉트박스를 완전히 숨기지 않고 우측 화살표 영역만 덮도록 투명화 (상시클릭용) */
+  .direct-input-wrap.is-direct select { 
+    display: block; position: absolute; left: 0; top: 0;
+    width: 100%; height: 100%; opacity: 0; z-index: 10; cursor: pointer;
+  }
+  .direct-input-wrap.is-direct .direct-text { display: block; }
+
+  /* ─── 드롭다운 화살표 (덕트/기내/기외 공통, 기외손실 화살표 크기(10px)로 통일) ─── */
+  .direct-input-wrap::after {
+    content: ''; position: absolute; right: 5px; top: 50%;
+    width: 10px; height: 10px; transform: translateY(-50%);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%2300838f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: center; background-size: contain;
+    pointer-events: none;
+  }
+
+  /* ─── 기외손실 직접입력: 다른 입력 폼과 디자인 통일 ─── */
+  .direct-fallback-wrap {
+    width: 100%; position: relative;
+  }
+  .direct-fallback-wrap .direct-text {
+    width: 100%; border: none; text-align: center; font-size: 10px;
+    background: transparent; outline: none; padding: 3px 22px 3px 4px;
+    color: #00838f; font-weight: 600;
+    font-family: inherit;
+  }
+  .direct-fallback-wrap::after {
+    content: ''; position: absolute; right: 5px; top: 50%;
+    width: 10px; height: 10px; transform: translateY(-50%);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%2300838f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: center; background-size: contain;
+    pointer-events: none;
+  }
+
+  /* ─── 이미지 커스텀 드롭다운 ─── */
+  .img-dropdown-wrap {
+    position: relative; width: 100%;
+  }
+  .img-dropdown-trigger {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; padding: 3px 22px 3px 4px; border: none;
+    background: #FFFFFF; cursor: pointer; font-size: 10px;
+    color: #00838f; font-weight: 600; text-align: center;
+    font-family: inherit; position: relative; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; min-height: 22px;
+  }
+  .img-dropdown-trigger:hover,
+  .img-dropdown-trigger:focus,
+  .img-dropdown-trigger:active { background: #FFFFFF; }
+  .img-dropdown-trigger::after {
+    content: ''; position: absolute; right: 5px; top: 50%;
+    width: 10px; height: 10px; transform: translateY(-50%);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%2300838f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: center; background-size: contain;
+    pointer-events: none;
+  }
+  .img-dropdown-trigger img {
+    width: 32px; height: 22px; object-fit: contain; flex-shrink: 0;
+    border: 1px solid #e0e0e0; border-radius: 2px; background: #fafafa;
+  }
+  .img-dropdown-trigger .trigger-label { overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .img-dropdown-list {
+    display: none; position: fixed; z-index: 9999;
+    background: #FFFFFF; border: 1px solid #ccc; border-radius: 6px;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.15); min-width: 220px; max-width: 300px;
+    max-height: 260px; overflow-y: auto;
+  }
+  .img-dropdown-list.open { display: block; }
+  .img-dropdown-list::-webkit-scrollbar { width: 4px; }
+  .img-dropdown-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+  .img-dropdown-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px; cursor: pointer; font-size: 10px;
+    color: #333; white-space: nowrap; transition: background 0.1s;
+    background: #FFFFFF; text-align: left;
+    border-left: 3px solid transparent;
+  }
+  .img-dropdown-option:hover { background: #e0f7f7; color: #00838f; }
+  .img-dropdown-option.selected {
+    background: #e0f7f7; font-weight: 700; color: #00838f;
+    border-left: 3px solid #00838f;
+  }
+  .img-dropdown-option img {
+    width: 36px; height: 24px; object-fit: contain; flex-shrink: 0;
+    border: 1px solid #e8e8e8; border-radius: 2px; background: #fafafa;
+  }
+  .img-dropdown-option .opt-label { overflow: hidden; text-overflow: ellipsis; }
+  .img-dropdown-separator {
+    border: none; border-top: 1px solid #eee; margin: 2px 0;
+  }
+
+  @media (max-width: 1400px) {
+    .page-container { padding: 0 40px; }
+    .header { margin-left: -40px; margin-right: -40px; padding-left: 60px; padding-right: 60px; }
+    .copyright { margin-left: -40px; margin-right: -40px; padding: 6px 60px; }
+  }
+
+  /* ─── 이미지 호버 프리뷰 팝업 ─── */
+  #image-preview-popup {
+    display: none;
+    position: fixed;
+    z-index: 99999;
+    pointer-events: none;
+    padding: 6px;
+    background: #fff;
+    border: 1.5px solid #00838f;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,131,143,0.12);
+    opacity: 0;
+    transform: scale(0.88);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  #image-preview-popup.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+  #image-preview-popup img {
+    display: block;
+    width: 200px;
+    height: 140px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #f7fafa;
+  }
+  #image-preview-popup .preview-caption {
+    margin-top: 5px;
+    font-size: 10px;
+    color: #00838f;
+    font-weight: 600;
+    text-align: center;
+    font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+</style>
+
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+<style id="himec-unify-portrait">
+
+/* ===== [TABLE UNIFY → Tool-09 .info-table 규격] .info-table
+   헤더색/테두리/라운드/폰트만 통일. 숫자정렬·의미색(빨강·파랑·합계행 등)은 보존 ===== */
+.info-table { border-collapse:separate !important; border-spacing:0 !important; }
+.info-table th, .info-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:6px 5px !important; }
+.info-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.info-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.info-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.info-table input { font-size:11px !important; }
+  .info-table input.dp-pv-value { font-size:8.5px !important; width:36px !important; min-width:28px !important; max-width:40px !important; color:#e85d24 !important; text-align:right !important; padding:0 !important; }
+.info-table select { font-size:11px !important; }
+/* ===== [TABLE UNIFY] end ===== */
+
+</style>
+</head>
+<body>
+
+<div id="image-preview-popup">
+  <img id="image-preview-img" src="" alt="">
+  <div class="preview-caption" id="image-preview-caption"></div>
+</div>
+
+<div class="page-container">
+
+<div class="header">
+  <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
+  <h2 id="pageTitle"><span id="project-name"></span>System Static Pressure Review Tool</h2>
+  <div class="header-right">
+    <button class="btn-main" onclick="GoMain()" title="Main" aria-label="Main">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </button>
+    <button class="btn-save" onclick="saveData()" title="저장(화면 입력값 저장)" aria-label="저장">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    </button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / JSON)" aria-label="파일 내보내기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="tab-bar" id="tabBar">
+  <button class="tab active" id="tab-1" onclick="switchTab(1)">실외기 Main<span class="tab-close" onclick="event.stopPropagation();removeTab(1)">✕</span></button>
+  <button class="tab add" onclick="addTab()">+</button>
+</div>
+
+<div class="main">
+
+  <div class="panel" id="left-panel">
+
+    <div class="section-title">■ 설계 정보 입력</div>
+    <table class="info-table">
+      <tr>
+        <th style="width:22%">용도 &amp; 위치</th>
+        <th style="width:16%">덕트 장변 (mm)</th>
+        <th style="width:4%">×</th>
+        <th style="width:16%">덕트 단변 (mm)</th>
+        <th style="width:14%">설계 풍량 (CMH)</th>
+        <th style="width:14%">설계 정압 (mmAq)</th>
+        <th style="width:14%">동압 (mmAq)</th>
+      </tr>
+      <tr>
+        <td><input id="inp-location" value="" placeholder="입력해주세요" oninput="updateTabName();recalc()"></td>
+        <td><input id="inp-w" type="number" value="" placeholder="입력해주세요" min="50" step="10" oninput="recalc()"></td>
+        <td style="color:#888;font-size:11px;">×</td>
+        <td><input id="inp-h" type="number" value="" placeholder="입력해주세요" min="50" step="10" oninput="recalc()"></td>
+        <td><input id="inp-flow" type="number" value="" placeholder="입력해주세요" min="0" step="100" oninput="recalc()"></td>
+        <td><input id="inp-design-sp" type="number" value="" placeholder="입력해주세요" min="0" step="1" oninput="recalc()"></td>
+        <td><span id="val-pv" style="font-weight:700;color:#e85d24;">0</span></td>
+      </tr>
+    </table>
+    <div class="note">※ 덕트 단면적 기준 풍속 자동 산출 &nbsp;|&nbsp; 설계 정압 = 팬 정압 기준</div>
+
+    <div class="section-title" style="margin-top:4px;">✔ 덕트 길이에 대한 손실</div>
+    <table class="info-table" id="duct-table">
+      <tr>
+        <th style="width:37%">덕트 종류</th>
+        <th style="width:11%">덕트 길이 (m)</th>
+        <th style="width:11%">단위저항 (mmAq/m)</th>
+        <th style="width:10%">부속류 비율 (%)</th>
+        <th style="width:26%">합계 (mmAq)</th>
+        <th style="width:5%">삭제</th>
+      </tr>
+      </table>
+    <button class="add-row-btn" onclick="addDuctRow()">＋ 덕트 구간 추가</button>
+    <div class="note">※ 직관 손실 + 부속류 손실 자동 계산 &nbsp;|&nbsp; 단위저항 = 덕트 종류별 기본값</div>
+
+    <div class="section-title" style="margin-top:4px;">✔ 기내손실 (Indoor Accessories)</div>
+    <table class="info-table" id="indoor-table">
+      <tr>
+        <th style="width:37%">부품명</th>
+        <th style="width:18%">정압 손실 계수 (mmAq)</th>
+        <th style="width:7%">수량</th>
+        <th style="width:33%">정압 손실 소계 (mmAq)</th>
+        <th style="width:5%">삭제</th>
+      </tr>
+      </table>
+    <button class="add-row-btn" onclick="addIndoorRow()">＋ 기내부품 추가</button>
+    <div class="note">※ ASHRAE / SAREK 기준 기본값 제공 &nbsp;</div>
+
+    <div class="section-title" style="margin-top:4px;">✔ 기외손실 (Outdoor Accessories)</div>
+    <table class="info-table" id="outdoor-table">
+      <tr>
+        <th style="width:37%">부품명</th>
+        <th style="width:18%">정압 손실 계수 (mmAq)</th>
+        <th style="width:7%">수량</th>
+        <th style="width:33%">정압 손실 소계 (mmAq)</th>
+        <th style="width:5%">삭제</th>
+      </tr>
+      </table>
+    <button class="add-row-btn" onclick="addOutdoorRow()">＋ 기외부품 추가</button>
+    <div class="note">※ ASHRAE / SAREK 기준 기본값 제공 &nbsp;</div>
+
+    <div class="safety-row">
+      <span class="safety-th">안전율 (%)</span>
+      <span class="safety-td"><input id="inp-safety" type="number" value="10" min="0" max="100" step="1" oninput="recalc()"></span>
+      <span class="safety-hint">FAN 정압 × (1 + 안전율/100) = 총 정압 &nbsp;</span>
+    </div>
+
+  </div><div class="panel right-panel" id="right-panel">
+    <div class="section-title">■ 분석 결과</div>
+
+    <div class="metrics-area">
+      <div class="metric-card">
+        <div class="metric-label">✔ 시스템 정압
+          <span class="metric-sub">덕트 + 기내 + 기외 손실 합계 − 동압(Pv)</span>
+        </div>
+        <div><span class="metric-value" id="val-total">0</span><span class="metric-unit">mmAq</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 총 정압
+          <span class="metric-sub" id="lbl-safe-sub">안전율 적용</span>
+        </div>
+        <div><span class="metric-value" id="val-safe">0</span><span class="metric-unit">mmAq</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 설계 정압</div>
+        <div><span class="metric-value" id="val-design">0</span><span class="metric-unit">mmAq</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ (총 정압/설계정압)×100</div>
+        <div><span class="metric-value" id="val-ratio">0</span><span class="metric-unit">%</span></div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+      <div class="hbar-chart" id="hbarChart">
+        <div class="hbar-row">
+          <div class="hbar-label">설계 정압</div>
+          <div class="hbar-track"><div class="hbar hbar-design" id="hbar-design" style="width:0%"><span class="hbar-value" id="hbv-design">0</span></div></div>
+        </div>
+        <div class="hbar-row">
+          <div class="hbar-label">총 정압</div>
+          <div class="hbar-track"><div class="hbar hbar-total" id="hbar-total" style="width:0%"><span class="hbar-value" id="hbv-total">0</span></div></div>
+        </div>
+        <div class="hbar-row">
+          <div class="hbar-label">총 정압(안전율)</div>
+          <div class="hbar-track"><div class="hbar hbar-safe" id="hbar-safe" style="width:0%"><span class="hbar-value" id="hbv-safe">0</span></div></div>
+        </div>
+      </div>
+      <div class="hbar-legend">
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#bbb;"></div>설계정압</div>
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#00838f;"></div>총정압</div>
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#7fc7cd;"></div>안전율 적용</div>
+      </div>
+    </div>
+
+    <div class="verdict-box" id="verdictBox">
+      <div class="verdict-label">검토 의견</div>
+      <div class="verdict-value" id="verdictValue">-</div>
+      <div class="verdict-sub" id="verdictSub">설계 정압 vs 안전율 적용 정압 비교</div>
+    </div>
+
+    <div class="source-note"><b>분석 기준 &amp; 출처</b>
+• 대한설비공학회 공기조화설비 설계기준 (SAREK)
+• ASHRAE Fundamentals Handbook — Duct Design
+• KDS 31 00 00 기계설비 설계기준
+• 건축기계설비설계기준 / 위생설비공학
+• 설비공학편람 제1권 기초</div>
+  </div>
+
+</div></div><div class="copyright">
+  ©HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   REFERENCE DATA
+   ═══════════════════════════════════════════════════════════════ */
+
+// 덕트 종류별 단위 마찰저항 (mmAq/m) - ASHRAE / SAREK 기준
+var DUCT_TYPES = [
+  { name: '-- 선택 --', resistance: 0 },
+  { name: '아연도금 강판 직사각형 덕트 (KS)', resistance: 0.10 },
+  { name: '아연도금 강판 원형 덕트 (KS)', resistance: 0.08 },
+  { name: '플렉시블 덕트 (단열형)', resistance: 0.18 },
+  { name: '콘크리트 덕트', resistance: 0.3 },
+  { name: '배연 덕트', resistance: 0.15 },
+  { name: '섬유형 덕트 (Fabric)', resistance: 0.12 },
+  { name: '스테인리스 원형 덕트', resistance: 0.07 },
+  { name: '일반(토출측)', resistance: 0.10 },
+  { name: '일반(흡입측)', resistance: 0.08 },
+  { name: '직접 입력', resistance: 0.10 }
+];
+
+// 기내 부품 (SAREK / ASHRAE 기준 대표값 mmAq)
+var INDOOR_PARTS = [
+  { name: '-- 선택 --', coeff: 0 },
+  { name: '에어필터 (중성능)', coeff: 20.0 },
+  { name: '에어필터 (HEPA)', coeff: 50.0 },
+  { name: '에어필터 (프리필터)', coeff: 10.0 },
+  { name: '냉각 코일 (2열)', coeff: 4.0 },
+  { name: '냉각 코일 (4열)', coeff: 8.0 },
+  { name: '냉각 코일 (6열)', coeff: 13.0 },
+  { name: '냉각 코일 (8열)', coeff: 17.0 },
+  { name: '냉각 코일 (10열)', coeff: 21.0 },
+  { name: '가열 코일 (1열)', coeff: 2.0 },
+  { name: '가열 코일 (2열)', coeff: 3.5 },
+  { name: '가열 코일 (3열)', coeff: 5.0 },
+  { name: '가열 코일 (4열)', coeff: 6.5 },
+  { name: '가열 코일 (5열)', coeff: 8.0 },
+  { name: '가열 코일 (6열)', coeff: 9.5 },
+  { name: '가습기 (증기식)', coeff: 3.0 },
+  { name: '가습기 (기화식)', coeff: 6.0 },
+  { name: '전열교환기 (코어)', coeff: 8.0 },
+  { name: '소음기 / 체임버', coeff: 2.5 },
+  { name: '열회수코일', coeff: 5.5 },
+  { name: 'Eleminator', coeff: 3.5 },
+  { name: 'Mixing Box', coeff: 2.5 },
+  { name: '직접 입력', coeff: 0 }
+];
+
+// 기외 부품 (SAREK / ASHRAE 기준 대표값 mmAq)
+var OUTDOOR_PARTS = [
+  { name: '-- 선택 --',                    coeff: 0,    image: null,  useDP: false },
+  { name: 'FAN 출구상태',     coeff: 1.0,  image: '../../img/FAN/image1.png', useDP: true },
+  { name: 'FAN 출구상태',     coeff: 0.5,  image: '../../img/FAN/image2.png', useDP: true },
+  { name: 'FAN 출구상태',     coeff: 1.5,  image: '../../img/FAN/image3.png', useDP: true },
+  { name: 'FAN 입구상태',      coeff: 3.0,  image: '../../img/FAN/image4.png', useDP: true },
+  { name: 'FAN 입구상태',      coeff: 2.0,  image: '../../img/FAN/image5.png', useDP: true },
+  { name: 'FAN 입구상태',      coeff: 0.53, image: '../../img/FAN/image6.png', useDP: true },
+  { name: '루버 (흡입구)', coeff: 3.0,  useDP: false },
+  { name: '루버 (토출구)', coeff: 2.5,  useDP: false },
+  { name: '방충망', coeff: 1.5,  useDP: false },
+  { name: '90° 엘보 (반지름비 R/D=1.0)', coeff: 1.8,  useDP: true },
+  { name: '90° 엘보 (반지름비 R/D=1.5)', coeff: 1.2,  useDP: true },
+  { name: '45° 엘보', coeff: 0.8,  useDP: true },
+  { name: 'T형 분기 (직관)', coeff: 1.0,  useDP: true },
+  { name: 'T형 분기 (분기)', coeff: 2.5,  useDP: true },
+  { name: '확대 전이부', coeff: 0.5,  useDP: true },
+  { name: '축소 전이부', coeff: 0.3,  useDP: true },
+  { name: '댐퍼 (전개)', coeff: 0.5,  useDP: false },
+  { name: '댐퍼 (50% 개도)', coeff: 3.0,  useDP: false },
+  { name: '댐퍼 (풍량조절용)', coeff: 2.0,  useDP: false },
+  { name: '댐퍼 (소방용)', coeff: 1.0,  useDP: false },
+  { name: '소음기', coeff: 5.0,  useDP: false },
+  { name: '챔버', coeff: 3.0,  useDP: false },
+  { name: '배기 후드', coeff: 4.0,  useDP: false },
+  { name: '배기 타워', coeff: 5.0,  useDP: false },
+  { name: '전열교환기', coeff: 20.0, useDP: false },
+  { name: 'VAV 유닛', coeff: 15.0, useDP: false },
+  { name: '디퓨저 (일반)', coeff: 3.0,  useDP: false },
+  { name: '디퓨저 (라인)', coeff: 6.0,  useDP: false },
+  { name: '그릴', coeff: 3.0,  useDP: false },
+  { name: '메쉬', coeff: 1.0,  useDP: false },
+  { name: '분기 (분류, 주)', coeff: 0.1,  useDP: true },
+  { name: '분기 (분류, 분)', coeff: 0.8,  useDP: true },
+  { name: '분기 (합류, 주)', coeff: 0.3,  useDP: true },
+  { name: '분기 (합류, 분)', coeff: 0.5,  useDP: true },
+  { name: '직접 입력', coeff: 0,  useDP: false }
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB MANAGEMENT
+   ═══════════════════════════════════════════════════════════════ */
+var activeTab = 1;
+var nextTabId = 2;
+var tabCount  = 1;
+var tabStore  = {};
+
+function saveCurrentTab() {
+  tabStore[activeTab] = gatherState();
+}
+
+function gatherState() {
+  var ductRows    = [];
+  var indoorRows  = [];
+  var outdoorRows = [];
+
+  document.querySelectorAll('#duct-table tr.data-row').forEach(function(tr) {
+    var typeVal;
+    var nameTd = tr.querySelector('.duct-name-cell');
+    var imgWrap = nameTd && nameTd.querySelector('.img-dropdown-wrap');
+    var directFW = nameTd && nameTd.querySelector('.direct-fallback-wrap');
+    if (directFW && directFW.style.display !== 'none') {
+      /* 직접입력 모드 */
+      typeVal = directFW.querySelector('.duct-type-text').value;
+    } else if (imgWrap) {
+      /* 커스텀 드롭다운 모드 */
+      var hidSel = imgWrap.querySelector('.part-sel');
+      typeVal = hidSel ? hidSel.value : '';
+    } else if (directFW) {
+      /* 직접입력만 있는 경우 (isDuctDirect로 시작) */
+      typeVal = directFW.querySelector('.duct-type-text').value;
+    } else {
+      typeVal = '';
+    }
+    ductRows.push({
+      type:  typeVal,
+      len:   tr.querySelector('.duct-len').value,
+      res:   tr.querySelector('.duct-res').value,
+      acc:   tr.querySelector('.duct-acc').value,
+    });
+  });
+  document.querySelectorAll('#indoor-table tr.data-row').forEach(function(tr) {
+    var partVal;
+    var nameTd = tr.querySelector('.part-name-cell');
+    var imgWrap = nameTd && nameTd.querySelector('.img-dropdown-wrap');
+    var directFW = nameTd && nameTd.querySelector('.direct-fallback-wrap');
+    if (imgWrap && directFW && directFW.style.display !== 'none') {
+      partVal = directFW.querySelector('.part-sel-text').value;
+    } else if (imgWrap) {
+      partVal = imgWrap.querySelector('.part-sel').value;
+    } else {
+      partVal = '';
+    }
+    indoorRows.push({
+      part:  partVal,
+      coeff: tr.querySelector('.part-coeff').value,
+      qty:   tr.querySelector('.part-qty').value,
+      mode:  tr.querySelector('.part-mode').value,
+    });
+  });
+  document.querySelectorAll('#outdoor-table tr.data-row').forEach(function(tr) {
+    var partVal;
+    var nameTd = tr.querySelector('.part-name-cell');
+    var imgWrap = nameTd && nameTd.querySelector('.img-dropdown-wrap');
+    var directFW = nameTd && nameTd.querySelector('.direct-fallback-wrap');
+    if (imgWrap && directFW && directFW.style.display !== 'none') {
+      partVal = directFW.querySelector('.part-sel-text').value;
+    } else if (imgWrap) {
+      partVal = imgWrap.querySelector('.part-sel').value;
+    } else {
+      var wrap = tr.querySelector('.direct-input-wrap');
+      var isDirect = wrap && wrap.classList.contains('is-direct');
+      partVal = isDirect
+        ? tr.querySelector('.part-sel-text').value
+        : tr.querySelector('.part-sel').value;
+    }
+    var dpCb = tr.querySelector('.dp-checkbox');
+    var dpPvEl = tr.querySelector('.dp-pv-value');
+    /* partIdx: trigger의 data-idx에서 현재 선택된 배열 인덱스 추출 */
+    var _trigger = nameTd && nameTd.querySelector('.img-dropdown-trigger');
+    var _partIdx = _trigger ? parseInt(_trigger.getAttribute('data-idx'), 10) : null;
+    if (isNaN(_partIdx)) _partIdx = null;
+    outdoorRows.push({
+      part:  partVal,
+      partIdx: _partIdx,
+      coeff: tr.querySelector('.part-coeff').value,
+      qty:   tr.querySelector('.part-qty').value,
+      mode:  tr.querySelector('.part-mode').value,
+      dpEnabled: dpCb ? dpCb.checked : false,
+      dpCustomPv: (dpPvEl && dpPvEl.getAttribute('data-mode') === 'manual') ? dpPvEl.value : '',
+    });
+  });
+
+  return {
+    location:  document.getElementById('inp-location').value,
+    w:         document.getElementById('inp-w').value,
+    h:         document.getElementById('inp-h').value,
+    flow:      document.getElementById('inp-flow').value,
+    designSP:  document.getElementById('inp-design-sp').value,
+    safety:    document.getElementById('inp-safety').value,
+    ductRows:  ductRows,
+    indoorRows: indoorRows,
+    outdoorRows: outdoorRows,
+  };
+}
+
+function restoreState(s) {
+  if (!s) return;
+  document.getElementById('inp-location').value   = s.location  || '';
+  document.getElementById('inp-w').value          = s.w         || 600;
+  document.getElementById('inp-h').value          = s.h         || 400;
+  document.getElementById('inp-flow').value       = s.flow      || 3000;
+  document.getElementById('inp-design-sp').value  = s.designSP  || 60;
+  document.getElementById('inp-safety').value     = s.safety    || 10;
+
+  clearTableBody('duct-table');
+  clearTableBody('indoor-table');
+  clearTableBody('outdoor-table');
+
+  (s.ductRows || []).forEach(function(r) { addDuctRow(r); });
+  (s.indoorRows || []).forEach(function(r) { addIndoorRow(r); });
+  (s.outdoorRows || []).forEach(function(r) { addOutdoorRow(r); });
+}
+
+function clearTableBody(tableId) {
+  var table = document.getElementById(tableId);
+  var rows  = table.querySelectorAll('tr.data-row');
+  rows.forEach(function(r) { r.remove(); });
+}
+
+function loadTab(tabId) {
+  var s = tabStore[tabId];
+  if (s) {
+    restoreState(s);
+  } else {
+    clearTableBody('duct-table');
+    clearTableBody('indoor-table');
+    clearTableBody('outdoor-table');
+    document.getElementById('inp-location').value  = '실외기 Main';
+    document.getElementById('inp-w').value         = 600;
+    document.getElementById('inp-h').value         = 400;
+    document.getElementById('inp-flow').value      = 3000;
+    document.getElementById('inp-design-sp').value = 60;
+    document.getElementById('inp-safety').value    = 10;
+    addDuctRow();
+    addIndoorRow();
+    addOutdoorRow();
+  }
+}
+
+function switchTab(tabId) {
+  saveCurrentTab();
+  document.querySelectorAll('.tab:not(.add)').forEach(function(t) {
+    t.classList.remove('active');
+  });
+  var btn = document.getElementById('tab-' + tabId);
+  if (btn) btn.classList.add('active');
+  activeTab = tabId;
+  loadTab(tabId);
+  recalc();
+}
+
+function addTab() {
+  saveCurrentTab();
+  var newId = nextTabId++; tabCount++;
+  tabStore[newId] = null;
+  var btn = document.createElement('button');
+  btn.className = 'tab'; btn.id = 'tab-' + newId;
+  btn.textContent = '실외기 #' + tabCount;
+  btn.onclick = function() { switchTab(newId); };
+  var close = document.createElement('span');
+  close.className = 'tab-close'; close.textContent = '✕';
+  close.onclick = function(e) { e.stopPropagation(); removeTab(newId); };
+  btn.appendChild(close);
+  var bar = document.getElementById('tabBar');
+  bar.insertBefore(btn, bar.lastElementChild);
+  document.querySelectorAll('.tab:not(.add)').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  activeTab = newId; loadTab(newId); recalc();
+}
+
+function removeTab(tabId) {
+  var tabs = document.querySelectorAll('.tab:not(.add)');
+  if (tabs.length <= 1) { alert('최소 1개의 검토는 유지해야 합니다.'); return; }
+  var btn = document.getElementById('tab-' + tabId);
+  var nm  = btn ? btn.textContent.replace('✕', '').trim() : '검토';
+  if (!confirm('"' + nm + '" 검토를 삭제하시겠습니까?')) return;
+  if (btn) btn.remove();
+  delete tabStore[tabId];
+  if (activeTab === tabId) {
+    var rem = document.querySelectorAll('.tab:not(.add)');
+    if (rem.length) {
+      var fid = parseInt(rem[0].id.replace('tab-', ''));
+      rem[0].classList.add('active'); activeTab = fid; loadTab(fid); recalc();
+    }
+  }
+}
+
+function updateTabName() {
+  var name = document.getElementById('inp-location').value || '실외기';
+  var btn  = document.getElementById('tab-' + activeTab);
+  if (btn) {
+    var close = btn.querySelector('.tab-close');
+    btn.textContent = name;
+    if (close) btn.appendChild(close);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ROW BUILDERS — DUCT
+   ═══════════════════════════════════════════════════════════════ */
+function buildDuctTypeOptions(selectedVal) {
+  return DUCT_TYPES.map(function(d) {
+    var isSel = (d.name === selectedVal);
+    var sel = isSel ? ' selected' : '';
+    var style = isSel ? ' style="background-color:#e0f7f7;color:#00838f;font-weight:700;"' : '';
+    return '<option value="' + d.name + '"' + sel + style + '>' + d.name + '</option>';
+  }).join('');
+}
+
+function addDuctRow(data) {
+  var table = document.getElementById('duct-table');
+  var tr = document.createElement('tr');
+  tr.className = 'data-row';
+
+  var defaultType = (data && data.type) ? data.type : DUCT_TYPES[0].name;
+  var defaultRes  = (data && data.res  != null) ? data.res  : DUCT_TYPES[0].resistance;
+  var defaultLen  = (data && data.len  != null) ? data.len  : '';
+  var defaultAcc  = (data && data.acc  != null) ? data.acc  : '';
+
+  var knownType = DUCT_TYPES.some(function(d) { return d.name === defaultType; });
+  var isDuctDirect = !knownType;
+  var selectVal = isDuctDirect ? '직접 입력' : defaultType;
+
+  tr.innerHTML =
+    '<td class="duct-name-cell"></td>' +
+    '<td><input class="duct-len" type="number" value="' + defaultLen + '" placeholder="입력해주세요" min="0" step="0.5" oninput="recalc()"></td>' +
+    '<td><input class="duct-res" type="number" value="' + defaultRes + '" min="0" step="0.01" oninput="recalc()"></td>' +
+    '<td><input class="duct-acc" type="number" value="' + defaultAcc + '" placeholder="입력해주세요" min="0" max="200" step="1" oninput="recalc()"></td>' +
+    '<td><span class="computed duct-subtotal">0</span> <span class="unit-label">mmAq</span></td>' +
+    '<td></td>';
+
+  var nameTd   = tr.querySelector('.duct-name-cell');
+  var resInput = tr.querySelector('.duct-res');
+  var delCell  = tr.lastElementChild;
+  var dBtn = document.createElement('button');
+  dBtn.className = 'del-btn'; dBtn.style.marginLeft = '4px'; dBtn.textContent = '−';
+  dBtn.addEventListener('click', function() { tr.remove(); recalc(); });
+  delCell.appendChild(dBtn);
+
+  /* ── DUCT_TYPES → buildImgDropdown용 parts 배열 변환 ── */
+  var ductParts = DUCT_TYPES.map(function(d) {
+    return { name: d.name, coeff: d.resistance };
+  });
+
+  if (!isDuctDirect) {
+    /* 커스텀 드롭다운 생성 */
+    var imgWrap = buildImgDropdown(ductParts, selectVal, function(selectedName, selectedIdx) {
+      var hidSel = imgWrap.querySelector('.part-sel');
+      if (hidSel) hidSel.value = selectedName;
+
+      if (selectedName === '직접 입력') {
+        imgWrap.style.display = 'none';
+        var directWrap = tr.querySelector('.direct-fallback-wrap');
+        directWrap.style.display = '';
+        directWrap.querySelector('.duct-type-text').focus();
+        return;
+      }
+      var found = DUCT_TYPES.find(function(d) { return d.name === selectedName; });
+      if (found) resInput.value = found.resistance;
+      recalc();
+    });
+    nameTd.appendChild(imgWrap);
+
+    /* 직접입력 fallback */
+    var directFallback = document.createElement('div');
+    directFallback.className = 'direct-fallback-wrap';
+    directFallback.style.display = 'none';
+    directFallback.innerHTML = '<input class="direct-text duct-type-text" type="text" placeholder="덕트 종류 입력" value="">' +
+                               '<div class="fallback-arrow-zone" style="position:absolute;right:0;top:0;width:24px;height:100%;cursor:pointer;z-index:10;"></div>';
+    nameTd.appendChild(directFallback);
+
+    var textEl = directFallback.querySelector('.duct-type-text');
+    textEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        directFallback.style.display = 'none';
+        imgWrap.style.display = '';
+        var hidSel = imgWrap.querySelector('.part-sel');
+        if (hidSel) hidSel.value = DUCT_TYPES[0].name;
+        var trigger = imgWrap.querySelector('.img-dropdown-trigger');
+        trigger.setAttribute('data-value', DUCT_TYPES[0].name);
+        _updateTriggerDisplay(trigger, ductParts[0]);
+        resInput.value = DUCT_TYPES[0].resistance;
+        recalc();
+      }
+    });
+    textEl.addEventListener('input', function() { recalc(); });
+
+    /* 화살표 클릭 → 드롭다운 재오픈 */
+    var arrowZone = directFallback.querySelector('.fallback-arrow-zone');
+    arrowZone.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var fallbackRect = directFallback.getBoundingClientRect();
+      directFallback.style.display = 'none';
+      imgWrap.style.display = '';
+      var directPart = ductParts.find(function(p) { return p.name === '직접 입력'; }) || { name: '직접 입력', coeff: 0 };
+      var trigger = imgWrap.querySelector('.img-dropdown-trigger');
+      trigger.setAttribute('data-value', '직접 입력');
+      _updateTriggerDisplay(trigger, directPart);
+      var existingList = imgWrap.querySelector('.img-dropdown-list');
+      _closeAllImgDropdowns(null);
+      existingList.style.left   = fallbackRect.left + 'px';
+      existingList.style.top    = 'auto';
+      existingList.style.bottom = (window.innerHeight - fallbackRect.top + 2) + 'px';
+      existingList.classList.add('open');
+      _activeImgDropdown = existingList;
+      requestAnimationFrame(function() {
+        var listRect = existingList.getBoundingClientRect();
+        if (listRect.top < 4) {
+          existingList.style.bottom = 'auto';
+          existingList.style.top = '4px';
+        }
+      });
+      var _checkClose = setInterval(function() {
+        if (existingList && !existingList.classList.contains('open')) {
+          clearInterval(_checkClose);
+          var curVal = trigger.getAttribute('data-value');
+          if (curVal === '직접 입력' || !curVal) {
+            imgWrap.style.display = 'none';
+            directFallback.style.display = '';
+            directFallback.querySelector('.duct-type-text').focus();
+          }
+        }
+      }, 100);
+    });
+
+  } else {
+    /* 직접입력 모드로 시작 (알려지지 않은 덕트 타입) */
+    var directFallback = document.createElement('div');
+    directFallback.className = 'direct-fallback-wrap';
+    directFallback.innerHTML = '<input class="direct-text duct-type-text" type="text" placeholder="덕트 종류 입력" value="' + (data && data.type ? data.type.replace(/"/g,'&quot;') : '') + '">' +
+                               '<div class="fallback-arrow-zone" style="position:absolute;right:0;top:0;width:24px;height:100%;cursor:pointer;z-index:10;"></div>';
+    nameTd.appendChild(directFallback);
+
+    var textEl = directFallback.querySelector('.duct-type-text');
+    textEl.addEventListener('input', function() { recalc(); });
+
+    /* 화살표 클릭 → 드롭다운 생성 후 열기 */
+    var arrowZone = directFallback.querySelector('.fallback-arrow-zone');
+    arrowZone.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var fallbackRect = directFallback.getBoundingClientRect();
+      /* imgWrap 생성 */
+      var imgWrap = buildImgDropdown(ductParts, '직접 입력', function(selectedName, selectedIdx) {
+        var hidSel = imgWrap.querySelector('.part-sel');
+        if (hidSel) hidSel.value = selectedName;
+        if (selectedName === '직접 입력') {
+          imgWrap.style.display = 'none';
+          directFallback.style.display = '';
+          directFallback.querySelector('.duct-type-text').focus();
+          return;
+        }
+        var found = DUCT_TYPES.find(function(d) { return d.name === selectedName; });
+        if (found) resInput.value = found.resistance;
+        recalc();
+      });
+      directFallback.style.display = 'none';
+      nameTd.insertBefore(imgWrap, directFallback);
+      /* 드롭다운 열기 */
+      var existingList = imgWrap.querySelector('.img-dropdown-list');
+      _closeAllImgDropdowns(null);
+      existingList.style.left   = fallbackRect.left + 'px';
+      existingList.style.top    = 'auto';
+      existingList.style.bottom = (window.innerHeight - fallbackRect.top + 2) + 'px';
+      existingList.classList.add('open');
+      _activeImgDropdown = existingList;
+      requestAnimationFrame(function() {
+        var listRect = existingList.getBoundingClientRect();
+        if (listRect.top < 4) {
+          existingList.style.bottom = 'auto';
+          existingList.style.top = '4px';
+        }
+      });
+
+      /* Escape 키 등록 */
+      textEl.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Escape') {
+          if (imgWrap.parentNode) imgWrap.parentNode.removeChild(imgWrap);
+          directFallback.style.display = '';
+          resInput.value = DUCT_TYPES[0].resistance;
+          recalc();
+        }
+      });
+
+      var _checkClose = setInterval(function() {
+        if (existingList && !existingList.classList.contains('open')) {
+          clearInterval(_checkClose);
+          var trigger = imgWrap.querySelector('.img-dropdown-trigger');
+          var curVal = trigger ? trigger.getAttribute('data-value') : '';
+          if (curVal === '직접 입력' || !curVal) {
+            imgWrap.style.display = 'none';
+            directFallback.style.display = '';
+            directFallback.querySelector('.duct-type-text').focus();
+          }
+        }
+      }, 100);
+    });
+  }
+
+  table.appendChild(tr);
+  recalc();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ROW BUILDERS — ACCESSORIES (indoor / outdoor)
+   ═══════════════════════════════════════════════════════════════ */
+function buildPartOptions(parts, selectedName) {
+  return parts.map(function(p) {
+    var isSel = (p.name === selectedName);
+    var sel = isSel ? ' selected' : '';
+    var style = isSel ? ' style="background-color:#e0f7f7;color:#00838f;font-weight:700;"' : '';
+    return '<option value="' + p.name + '"' + sel + style + '>' + p.name + '</option>';
+  }).join('');
+}
+
+function fmtCoeff(v) {
+  var n = parseFloat(v);
+  if (isNaN(n)) n = 0;
+  return (Math.round(n * 10) / 10).toFixed(1);
+}
+
+function syncSelectedOptionStyle(selEl) {
+  if (!selEl) return;
+  var opts = selEl.querySelectorAll('option');
+  opts.forEach(function(o) {
+    if (o.value === selEl.value) {
+      o.style.backgroundColor = '#e0f7f7'; o.style.color = '#00838f'; o.style.fontWeight = '700';
+    } else {
+      o.style.backgroundColor = ''; o.style.color = ''; o.style.fontWeight = '';
+    }
+  });
+}
+
+var PARTS_MAP = { 'indoor-table': INDOOR_PARTS, 'outdoor-table': OUTDOOR_PARTS };
+var _activeImgDropdown = null;
+
+function _closeAllImgDropdowns(except) {
+  document.querySelectorAll('.img-dropdown-list.open').forEach(function(el) {
+    if (el !== except) el.classList.remove('open');
+  });
+  _activeImgDropdown = null;
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.img-dropdown-wrap')) { _closeAllImgDropdowns(null); }
+});
+
+var _previewTimer = null;
+
+function _showPreview(imgSrc, caption, mouseX, mouseY) {
+  var popup   = document.getElementById('image-preview-popup');
+  var imgEl   = document.getElementById('image-preview-img');
+  var capEl   = document.getElementById('image-preview-caption');
+
+  imgEl.src         = imgSrc;
+  capEl.textContent = caption || '';
+
+  var offsetX = 16, offsetY = 16;
+  var pw = 224, ph = 180;
+  var vw = window.innerWidth, vh = window.innerHeight;
+
+  var left = mouseX + offsetX;
+  var top  = mouseY + offsetY;
+  if (left + pw > vw - 8) left = mouseX - pw - offsetX;
+  if (top  + ph > vh - 8) top  = mouseY - ph - offsetY;
+
+  popup.style.left    = left + 'px';
+  popup.style.top     = top  + 'px';
+  popup.style.display = 'block';
+
+  requestAnimationFrame(function() { popup.classList.add('visible'); });
+}
+
+function _hidePreview() {
+  var popup = document.getElementById('image-preview-popup');
+  popup.classList.remove('visible');
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(function() { popup.style.display = 'none'; }, 160);
+}
+
+function bindImgPreview(imgEl, src, caption) {
+  if (!imgEl || imgEl.dataset.previewBound) return;
+  imgEl.dataset.previewBound = '1';
+  var _src     = src     || imgEl.src;
+  var _caption = caption || imgEl.alt || '';
+
+  imgEl.addEventListener('mouseenter', function(e) { _showPreview(_src, _caption, e.clientX, e.clientY); });
+  imgEl.addEventListener('mousemove', function(e) {
+    var popup   = document.getElementById('image-preview-popup');
+    var pw = 224, ph = 180;
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var offsetX = 16, offsetY = 16;
+    var left = e.clientX + offsetX;
+    var top  = e.clientY + offsetY;
+    if (left + pw > vw - 8) left = e.clientX - pw - offsetX;
+    if (top  + ph > vh - 8) top  = e.clientY - ph - offsetY;
+    popup.style.left = left + 'px';
+    popup.style.top  = top  + 'px';
+  });
+  imgEl.addEventListener('mouseleave', function() { _hidePreview(); });
+}
+
+function buildImgDropdown(parts, selectedName, onChangeFn, selectedIdx) {
+  var wrap     = document.createElement('div');
+  wrap.className = 'img-dropdown-wrap';
+
+  var trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'img-dropdown-trigger';
+  trigger.setAttribute('data-value', selectedName);
+
+  var list = document.createElement('div');
+  list.className = 'img-dropdown-list';
+
+  var hasFanItems = parts.some(function(p) { return p.image; });
+  var fanSepAdded = false;
+
+  parts.forEach(function(p, idx) {
+    if (hasFanItems && !p.image && !fanSepAdded && idx > 0) {
+      var sep = document.createElement('hr');
+      sep.className = 'img-dropdown-separator';
+      list.appendChild(sep);
+      fanSepAdded = true;
+    }
+
+    var opt = document.createElement('div');
+    opt.className = 'img-dropdown-option' + ((selectedIdx != null ? idx === selectedIdx : p.name === selectedName) ? ' selected' : '');
+    opt.setAttribute('data-value', p.name);
+
+    if (p.image) {
+      var img = document.createElement('img');
+      img.src = p.image; img.alt = p.name;
+      bindImgPreview(img, p.image, p.name);
+      opt.appendChild(img);
+    }
+    var lbl = document.createElement('span');
+    lbl.className = 'opt-label';
+    lbl.textContent = p.name;
+    opt.appendChild(lbl);
+
+    opt.addEventListener('click', function(e) {
+      e.stopPropagation();
+      list.querySelectorAll('.img-dropdown-option').forEach(function(o) { o.classList.remove('selected'); });
+      opt.classList.add('selected');
+      trigger.setAttribute('data-value', p.name);
+      trigger.setAttribute('data-idx', idx);
+      _updateTriggerDisplay(trigger, p);
+      list.classList.remove('open');
+      _activeImgDropdown = null;
+      onChangeFn(p.name, idx);
+    });
+
+    list.appendChild(opt);
+  });
+
+  trigger.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var isOpen = list.classList.contains('open');
+    _closeAllImgDropdowns(null);
+    if (!isOpen) {
+      var rect = trigger.getBoundingClientRect();
+      list.style.left = rect.left + 'px';
+      list.style.top  = 'auto';
+      list.style.bottom = (window.innerHeight - rect.top + 2) + 'px';
+      list.classList.add('open');
+      _activeImgDropdown = list;
+
+      requestAnimationFrame(function() {
+        var listRect = list.getBoundingClientRect();
+        if (listRect.top < 4) {
+          list.style.bottom = 'auto';
+          list.style.top = '4px';
+        }
+      });
+    }
+  });
+
+  var initPart = (selectedIdx != null ? parts[selectedIdx] : parts.find(function(p) { return p.name === selectedName; })) || parts[0];
+  var initIdx = selectedIdx != null ? selectedIdx : parts.indexOf(initPart);
+  trigger.setAttribute('data-idx', initIdx);
+  _updateTriggerDisplay(trigger, initPart);
+
+  var hiddenSel = document.createElement('select');
+  hiddenSel.className = 'part-sel';
+  hiddenSel.style.display = 'none';
+  parts.forEach(function(p, i) {
+    var o = document.createElement('option');
+    o.value = p.name; o.textContent = p.name;
+    if (selectedIdx != null ? i === selectedIdx : p.name === selectedName) o.selected = true;
+    hiddenSel.appendChild(o);
+  });
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(list);
+  wrap.appendChild(hiddenSel);
+  return wrap;
+}
+
+function _updateTriggerDisplay(trigger, part) {
+  trigger.innerHTML = '';
+  if (part && part.image) {
+    var img = document.createElement('img');
+    img.src = part.image; img.alt = part.name;
+    bindImgPreview(img, part.image, part.name);
+    trigger.appendChild(img);
+  }
+  var lbl = document.createElement('span');
+  lbl.className = 'trigger-label';
+  lbl.textContent = (part && part.name !== '-- 선택 --') ? part.name : '-- 선택 --';
+  trigger.appendChild(lbl);
+}
+
+function buildAccRow(tableId, parts, data) {
+  var table = document.getElementById(tableId);
+  var tr = document.createElement('tr');
+  tr.className = 'data-row';
+  tr.setAttribute('data-tableid', tableId);
+
+  var isOutdoor = (tableId === 'outdoor-table');
+
+  var defaultPart  = (data && data.part)  ? data.part  : parts[0].name;
+  var defaultQty   = (data && data.qty   != null) ? parseInt(data.qty,   10) : '';
+  var defaultMode  = (data && data.mode)  ? data.mode  : 'auto';
+
+  var knownPart = (data && data.partIdx != null) ? !!parts[data.partIdx] : parts.some(function(p) { return p.name === defaultPart; });
+  var isPartDirect = !knownPart;
+  var partSelectVal = isPartDirect ? '직접 입력' : defaultPart;
+  var partDirectVal = isPartDirect ? defaultPart : '';
+
+  var partObj = null;
+  if (data && data.partIdx != null && parts[data.partIdx]) {
+    partObj = parts[data.partIdx];
+  } else {
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i].name === defaultPart) { partObj = parts[i]; break; }
+    }
+  }
+  var defaultCoeff;
+  if (defaultMode === 'auto') {
+    defaultCoeff = partObj ? partObj.coeff : 0;
+  } else {
+    defaultCoeff = (data && data.coeff != null) ? parseFloat(data.coeff) : (partObj ? partObj.coeff : 0);
+  }
+  defaultCoeff = fmtCoeff(defaultCoeff);
+
+  tr.innerHTML =
+    '<td class="part-name-cell"></td>' +
+    '<td><input class="part-coeff" type="number" value="' + defaultCoeff + '" min="0" step="0.1" oninput="recalc()"></td>' +
+    '<td><input class="part-qty" type="number" value="' + defaultQty + '" placeholder="입력해주세요" min="1" step="1"></td>' +
+    '<td style="text-align:center;position:relative"><span class="computed part-subtotal">0</span> <span class="unit-label">mmAq</span><span class="dp-info" style="display:none"></span></td>' +
+    '<input type="hidden" class="part-mode" value="' + defaultMode + '">' +
+    '<td><button class="del-btn">−</button></td>';
+
+  var nameTd = tr.querySelector('.part-name-cell');
+  var coeffEl  = tr.querySelector('.part-coeff');
+  var qtyEl    = tr.querySelector('.part-qty');
+  var modeEl   = tr.querySelector('.part-mode');
+  var delBtn   = tr.querySelector('.del-btn');
+
+  /* ── 동압 적용 토글 + Pv 직접입력 (기외손실 전용) ── */
+  var dpCheckbox = null;
+  var dpPvInput  = null;
+  if (isOutdoor) {
+    var subtotalTd = tr.querySelector('.part-subtotal').parentElement;
+    var dpWrap = document.createElement('div');
+    dpWrap.className = 'dp-toggle-wrap';
+    var cbId = 'dp-cb-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+
+    /* 토글 스위치 (체크박스를 시각적으로 감춰서 스위치처럼 렌더링) */
+    var switchLabel = document.createElement('label');
+    switchLabel.className = 'dp-switch';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'dp-checkbox';
+    cb.id = cbId;
+    var slider = document.createElement('span');
+    slider.className = 'dp-slider';
+    switchLabel.appendChild(cb);
+    switchLabel.appendChild(slider);
+
+    /* 초기 체크 상태: 저장된 데이터가 있으면 그 값, 없으면 부품의 useDP 기본값 */
+    var initDP = false;
+    if (data && data.dpEnabled != null) {
+      initDP = !!data.dpEnabled;
+    } else {
+      var initPartObj = parts.find(function(p) { return p.name === defaultPart; });
+      initDP = initPartObj ? (initPartObj.useDP === true) : false;
+    }
+    cb.checked = initDP;
+
+    var cbLabel = document.createElement('label');
+    cbLabel.setAttribute('for', cbId);
+    cbLabel.className = 'dp-toggle-label';
+    cbLabel.textContent = '동압 적용';
+    if (initDP) cbLabel.classList.add('dp-active');
+
+    /* Pv 표시+편집: 정압손실계수와 동일한 UX.
+       기본값은 자동 계산된 Pv가 표시되고, 클릭하여 직접 수정 가능.
+       비우거나 Escape 시 자동 계산값으로 복원. */
+    var pvInput = document.createElement('input');
+    pvInput.type = 'number';
+    pvInput.className = 'dp-pv-value dp-pv-auto';
+    pvInput.step = '0.001';
+    pvInput.min = '0';
+    pvInput.readOnly = true;
+    pvInput.value = '';
+    pvInput.title = '클릭하여 동압(Pv)을 직접 입력. 비우면 자동 계산값 사용.';
+    pvInput.setAttribute('data-mode', 'auto');
+    if (data && data.dpCustomPv != null && data.dpCustomPv !== '') {
+      pvInput.value = data.dpCustomPv;
+      pvInput.readOnly = false;
+      pvInput.classList.remove('dp-pv-auto');
+      pvInput.setAttribute('data-mode', 'manual');
+    }
+    /* 클릭 → 편집 모드 진입 */
+    pvInput.addEventListener('click', function() {
+      this.readOnly = false;
+      this.classList.remove('dp-pv-auto');
+      if (this.getAttribute('data-mode') === 'auto') {
+        this.value = '';
+      }
+      this.focus();
+    });
+    /* blur → 값 확정 또는 자동 복원 */
+    pvInput.addEventListener('blur', function() {
+      var v = this.value.trim();
+      if (v === '' || isNaN(parseFloat(v))) {
+        this.setAttribute('data-mode', 'auto');
+        this.readOnly = true;
+        this.classList.add('dp-pv-auto');
+        this.value = '';
+      } else {
+        this.setAttribute('data-mode', 'manual');
+        this.readOnly = true;
+      }
+      recalc();
+    });
+    /* Enter → blur, Escape → 자동 복원 */
+    pvInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { this.blur(); }
+      if (e.key === 'Escape') {
+        this.value = '';
+        this.setAttribute('data-mode', 'auto');
+        this.readOnly = true;
+        this.classList.add('dp-pv-auto');
+        recalc();
+      }
+    });
+    pvInput.addEventListener('input', function() { recalc(); });
+
+    var syncDpToggleUI = function() {
+      var pvGroupEl = dpWrap.querySelector('.dp-pv-group');
+      if (cb.checked) {
+        cbLabel.classList.add('dp-active');
+        if (pvGroupEl) pvGroupEl.style.display = '';
+      } else {
+        cbLabel.classList.remove('dp-active');
+        if (pvGroupEl) pvGroupEl.style.display = 'none';
+      }
+    };
+    cb.addEventListener('change', function() { syncDpToggleUI(); recalc(); });
+
+    /* 동압 라벨 그룹: (동압 X.XXX) 형태로 표시 */
+    var pvGroup = document.createElement('span');
+    pvGroup.className = 'dp-pv-group';
+    pvGroup.style.cssText = 'display:inline-flex;align-items:center;font-size:8.5px;color:#e85d24;font-weight:600;gap:0;white-space:nowrap;';
+    var pvPrefix = document.createElement('span');
+    pvPrefix.className = 'dp-pv-prefix';
+    pvPrefix.textContent = '(동압 ';
+    pvPrefix.style.cssText = 'cursor:pointer;';
+    var pvSuffix = document.createElement('span');
+    pvSuffix.className = 'dp-pv-suffix';
+    pvSuffix.textContent = ')';
+    pvSuffix.style.cssText = 'cursor:pointer;';
+    pvGroup.appendChild(pvPrefix);
+    pvGroup.appendChild(pvInput);
+    pvGroup.appendChild(pvSuffix);
+    /* 초기 display: 동압 적용 토글이 꺼져있으면 숨김 */
+    if (!initDP) pvGroup.style.display = 'none';
+    /* 그룹 전체 클릭 시 input 활성화 */
+    pvPrefix.addEventListener('click', function() { pvInput.click(); });
+    pvSuffix.addEventListener('click', function() { pvInput.click(); });
+
+    dpWrap.appendChild(pvGroup);
+    dpWrap.appendChild(switchLabel);
+    dpWrap.appendChild(cbLabel);
+    subtotalTd.appendChild(dpWrap);
+    dpCheckbox = cb;
+    dpPvInput  = pvInput;
+  }
+
+  if (!isPartDirect) {
+    var imgWrap = buildImgDropdown(parts, partSelectVal, function(selectedName, selectedIdx) {
+      var hidSel = imgWrap.querySelector('.part-sel');
+      if (hidSel) hidSel.value = selectedName;
+
+      if (selectedName === '직접 입력') {
+        imgWrap.style.display = 'none';
+        var directWrap = tr.querySelector('.direct-fallback-wrap');
+        directWrap.style.display = '';
+        directWrap.querySelector('.part-sel-text').focus();
+        modeEl.value = 'manual';
+        /* 직접 입력 시 동압 토글 해제 + Pv 직접값 초기화 */
+        if (dpCheckbox) {
+          dpCheckbox.checked = false;
+          if (dpPvInput) { dpPvInput.value = ''; dpPvInput.setAttribute('data-mode', 'auto'); dpPvInput.readOnly = true; dpPvInput.classList.add('dp-pv-auto'); }
+          if (typeof syncDpToggleUI === 'function') syncDpToggleUI();
+        }
+        recalc();
+        return;
+      }
+      var found = (selectedIdx != null) ? parts[selectedIdx] : parts.find(function(p) { return p.name === selectedName; });
+      coeffEl.value = found ? fmtCoeff(found.coeff) : fmtCoeff(0);
+      modeEl.value = 'auto';
+      /* 부품 선택 시 해당 부품의 useDP 값으로 토글 자동 설정 (Pv 직접값은 유지) */
+      if (dpCheckbox && found) {
+        dpCheckbox.checked = (found.useDP === true);
+        if (typeof syncDpToggleUI === 'function') syncDpToggleUI();
+      }
+      recalc();
+    }, (data && data.partIdx != null) ? data.partIdx : undefined);
+    nameTd.appendChild(imgWrap);
+
+    var directFallback = document.createElement('div');
+    directFallback.className = 'direct-fallback-wrap';
+    directFallback.style.display = 'none';
+    directFallback.innerHTML = '<input class="direct-text part-sel-text" type="text" placeholder="부품명 입력" value="">' +
+                               '<div class="fallback-arrow-zone" style="position:absolute;right:0;top:0;width:24px;height:100%;cursor:pointer;z-index:10;"></div>';
+    nameTd.appendChild(directFallback);
+
+    var partTextEl = directFallback.querySelector('.part-sel-text');
+    partTextEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        directFallback.style.display = 'none';
+        imgWrap.style.display = '';
+        var hidSel = imgWrap.querySelector('.part-sel');
+        if (hidSel) hidSel.value = parts[0].name;
+        var trigger = imgWrap.querySelector('.img-dropdown-trigger');
+        trigger.setAttribute('data-value', parts[0].name);
+        trigger.setAttribute('data-idx', 0);
+        _updateTriggerDisplay(trigger, parts[0]);
+        coeffEl.value = fmtCoeff(parts[0].coeff || 0);
+        modeEl.value = 'auto';
+        recalc();
+      }
+    });
+    partTextEl.addEventListener('input', function() { recalc(); });
+    
+    // 추가된 화살표 영역 클릭 이벤트
+    var arrowZone = directFallback.querySelector('.fallback-arrow-zone');
+    arrowZone.addEventListener('click', function(e) {
+      e.stopPropagation();
+      /* ★ display:none 전환 전에 directFallback의 좌표를 미리 취득 */
+      var fallbackRect = directFallback.getBoundingClientRect();
+      /* 직접입력 wrap 숨기고 imgWrap 보이기 */
+      directFallback.style.display = 'none';
+      imgWrap.style.display = '';
+      /* 현재 trigger 상태를 직접입력 표시로 유지 */
+      var directPartIdx = -1;
+      var directPart = null;
+      for (var _di = 0; _di < parts.length; _di++) {
+        if (parts[_di].name === '직접 입력') { directPart = parts[_di]; directPartIdx = _di; break; }
+      }
+      if (!directPart) directPart = { name: '직접 입력', coeff: 0 };
+      var trigger = imgWrap.querySelector('.img-dropdown-trigger');
+      trigger.setAttribute('data-value', '직접 입력');
+      if (directPartIdx >= 0) trigger.setAttribute('data-idx', directPartIdx);
+      _updateTriggerDisplay(trigger, directPart);
+      /* ★ trigger.click() 대신 기존 list를 직접 열기 (fallbackRect 좌표 사용) */
+      var existingList = imgWrap.querySelector('.img-dropdown-list');
+      _closeAllImgDropdowns(null);
+      existingList.style.left   = fallbackRect.left + 'px';
+      existingList.style.top    = 'auto';
+      existingList.style.bottom = (window.innerHeight - fallbackRect.top + 2) + 'px';
+      existingList.classList.add('open');
+      _activeImgDropdown = existingList;
+      /* 위 넘침 보정 */
+      requestAnimationFrame(function() {
+        var listRect = existingList.getBoundingClientRect();
+        if (listRect.top < 4) {
+          existingList.style.bottom = 'auto';
+          existingList.style.top = '4px';
+        }
+      });
+      /* 드롭다운이 닫힐 때 선택이 '직접 입력'이면 직접입력 모드로 복귀 */
+      var _checkClose = setInterval(function() {
+        if (existingList && !existingList.classList.contains('open')) {
+          clearInterval(_checkClose);
+          var curVal = trigger.getAttribute('data-value');
+          if (curVal === '직접 입력' || curVal === '-- 선택 --' || !curVal) {
+            imgWrap.style.display = 'none';
+            directFallback.style.display = '';
+            directFallback.querySelector('.part-sel-text').focus();
+            modeEl.value = 'manual';
+          }
+        }
+      }, 100);
+    });
+
+  }
+
+  qtyEl.addEventListener('input', function() { recalc(); });
+  delBtn.addEventListener('click', function() { tr.remove(); recalc(); });
+  table.appendChild(tr);
+  recalc();
+}
+
+function applyAutoMode(coeffEl) {
+  coeffEl.setAttribute('readonly', true);
+  coeffEl.style.background = '#f9f9f9';
+  coeffEl.style.color      = '#888';
+}
+function applyManualMode(coeffEl) {
+  coeffEl.removeAttribute('readonly');
+  coeffEl.style.background = 'transparent';
+  coeffEl.style.color      = '#00838f';
+}
+
+function addIndoorRow(data)  { buildAccRow('indoor-table',  INDOOR_PARTS,  data); }
+function addOutdoorRow(data) { buildAccRow('outdoor-table', OUTDOOR_PARTS, data); }
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN CALCULATION ENGINE
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════
+   동압(Pv) 관련 헬퍼 함수
+   ═══════════════════════════════════════════════════════════ */
+
+/**
+ * getOutdoorRowPartName(tr) — 기외손실 행에서 현재 선택된 부품명을 추출
+ * 이미지 드롭다운 모드와 직접입력 모드 모두 지원
+ */
+function getOutdoorRowPartName(tr) {
+  /* (A) 이미지 드롭다운 모드: .img-dropdown-trigger 의 data-value */
+  var trigger = tr.querySelector('.img-dropdown-trigger');
+  if (trigger) {
+    var directWrap = tr.querySelector('.direct-fallback-wrap');
+    /* 직접입력 모드가 활성화되어 있으면 '직접 입력' 반환 */
+    if (directWrap && directWrap.style.display !== 'none') {
+      return '직접 입력';
+    }
+    return trigger.getAttribute('data-value') || '';
+  }
+  /* (B) select 드롭다운 모드 */
+  var sel = tr.querySelector('.part-sel');
+  if (sel) {
+    var wrap = sel.closest('.direct-input-wrap');
+    if (wrap && wrap.classList.contains('is-direct')) return '직접 입력';
+    return sel.value || '';
+  }
+  return '';
+}
+
+/**
+ * isRowDPEnabled(tr) — 해당 행이 동압 적용 부품인지 판별
+ * OUTDOOR_PARTS 배열의 useDP 플래그를 참조
+ */
+function isRowDPEnabled(tr) {
+  var partName = getOutdoorRowPartName(tr);
+  if (!partName || partName === '-- 선택 --' || partName === '직접 입력') return false;
+  /* 부품명 + 계수가 모두 일치하는 항목의 useDP 확인 */
+  var coeff = parseFloat(tr.querySelector('.part-coeff').value) || 0;
+  for (var i = 0; i < OUTDOOR_PARTS.length; i++) {
+    if (OUTDOOR_PARTS[i].name === partName && Math.abs(OUTDOOR_PARTS[i].coeff - coeff) < 0.001) {
+      return OUTDOOR_PARTS[i].useDP === true;
+    }
+  }
+  /* 계수가 수동 변경된 경우, 이름만으로 판별 */
+  for (var j = 0; j < OUTDOOR_PARTS.length; j++) {
+    if (OUTDOOR_PARTS[j].name === partName) {
+      return OUTDOOR_PARTS[j].useDP === true;
+    }
+  }
+  return false;
+}
+
+function recalc() {
+  /* ── 유효숫자 2자리 포맷 헬퍼 ── */
+  function sig2(v) {
+    if (v === 0 || isNaN(v)) return '0';
+    var n = parseFloat(v);
+    return parseFloat(n.toPrecision(2)).toString();
+  }
+
+  /* ── 1. 설계 입력값 읽기 ── */
+  var w        = parseFloat(document.getElementById('inp-w').value)         || 0;
+  var h        = parseFloat(document.getElementById('inp-h').value)         || 0;
+  var flow_cmh = parseFloat(document.getElementById('inp-flow').value)      || 0;
+  var designSP = parseFloat(document.getElementById('inp-design-sp').value) || 0;
+  var safety   = parseFloat(document.getElementById('inp-safety').value)    || 0;
+
+  /* ── 2. 단면적 · 풍속 · 동압(Pv) 산출 ── */
+  var area_m2  = (w / 1000) * (h / 1000);
+  var vel      = area_m2 > 0 ? (flow_cmh / 3600) / area_m2 : 0;
+  var Pv       = vel > 0 ? (vel * vel * 1.2 / 19.6) : 0;   // Pv = V²×1.2/19.6  (mmAq)
+
+  /* 동압 표시 업데이트 */
+  var pvEl = document.getElementById('val-pv');
+  if (pvEl) pvEl.textContent = Pv > 0 ? sig2(Pv) : '0';
+
+  /* ── 3. 덕트 손실 합계 ── */
+  var totalDuct = 0;
+  document.querySelectorAll('#duct-table tr.data-row').forEach(function(tr) {
+    var len     = parseFloat(tr.querySelector('.duct-len').value) || 0;
+    var res     = parseFloat(tr.querySelector('.duct-res').value) || 0;
+    var accPct  = parseFloat(tr.querySelector('.duct-acc').value) || 0;
+
+    var straight = len * res;
+    var fitting  = straight * (accPct / 100);
+    var subtotal = straight + fitting;
+    totalDuct   += subtotal;
+
+    tr.querySelector('.duct-subtotal').textContent  = sig2(subtotal);
+  });
+
+  /* ── 4. 기내손실 합계 ── */
+  var totalIndoor = 0;
+  document.querySelectorAll('#indoor-table tr.data-row').forEach(function(tr) {
+    var coeff   = parseFloat(tr.querySelector('.part-coeff').value) || 0;
+    var qty     = parseFloat(tr.querySelector('.part-qty').value)   || 0;
+    var sub     = coeff * qty;
+    totalIndoor += sub;
+    tr.querySelector('.part-subtotal').textContent = sig2(sub);
+    /* 기내손실에는 dp-info가 있어도 비워둠 */
+    var dpSpan = tr.querySelector('.dp-info');
+    if (dpSpan) dpSpan.textContent = '';
+  });
+
+  /* ── 5. 기외손실 합계 (동압 적용 분기 — 토글 기반, Pv 직접입력 우선) ── */
+  var totalOutdoor = 0;
+  document.querySelectorAll('#outdoor-table tr.data-row').forEach(function(tr) {
+    var coeff    = parseFloat(tr.querySelector('.part-coeff').value) || 0;
+    var qty      = parseFloat(tr.querySelector('.part-qty').value)   || 0;
+
+    /* 동압 적용 여부: 토글 상태로 판별 */
+    var dpCb = tr.querySelector('.dp-checkbox');
+    var isDP = dpCb ? dpCb.checked : false;
+
+    /* Pv 직접입력값이 있으면 우선 사용 (리듀서·엘보 등 단면 변화 구간),
+       비어있으면 주덕트 기준 자동 계산값(Pv) 사용 */
+    var pvValueEl = tr.querySelector('.dp-pv-value');
+    var pvMode = pvValueEl ? pvValueEl.getAttribute('data-mode') : 'auto';
+    var hasCustomPv = pvMode === 'manual' && pvValueEl.value !== '' && !isNaN(parseFloat(pvValueEl.value));
+    var customPv = hasCustomPv ? parseFloat(pvValueEl.value) : null;
+    var effectivePv = hasCustomPv ? customPv : Pv;
+
+    /* 자동 모드일 때 현재 계산값을 input에 표시 */
+    if (pvValueEl && pvMode === 'auto') {
+      pvValueEl.value = Pv > 0 ? sig2(Pv) : '';
+    }
+
+    var sub;
+    if (isDP && effectivePv > 0) {
+      sub = coeff * effectivePv * qty;   // 동압 적용: 계수 × Pv × 수량
+    } else {
+      sub = coeff * qty;                  // 일반: 계수 × 수량
+    }
+    totalOutdoor += sub;
+    tr.querySelector('.part-subtotal').textContent = sig2(sub);
+
+    /* 동압 표시: dp-pv-value input + prefix 텍스트 업데이트 */
+    if (pvValueEl) {
+      var pvPrefixEl = tr.querySelector('.dp-pv-prefix');
+      if (isDP && effectivePv > 0) {
+        pvValueEl.title = '동압 ' + sig2(effectivePv) + ' mmAq — 클릭하여 수정';
+        if (pvPrefixEl) pvPrefixEl.textContent = '(동압 ';
+        if (!hasCustomPv) {
+          pvValueEl.classList.add('dp-pv-auto');
+        } else {
+          pvValueEl.classList.remove('dp-pv-auto');
+        }
+      }
+    }
+  });
+
+  /* ── 6. 총 정압 산출 (동압 제외) ── */
+  /*
+   * xlsx 기준: FAN 정압 = 합계(F47) - 동압(F9)
+   * 즉, 총 정압에서 동압(Pv)을 차감한 값이 실제 FAN 정압
+   */
+  var rawTotal = totalDuct + totalIndoor + totalOutdoor;   // 동압 포함 합계
+  var totalSP  = rawTotal - Pv;                             // FAN 정압 = 합계 - Pv
+  if (totalSP < 0) totalSP = 0;                             // 음수 방지
+
+  /* ── 7. 안전율 · 비율 (동압 제외 값 기반) ── */
+  var safeSP   = totalSP * (1 + safety / 100);
+  var ratioVal = designSP > 0 ? (totalSP / designSP * 100) : 0;
+
+  /* ── 8. 메트릭 카드 업데이트 ── */
+  document.getElementById('val-total').textContent  = sig2(totalSP);
+  document.getElementById('val-safe').textContent   = sig2(safeSP);
+  document.getElementById('val-design').textContent = Math.round(designSP);
+  document.getElementById('val-ratio').textContent  = sig2(ratioVal);
+  document.getElementById('lbl-safe-sub').textContent = '안전율 적용';
+
+  /* ── 9. 수평바 차트 ── */
+  var maxVal = Math.max(designSP, safeSP, totalSP, 1);
+  function pct(v) { return Math.min(Math.max(v / maxVal * 100, 0), 100).toFixed(1) + '%'; }
+
+  setBar('hbar-design', 'hbv-design', designSP, pct(designSP));
+  setBar('hbar-total',  'hbv-total',  totalSP,  pct(totalSP));
+  setBar('hbar-safe',   'hbv-safe',   safeSP,   pct(safeSP));
+
+  /* ── 10. 검토 의견 (동압 제외 값 기반) ── */
+  var verdEl = document.getElementById('verdictValue');
+  var subEl  = document.getElementById('verdictSub');
+  var boxEl  = document.getElementById('verdictBox');
+  var safeX12 = safeSP * 1.2;
+  var dsp = Math.round(designSP);
+  var ssp = sig2(safeSP);
+  var ssp12 = sig2(safeX12);
+
+ if (designSP === 0 || totalSP === 0) {
+    verdEl.textContent = '-';
+    verdEl.className   = 'verdict-value';
+    verdEl.style.color = '';
+    subEl.textContent  = '설계 정압 vs 안전율 적용 정압 비교';
+    boxEl.style.borderColor = '#ccc';
+  } else if (designSP > safeX12) {
+    verdEl.textContent = '과대 설계';
+    verdEl.className   = 'verdict-value';
+    verdEl.style.color = '#ff8c00';
+    subEl.textContent  = '설계정압 ' + dsp + ' mmAq > 안전율적용 ' + ssp12 + ' mmAq ';
+    boxEl.style.borderColor = '#ff8c00';
+  } else if (designSP >= safeSP) {
+    verdEl.textContent = '설계 적정';
+    verdEl.className   = 'verdict-value';
+    verdEl.style.color = '#00838f';
+    subEl.textContent  = '설계정압 ' + dsp + ' mmAq ≥ 안전율적용 ' + ssp + ' mmAq ';
+    boxEl.style.borderColor = '#00838f';
+  } else {
+    verdEl.textContent = '설계 부적정';
+    verdEl.className   = 'verdict-value';
+    verdEl.style.color = '#ff3333';
+    subEl.textContent  = '설계정압 ' + dsp + ' mmAq < 안전율적용 ' + ssp + ' mmAq ';
+    boxEl.style.borderColor = '#ff3333';
+  }
+}
+
+function setBar(barId, valId, numVal, widthPct) {
+  var bar = document.getElementById(barId);
+  var lbl = document.getElementById(valId);
+  if (bar) bar.style.width  = widthPct;
+  if (lbl) lbl.textContent  = (numVal === 0 || isNaN(numVal)) ? '0' : parseFloat(numVal.toPrecision(2)).toString();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SAVE / EXPORT / MAIN
+   ═══════════════════════════════════════════════════════════════ */
+function saveData() {
+  saveCurrentTab();
+  try {
+    localStorage.setItem('himec_odu_sp_' + activeTab, JSON.stringify(tabStore[activeTab]));
+    alert('데이터가 저장되었습니다.');
+  } catch(e) { alert('저장 중 오류가 발생했습니다.'); }
+}
+
+function exportFile() {
+  var data = gatherState();
+  var json = JSON.stringify(data, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href   = url; a.download = '실외기정압검토_' + (new Date()).toISOString().slice(0,10) + '.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function GoMain() {
+  if (window.STD) { STD.goMain(null); }
+  else { window.location.href = '../tool_dashboard.html'; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HIMEC EXPORT DROPDOWN MENU
+   ═══════════════════════════════════════════════════════════════ */
+function himecExport(btn) {
+  if (document.getElementById('himecExportMenu')) { closeMenu(); return; }
+  
+  var m = document.createElement('div');
+  m.className = 'himec-menu';
+  m.id = 'himecExportMenu';
+  m.innerHTML =
+    '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>' +
+    '<button data-x="json"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>데이터 내보내기(JSON)</button>';
+
+  document.body.appendChild(m);
+  
+  var r = btn.getBoundingClientRect();
+  var left = window.scrollX + r.right - m.offsetWidth; 
+  if (left < 6) left = 6;
+  
+  m.style.top = (window.scrollY + r.bottom + 6) + 'px';
+  m.style.left = left + 'px';
+
+  m.addEventListener('click', function(e) {
+    var t = e.target.closest('button'); 
+    if (!t) return;
+    var x = t.getAttribute('data-x'); 
+    closeMenu();
+    
+    if (x === 'pdf') {
+      window.print();
+    } else {
+      exportFile();
+    }
+  });
+
+  setTimeout(function() { document.addEventListener('click', outsideMenuClick, true); }, 0);
+}
+
+function closeMenu() {
+  var m = document.getElementById('himecExportMenu');
+  if (m) m.parentNode.removeChild(m);
+  document.removeEventListener('click', outsideMenuClick, true);
+}
+
+function outsideMenuClick(e) {
+  var m = document.getElementById('himecExportMenu');
+  if (m && !m.contains(e.target)) closeMenu();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INITIALIZATION
+   ═══════════════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', function() {
+  addDuctRow();
+  addIndoorRow();
+  addOutdoorRow();
+
+  document.getElementById('inp-location').addEventListener('input', updateTabName);
+
+  try {
+    var saved = localStorage.getItem('himec_odu_sp_1');
+    if (saved) {
+      var s = JSON.parse(saved);
+      clearTableBody('duct-table');
+      clearTableBody('indoor-table');
+      clearTableBody('outdoor-table');
+      restoreState(s);
+    }
+  } catch(e) {}
+
+  recalc();
+});
+
+window.addEventListener('resize', function() { recalc(); });
+</script>
 
 <script>
 // ====== URL 파라미터에서 프로젝트 정보 추출 (공통 템플릿) ======
