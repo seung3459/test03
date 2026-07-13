@@ -7,6 +7,877 @@
 	<script src="../../js/himec-supabase-sync.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
+<title>HIMEC - Steam/Water Header Performance Analysis Tool</title>
+<link rel="icon" href="data:,">
+<link rel="shortcut icon" href="data:,">
+<style>
+  * { margin:0; padding:20; box-sizing:border-box; }
+  html, body {
+    font-family:'Noto Sans KR', sans-serif;
+    background:#f5f5f5; color:#333;
+    overflow:hidden; height:100vh; width:100vw;
+  }
+  body { display:flex; flex-direction:column; }
+
+  .page-container {
+    padding:0 100px; flex:1; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0; background:#fff;
+  }
+
+  /* Header */
+  .header {
+    background:#fff; padding:8px 20px; border-bottom:1px solid #ddd; flex-shrink:0;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+  }
+  .header h1 { font-size:20px; font-weight:700; color:#222; }
+  .header .sub { font-size:11px; color:#888; margin-top:2px; }
+  .header h2 { font-size:15px; font-weight:600; cEnfutolor:#333; margin-top:4px; }
+  .header h2 #project-name:not(:empty)::before { content: "["; }
+  .header h2 #project-name:not(:empty)::after  { content: "]"; }
+  .header h2 #project-name:not(:empty) { margin-right: 6px; }
+  .header-right { position:absolute; bottom:8px; right:20px; display:flex; gap:8px; }
+  .header-right button {
+    padding:8px 0; width:90px; border:none; border-radius:4px;
+    font-size:10px; font-weight:600; cursor:pointer; text-align:center;
+  }
+  .btn-save, .btn-file { background:#e85d24; color:#fff; }
+  .btn-main { background:#555f; color:#fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity:.85; }
+
+  /* Tabs */
+  .tab-bar { display:flex; padding:4px 20px 0; background:#fff; gap:4px; flex-shrink:0; }
+  .tab {
+    padding:5px 20px; border-radius:6px 6px 0 0; font-size:12px; font-weight:600;
+    cursor:pointer; border:none; background:#bbb; color:#fff; position:relative;
+    padding-right:28px !important;
+  }
+  .tab.active { background:#00838f; color:#fff; }
+  .tab.add { background:#999; color:#fff; font-size:14px; padding:5px 16px; padding-right:16px !important; }
+  .tab .tab-close {
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:50%; border:none; background:transparent;
+    color:rgba(255,255,255,.7); font-size:13px; line-height:16px; text-align:center; cursor:pointer; padding:0;
+  }
+  .tab .tab-close:hover { background:rgba(255,0,0,.6); color:#fff; }
+
+  /* Main 3-column */
+  .main {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;
+    padding:0 0 30px 0; flex:1; min-height:0; overflow:hidden;
+  }
+  .panel {
+    background:#fff; padding:10px 12px; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0;
+  }
+  .panel + .panel { border-left:1px solid #eee; }
+  /* 좌측 패널 오토사이즈(하단 클리핑) 제거: 내용 높이 기준, 넘치면 스크롤 */
+  #left-panel{ overflow-y:auto; overflow-x:hidden; justify-content:flex-start; }
+
+  .section-title { font-size:12px; font-weight:700; margin-bottom:4px; color:#222; flex-shrink:0; }
+  .section-title.mt { margin-top:6px; }
+  #sec-donut .section-title.mt { margin-top:4px; }  /* 전열 회수량 카드 -> 회수 열량 분포 제목 간격 */
+
+  .chk-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+    color:#444; margin:6px 0 3px; flex-shrink:0; }
+  .chk-label .box { width:11px; height:11px; border:1.5px solid #00838f; border-radius:2px;
+    display:inline-block; position:relative; flex:none; }
+  .chk-label input { display:none; }
+  .chk-label .box.on::after { content:""; position:absolute; left:2px; top:-1px; width:4px; height:8px;
+    border:solid #00838f; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .chk-label .src { font-size:9px; font-weight:600; color:#888; margin-left:4px; }
+  .chk-label .tag1 { font-size:9px; font-weight:700; color:#d64545; background:#fdf3f3; border:1px solid #f3c9c9; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tag2 { font-size:9px; font-weight:700; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:0 5px; border-radius:3px; margin-left:4px; }
+
+  /* info-table */
+  .info-table {
+    width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;
+    margin-bottom:6px; font-size:10px; flex-shrink:0;
+  }
+  .info-table th, .info-table td {
+    border:1px solid #fff; padding:5.1px 5px; border-bottom:1.5px solid #ccc; text-align:center;
+  }
+  .info-table th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:11px; }
+  .info-table tr:first-child th:first-child { border-top-left-radius:8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius:8px; }
+  .info-table td { background:#fff; }
+  .info-table input, .info-table select {
+    width:100%; border:none; text-align:center; font-size:12px; background:transparent;
+    outline:none; padding:4px 2px; font-family:inherit; color:#333;
+  }
+  .info-table select { text-align:left; cursor:pointer; }
+  .value-unit { display:inline-flex; align-items:center; justify-content:center; gap:3px; }
+  .value-unit input { width:auto; min-width:30px; max-width:62px; text-align:center; padding-right:0; }
+  .value-unit .unit { font-size:11px; color:#888; white-space:nowrap; }
+  .info-table .highlight-cell { background:#e0f7fa; color:#00838f; font-weight:700; }
+  #left-panel .info-table th:first-child, #left-panel .info-table td:first-child { border-left-color:transparent; }
+  #left-panel .info-table th:last-child, #left-panel .info-table td:last-child { border-right-color:transparent; }
+  .note-s { font-size:9px; color:#888; margin:2px 0 4px; text-align:right; flex-shrink:0; }
+  /* AHU 계통 모식도 + 측정값 오버레이 (위치는 % 기준 → 화면 비율 무관 고정) */
+  #left-panel .ahu-diagram{ position:relative; width:100%; container-type:inline-size; margin-top:6px; flex-shrink:0; }
+  #left-panel .ahu-diagram img{ display:block; width:100%; height:auto; }
+  #left-panel .ahu-ov{ position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+    font-weight:700; color:#00838f; font-size:1.9cqw; line-height:1; letter-spacing:-0.3px;
+    text-align:center; pointer-events:none; }
+
+  /* calc-table */
+  .calc-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px; margin-bottom:8px; }
+  /* ===== 이미지 화살표 두 곳 간격 30px ===== */
+  #center-panel .calc-table { margin-bottom:0; }
+  #center-panel .chk-label { margin-top:6; }
+  #center-panel #sec-air { margin-bottom:30px; }            /* 화살표1: 교환효율 분석 앞 (30->33, +10%) */
+  #center-panel #sec-eff .calc-table + .tbl-cap { margin-top:30px; } /* 화살표2: 회수 열량 앞 */
+  .calc-table th, .calc-table td { padding:5.5px 8px; border-bottom:1px solid #e2e2e2; text-align:center; vertical-align:middle; }
+  .calc-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:10.5px; }
+  .calc-table tr:first-child th:first-child { border-top-left-radius:6px; }
+  .calc-table tr:first-child th:last-child { border-top-right-radius:6px; }
+  .calc-table td.fx { color:#777; font-size:9.5px; }
+  .calc-table td.num { text-align:center; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .calc-table tr.sub td { background:#ececec; font-weight:800; border-top:1.5px solid #c9c9c9; }
+  .calc-table tr.out td { background:#f2f2f2; font-weight:700; }
+  .calc-table tr.eff td { background:#e2e2e2; font-weight:800; border-top:1.5px solid #c9c9c9; }
+  .calc-table td.fanlbl { background:#f2f2f2; font-weight:800; color:#444; font-size:12px; }
+  .tbl-cap { font-size:10.5px; font-weight:700; color:#333; margin:6px 0 4px; display:flex; align-items:center; gap:6px; }
+  .tbl-cap .src { font-size:9px; font-weight:400; color:#808080; background:transparent; border:none; padding:1px 6px; border-radius:4px; }
+
+  .residual { font-size:8px; color:#555; background:#f2f2f2; border:0.5px solid #ddd;
+    border-radius:6px; padding:8px 10px; margin-top:8px; flex-shrink:0; line-height:1.45; }
+
+  /* metric cards */
+  .metrics-area { display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
+  .metric-card {
+    background:transparent; border:none; border-bottom:1.5px solid #ccc; border-radius:5px;
+    padding:5.5px 1px 2px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
+  }
+  .metric-card .ml { flex:1; }
+  .metric-label { font-size:11px; color:#00838f; line-height:1.2; font-weight:bold; }
+  .metric-sub { font-size:8.5px; color:#999; font-weight:500; margin-top:2px; }
+  .metric-value { font-size:26px; font-weight:700; color:#ff8c00; min-width:45px; text-align:right; }
+  .metric-unit { font-size:12px; color:#888; margin-left:2px; vertical-align:super; }
+
+  /* donut */
+  .donut-box { display:flex; justify-content:center; align-items:center; padding:0 20px; flex:1; min-height:0; }
+  .donut-box svg { width:100%; height:auto; max-width:440px; max-height:clamp(150px, 38vh, 240px); }
+  .legend { display:flex; flex-direction:column; gap:5px; flex:1; }
+  .legend .li { display:flex; align-items:center; gap:8px; font-size:11px; color:#444; }
+  .legend .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  .legend .lv { margin-left:auto; font-weight:500; font-variant-numeric:tabular-nums; }
+
+  /* diagnosis */
+  .diag { display:flex; flex-direction:column; gap:5px; }
+  .diag .d { display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; border-radius:5px; border:none; border-left:3px solid #ccc;
+    background:#fafafa; line-height:1.35; }
+  .diag .d .dhead { font-size:11.5px; font-weight:700; color:#333; white-space:nowrap; flex:none; }
+  .diag .d .dhead .dstat { font-weight:800; margin-left:2px; }
+  .diag .d .dbody { text-align:right; font-size:10px; color:#555; min-width:0; }
+  .diag .d .dsrc { display:block; font-size:8.5px; color:#999; font-weight:600; margin-top:1px;
+    cursor:pointer; }
+
+  /* 설계 총괄계수 : 표준값 기본 + 수정 시 색상 변경 */
+  .urow { display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:nowrap; }
+  .ustd-sel { flex:1 1 auto; min-width:0; max-width:130px; font-size:10px; padding:1px 2px;
+    border:1px solid #cfd6dc; border-radius:3px; background:#fff; color:#333;
+    white-space:nowrap; text-overflow:ellipsis; }
+  .urow .value-unit { flex:0 0 auto; }
+  #uDesign.ustd-input { color:#00838f; font-weight:700; }      /* 표준값 상태 */
+  #uDesign.ustd-input.edited { color:#d23f3f; font-weight:700; } /* 사용자 수정값 */
+  .ustd-src { display:inline; font-size:9px; color:#1268c3; font-weight:600;
+    cursor:pointer; white-space:nowrap; }
+  .ustd-src:hover { color:#0b4e96; }
+  .uedit-mark { color:#d23f3f; font-size:9px; font-weight:700; white-space:nowrap; }
+
+  /* 출처 기준 요약 팝업 */
+  .src-modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42);
+    z-index:9999; align-items:center; justify-content:center; }
+  .src-modal-mask.on { display:flex; }
+  .src-modal { background:#fff; width:380px; max-width:92vw; max-height:82vh; overflow-y:auto; overflow-x:hidden;
+    border-radius:8px; box-shadow:0 10px 36px rgba(0,0,0,.25); }
+  .src-modal .sm-head { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid #eee; background:#00838f; border-radius:8px 8px 0 0; }
+  .src-modal .sm-head h3 { font-size:14px; font-weight:700; color:#fff; }
+  .src-modal .sm-head .sm-close { border:none; background:transparent; color:#fff; font-size:20px;
+    line-height:1; cursor:pointer; padding:0 2px; }
+  .src-modal .sm-body { padding:14px 16px; }
+  .src-modal .sm-std { font-size:9px; font-weight:700; color:#00838f; margin-bottom:8px; }
+  .src-modal .sm-desc { font-size:9px; color:#555; line-height:1.5; margin-bottom:10px; }
+  .src-modal table { width:100%; border-collapse:collapse; font-size:9px; }
+  .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; word-break:break-word; overflow-wrap:anywhere; }
+  .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
+  .src-modal td.rng { white-space:normal; word-break:keep-all; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+  .src-modal .lv-ok { color:#00838f; font-weight:700; }
+  .src-modal .lv-warn { color:#FFDC9F; font-weight:700; }
+  .src-modal .lv-bad { color:#ED7458; font-weight:700; }
+  .src-modal tr.cur td { background:#fff8e1; }
+  .d.ok { background:transparent; border-left-color:#00838f; } .d.ok .dstat { color:#00838f; }
+  .d.warn { background:transparent; border-left-color:#FFDC9F; } .d.warn .dstat { color:#FFDC9F; }
+  .d.bad { background:transparent; border-left-color:#ED7458; } .d.bad .dstat { color:#ED7458; }
+
+  /* refs card */
+  .refs-card { border:none; border-radius:0; background:transparent; padding:0 2px;
+    flex:0 0 auto; min-height:0; overflow:hidden; margin-top:6px; text-align:right; }
+  .refs-card h3 { font-size:10px; font-weight:700; color:#333; margin-bottom:2px; }
+  .refs-sub { font-size:8px; font-weight:400; color:#999; text-transform:uppercase; letter-spacing:.3px;
+    margin:6px 0 0; padding-bottom:0; border-bottom:none; }
+  .refs-clickable { cursor:pointer; transition:background .12s; }
+  .refs-clickable:hover { background:transparent; }
+  .refs-clickable:hover h3 { color:#333; }
+  .refs-more { font-size:8px; font-weight:700; color:#999; margin-left:4px; }
+  .std-list { list-style:none; font-size:8px; font-weight:400; color:#888; }
+  .std-list li { padding:4px 0; border-bottom:1px dashed #e2e2e2; line-height:1.45; font-weight:400; }
+  .std-list li b { color:#555; font-weight:400; }
+
+  .calc-card { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+  .right-scroll { flex:none; overflow:visible; }
+
+  /* Copyright */
+  .copyright {
+    background:#fff; border-top:1px solid #ddd; padding:6px 20px;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+    text-align:center; font-size:10px; color:#888; flex-shrink:0;
+  }
+
+  @media (max-width:1600px) {
+    .page-container { padding:0 60px; }
+    .header { margin-left:-60px; margin-right:-60px; padding-left:80px; padding-right:80px; }
+    .copyright { padding:6px 80px; margin-left:-60px; margin-right:-60px; }
+  }
+  @media (max-width:1300px) {
+    .page-container { padding:0 30px; }
+    .header { margin-left:-30px; margin-right:-30px; padding-left:50px; padding-right:50px; }
+    .copyright { padding:6px 50px; margin-left:-30px; margin-right:-30px; }
+  }
+  @media (max-width:1100px) {
+    .page-container { padding:0 15px; overflow:auto; }
+    .header { margin-left:-15px; margin-right:-15px; padding-left:35px; padding-right:35px; }
+    .copyright { padding:6px 35px; margin-left:-15px; margin-right:-15px; }
+    .main { grid-template-columns:1fr 1fr; overflow:visible; }
+    .panel { overflow:visible; }
+    .calc-card, .right-scroll, .refs-card { overflow:visible; }
+  }
+  @media (max-width:700px) {
+    .main { grid-template-columns:1fr; }
+  }
+  .info-table input::placeholder { color:#aaa; font-style:italic; font-size:10px; }
+
+  .chk-label .tagOA { font-size:9px; font-weight:700; color:#1769aa; background:#e8f1fb; border:1px solid #bcd6ef; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tagRA { font-size:9px; font-weight:700; color:#c2691c; background:#fdf3e8; border:1px solid #f1d4b0; padding:0 5px; border-radius:3px; margin-left:4px; }
+  #effStdSrc { display:inline; font-size:9px; color:#808080; font-weight:600; cursor:pointer; white-space:nowrap; }
+  #effStdSrc:hover { color:#0b4e96; }
+  #esDesign.ustd-input { color:#00838f; font-weight:700; }
+  #esDesign.ustd-input.edited { color:#d23f3f; font-weight:700; }
+
+</style>
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+<style id="himec-unify-portrait">
+
+/* ===== [TABLE UNIFY → Tool-09 .info-table 규격] .calc-table
+   헤더색/테두리/라운드/폰트만 통일. 숫자정렬·의미색(빨강·파랑·합계행 등)은 보존 ===== */
+.calc-table { border-collapse:separate !important; border-spacing:0 !important; }
+.calc-table th, .calc-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:3.5px 5px !important; text-align:center !important; }
+.calc-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.calc-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.calc-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.calc-table input { font-size:12px !important; }
+.calc-table select { font-size:11px !important; }
+/* ===== [TABLE UNIFY] end ===== */
+
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* 차트/그래프가 height:100% 부모 붕괴로 사라지지 않도록 최소 높이 확보 */
+  body .main canvas, body .main svg{ height:auto !important; min-height:240px !important; }
+  body .main .chart-wrapper, body .main .chart-canvas-container, body .main .bar-chart-container,
+  body .main .donut-container, body .main .hbar-chart, body .main .chart-area, body .main .graph-box{
+    height:auto !important; min-height:240px !important;
+  }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+
+</style>
+
+<style id="chiller-extra-style">
+  /* ===== Chiller 전용 (Tool-12 톤 유지) ===== */
+  .cdt{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; margin-bottom:6px; font-size:10px; flex-shrink:0; }
+  .cdt th, .cdt td{ border:1px solid #fff; padding:3.75px 4px; border-bottom:1.5px solid #ccc; text-align:center; }
+  .cdt th{ background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:10.5px; }
+  .cdt tr:first-child th:first-child{ border-top-left-radius:8px; }
+  .cdt tr:first-child th:last-child{ border-top-right-radius:8px; }
+  .cdt td{ background:#fff; }
+  .cdt td.grp{ background:#f3f5f6; color:#3A4A57; font-weight:700; width:34px; }
+  .cdt td.nm{ text-align:left; padding-left:6px; color:#444; }
+  .cdt td.calc{ background:#e0f7fa; color:#00838f; font-weight:700; }
+  .cdt input{ width:100%; border:none; text-align:center; font-size:11px; background:transparent; outline:none; padding:2px 1px; font-family:inherit; color:#1a4f8b; font-weight:600; }
+  .cdt input:focus{ background:#fff7ee; }
+  #left-panel .cdt th:first-child, #left-panel .cdt td:first-child{ border-left-color:transparent; }
+  #left-panel .cdt th:last-child, #left-panel .cdt td:last-child{ border-right-color:transparent; }
+
+  /* 차트 */
+  .curve-head{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #d8dde1; padding-bottom:5px; }
+  .curve-head .tbl-cap{ margin:0; }
+  .chart-legend{ display:flex; justify-content:flex-end; gap:12px; font-size:9.5px; color:#666; margin-bottom:2px; flex-shrink:0; }
+  .chart-legend span{ display:inline-flex; align-items:center; gap:4px; }
+  .lg-dash{ width:15px; height:0; border-top:1.5px dashed #ED7458; }
+  .lg-dot{ width:9px; height:9px; border-radius:50%; background:#00838f; }
+  .chart-wrap{ flex:1; min-height:240px; position:relative; background:#fafafa; }
+  #chartCanvas{ width:100%; height:100%; display:block; }
+  .eqbox{ position:absolute; left:50%; top:30%; transform:translateX(-50%); text-align:center; background:none; border:0; padding:0; font-size:9.5px; line-height:1.45; pointer-events:none; white-space:nowrap; }
+  .eqbox .f{ font-family:'Consolas','Courier New',monospace; color:#888; font-weight:700; word-break:break-all; }
+  .eqbox .now{ margin-top:1px; color:#555; } .eqbox .now b{ color:#ff8c00; }
+
+  /* 모드 출처/직접입력 모달 테이블 */
+  .src-modal td.ed input{ width:70px; border:1px solid #cfd6dc; border-radius:3px; text-align:center; font-size:9px; padding:3px 2px; color:#1a4f8b; font-weight:600; outline:none; }
+  .src-modal td.ed input:focus{ border-color:#e85d24; }
+  .src-modal .mdel{ cursor:pointer; color:#d23f3f; font-weight:700; }
+  .src-modal .madd{ display:inline-block; margin-top:8px; cursor:pointer; color:#00838f; font-weight:700; font-size:9px; }
+  .src-modal .mnote{ font-size:9px; color:#999; line-height:1.5; margin-top:8px; }
+  .plr-modechip{ display:inline-block; font-size:9px; font-weight:700; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:0 5px; border-radius:3px; margin-left:4px; }
+
+  /* 형식 자동/수동 표시 */
+  #plrSrc.ustd-src{ color:#1268c3; }
+  .seg-pill{ font-size:8.5px; font-weight:700; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .seg-auto{ color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; }
+  .seg-user{ color:#d64545; background:#fdf3f3; border:1px solid #f3c9c9; }
+</style>
+
+<style id="ahu-extra-style">
+  /* === AHU 전용 (Tool-201 톤 유지) === */
+  .fan-selector{ display:flex; gap:4px; }
+  .fan-selector .fan-btn{ font-size:10px; font-weight:600; padding:3px 10px; border-radius:5px;
+    border:1px solid #b8e3e8; background:#fff; color:#00838f; cursor:pointer; line-height:1.1; }
+  .fan-selector .fan-btn.active{ background:#00838f; color:#fff; border-color:#00838f; }
+  #radarCanvas{ width:100%; height:100%; display:block; }
+  .chart-wrap{ min-height:320px; }
+
+  /* 우측 결과카드 : SA/RA 2값 표기 (metric-card 디자인 유지) */
+  .mvg{ display:flex; gap:16px; align-items:flex-end; }
+  .mvg .mv{ text-align:right; line-height:1; }
+  .mvg .mv .mtag{ font-size:9px; font-weight:700; color:#9aa3ab; display:block; margin-bottom:2px; }
+  .mvg .mv .metric-value{ font-size:22px; min-width:0; }
+  .mvg .mv.sa .metric-value{ color:#00838f; }
+  .mvg .mv.ra .metric-value{ color:#e85d24; }
+  .mvg .mv .metric-unit{ font-size:11px; }
+</style>
+
+
+<style id="ph-uniform">
+/* 입력 안내문구 통일 (10.5px / weight 400 / italic) */
+input::placeholder, textarea::placeholder{
+  font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; opacity:1; color:#9aa3ab !important;
+}
+input::-webkit-input-placeholder, textarea::-webkit-input-placeholder{
+  font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; color:#9aa3ab !important;
+}
+input:-ms-input-placeholder, textarea:-ms-input-placeholder{
+  font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; color:#9aa3ab !important;
+}
+/* 실제 입력값은 정상(똑바른) 글씨 */
+input, textarea{ font-style:normal; }
+/* select 안내문구(기본 미선택 항목) 통일 - 안내일 때만 기울임 */
+select.ph-empty{ font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; color:#9aa3ab !important; }
+option.ph-opt{ font-size:10.5px; font-weight:400; font-style:italic; color:#9aa3ab; }
+select:has(option.ph-opt:checked){ font-size:10.5px !important; font-weight:400 !important; font-style:italic !important; color:#9aa3ab !important; }
+/* 실제 옵션 선택 시 정상 글씨 */
+select{ font-style:normal; }
+</style>
+<style>
+/* === 센터 뷰 토글 아이콘 + 현장 사진 === */
+.center-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.center-head .section-title{ margin-bottom:0; }
+.center-icons{ display:flex; gap:6px; flex-shrink:0; }
+.ci-btn{
+  width:30px; height:30px; padding:0; cursor:pointer;
+  background:#fff; color:#666; border:1px solid #d0d0d0; border-radius:7px;
+  display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.ci-btn svg{ width:17px; height:17px; }
+.ci-btn:hover{ background:#f5f5f5; }
+.ci-btn.active{ color:#00838f; border-color:#00838f; background:#e0f7fa; }
+
+.photo-view{ flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+.photo-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding-top:6px; }
+.photo-slot{ display:flex; flex-direction:column; min-width:0; }
+.photo-cap{ font-size:10px; color:#555; padding:5px 8px; background:#f7f7f7;
+  border:1px solid #e2e2e2; border-bottom:none; border-radius:6px 6px 0 0;
+  width:100%; box-sizing:border-box; font-family:inherit; outline:none; cursor:text;
+  transition:background .15s, border-color .15s; }
+.photo-cap::placeholder{ color:#b0b0b0; }
+.photo-cap:hover{ background:#eef1f3; }
+.photo-cap:focus{ background:#fff; border-color:#00838f; color:#222; }
+.photo-drop{ position:relative; border:1px dashed #cfcfcf; border-radius:0 0 6px 6px;
+  min-height:170px; background:#f2f3f5; cursor:pointer; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#9aa0a6; }
+.photo-drop:hover{ background:#f0fbfc; border-color:#00838f; }
+.photo-drop svg{ width:26px; height:26px; }
+.photo-drop .pd-title{ font-size:12px; font-weight:600; color:#666; }
+.photo-drop .pd-sub{ font-size:10px; }
+.photo-drop img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; background:#fff; }
+.photo-del{ position:absolute; top:6px; right:6px; z-index:2; width:22px; height:22px;
+  border:none; border-radius:5px; cursor:pointer; background:rgba(0,0,0,.55); color:#fff;
+  font-size:14px; line-height:1; display:none; align-items:center; justify-content:center; }
+.photo-drop.has-img .photo-del{ display:inline-flex; }
+</style>
+</head>
+<body>
+<div class="page-container">
+<!-- Header (원본 배너 그대로 유지) -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+  <h2 id="pageTitle"><span id="project-name"></span>Steam/Water Header Performance Analysis Tool (증기&middot;물 헤더 성능 분석)</h2>
+  <div class="header-right">
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar" id="eqTabs">
+  <button class="tab active" id="tab-1" onclick="switchTab(1)">헤더-01 #01<span class="tab-close" onclick="event.stopPropagation();removeTab(1)">&#10005;</span></button>
+  <button class="tab add" onclick="addTab()">+</button>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">&#9632; 헤더 개요</div>
+    <table class="info-table">
+      <tr><th>헤더명</th><th>헤더번호</th><th>Type</th><th>비고</th></tr>
+      <tr>
+        <td><input id="inp-name" onchange="recalc()" placeholder="입력 해주세요"></td>
+        <td><input id="inp-no" onchange="recalc()" placeholder="입력 해주세요"></td>
+        <td><select id="inp-use" onchange="applyType()" style="text-align:center;text-align-last:center;font-weight:700;color:#00838f"><option value="ST">증기 (Steam)</option><option value="WT">물 (Water)</option></select></td>
+        <td><input id="inp-note" onchange="recalc()" placeholder="입력 해주세요"></td>
+      </tr>
+    </table>
+
+    <div class="section-title mt">&#9632; 설계 Data</div>
+    <table class="cdt">
+      <thead><tr>
+        <th style="width:30px">구분</th><th>유량<br>[kg/h &middot; m&sup3;/h]</th><th>압력<br>[kPa&middot;g]</th>
+        <th>온도<br>[&#8451;]</th><th>내경<br>[mm]</th><th>설계유속<br>[m/s]</th><th>허용유속<br>[m/s]</th>
+      </tr></thead>
+      <tbody>
+        <tr id="row-st-design">
+          <td class="grp">증기</td>
+          <td><input id="inp-st-design-flow" onchange="recalc()" placeholder="kg/h"></td>
+          <td><input id="inp-st-design-press" onchange="recalc()" placeholder="kPa"></td>
+          <td><input id="inp-st-design-temp" onchange="recalc()" placeholder="&#8451;"></td>
+          <td><input id="inp-st-design-dia" onchange="recalc()" placeholder="mm"></td>
+          <td class="calc"><span id="calc-st-dvel"></span></td>
+          <td><input id="inp-st-design-allow" onchange="recalc()" placeholder="m/s"></td>
+        </tr>
+        <tr id="row-wt-design">
+          <td class="grp">물</td>
+          <td><input id="inp-wt-design-flow" onchange="recalc()" placeholder="m&sup3;/h"></td>
+          <td><input id="inp-wt-design-press" onchange="recalc()" placeholder="kPa"></td>
+          <td><input id="inp-wt-design-temp" onchange="recalc()" placeholder="&#8451;"></td>
+          <td><input id="inp-wt-design-dia" onchange="recalc()" placeholder="mm"></td>
+          <td class="calc"><span id="calc-wt-dvel"></span></td>
+          <td><input id="inp-wt-design-allow" onchange="recalc()" placeholder="m/s"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-title mt">&#9632; 측정 Data</div>
+    <table class="cdt">
+      <thead><tr>
+        <th style="width:30px">구분</th><th>유량<br>[kg/h &middot; m&sup3;/h]</th><th>압력<br>[kPa&middot;g]</th>
+        <th>온도<br>[&#8451;]</th><th>표면온도<br>[&#8451;]</th><th>유속<br>[m/s]</th><th>유속적정<br>[%]</th>
+      </tr></thead>
+      <tbody>
+        <tr id="row-st-meas">
+          <td class="grp">증기</td>
+          <td><input id="inp-st-meas-flow" onchange="recalc()" placeholder="kg/h"></td>
+          <td><input id="inp-st-meas-press" onchange="recalc()" placeholder="kPa"></td>
+          <td><input id="inp-st-meas-temp" onchange="recalc()" placeholder="&#8451;"></td>
+          <td><input id="inp-st-meas-surf" onchange="recalc()" placeholder="&#8451;"></td>
+          <td class="calc"><span id="calc-st-vel"></span></td>
+          <td class="calc"><span id="calc-st-velr"></span></td>
+        </tr>
+        <tr id="row-wt-meas">
+          <td class="grp">물</td>
+          <td><input id="inp-wt-meas-flow" onchange="recalc()" placeholder="m&sup3;/h"></td>
+          <td><input id="inp-wt-meas-press" onchange="recalc()" placeholder="kPa"></td>
+          <td><input id="inp-wt-meas-temp" onchange="recalc()" placeholder="&#8451;"></td>
+          <td><input id="inp-wt-meas-surf" onchange="recalc()" placeholder="&#8451;"></td>
+          <td class="calc"><span id="calc-wt-vel"></span></td>
+          <td class="calc"><span id="calc-wt-velr"></span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="residual">
+      &#8251; 유속(물) = (유량&divide;3600) &divide; (&pi;&middot;(내경&divide;1000)&sup2;&divide;4) &nbsp;[m/s]<br>
+      &#8251; 유속(증기) = (질량유량 &times; 포화증기 비체적 vg &divide; 3600) &divide; 단면적 &nbsp;[m/s] &nbsp;(vg는 측정압력 포화증기표값)<br>
+      &#8251; 유속적정 = 측정유속 &divide; 허용유속 &times; 100 [%] &nbsp;&middot;&nbsp; 압력(절대) = 게이지압 + 101.325 kPa
+    </div>
+
+    <div class="refs-card refs-clickable" onclick="showRefsSrc()" title="적용 표준 보기">
+      <h3>기준 및 출처 <span class="refs-more">&#9432; 상세 보기</span></h3>
+    </div>
+
+    <div class="section-title mt">&#9632; 헤더 계통 모식도 (측정값)</div>
+    <div class="ahu-diagram" id="hdrDiagram"></div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="panel" id="center-panel">
+    <div class="center-head">
+      <div class="section-title" id="centerTitle">&#9632; 운전 성능 분석표</div>
+      <div class="center-icons">
+        <button type="button" class="ci-btn active" id="ciDoc" onclick="switchCenterView('perf')" title="운전 성능 분석표 보기" aria-label="운전 성능 분석표">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>
+        </button>
+        <button type="button" class="ci-btn" id="ciCam" onclick="switchCenterView('photo')" title="현장 사진 등록/촬영" aria-label="현장 사진 등록/촬영">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="calc-card" id="perfView">
+      <div class="curve-head" style="margin-bottom:8px">
+        <span class="tbl-cap" style="margin:0">헤더 성능 분석 <span class="src">설계 대비 측정 달성률</span></span>
+        <div class="fan-selector" id="fanSelector" style="display:none">
+          <button class="fan-btn active" id="fanBtnSA" onclick="selectFan('ST')">증기</button>
+          <button class="fan-btn" id="fanBtnRA" onclick="selectFan('WT')">물</button>
+          <button class="fan-btn" id="fanBtnBoth" onclick="selectFan('BOTH')">증기+물</button>
+        </div>
+      </div>
+      <table class="calc-table" id="perfTable"></table>
+
+      <div class="curve-head" id="curveCap" style="margin-top:14px">
+        <span class="tbl-cap">설계 대비 측정 성능 비교 <span class="src" id="curveSrc">레이더 차트 &middot; <span id="curveFanLbl">증기 헤더</span></span></span>
+      </div>
+      <div class="chart-wrap" id="chartWrapper"><canvas id="radarCanvas"></canvas></div>
+    </div>
+
+    <div class="photo-view" id="photoView" style="display:none;">
+      <div class="tbl-cap">현장 사진 <span class="src">아이콘/영역을 클릭하여 촬영 또는 파일 선택</span></div>
+      <div class="photo-grid" id="photoGrid"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel" id="right-panel">
+    <div class="section-title">&#9632; 분석 결과</div>
+    <div class="metrics-area" id="metricsArea"></div>
+
+    <div id="sec-donut">
+      <div class="section-title mt" id="donut-title">&#9632; 유속 비교 (허용 / 측정)</div>
+      <div class="donut-box">
+        <svg id="donut" viewBox="0 8 320 144" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </div>
+
+    <div id="sec-diag">
+      <div class="section-title mt">&nbsp;</div>
+      <div class="right-scroll">
+        <div class="diag" id="diag"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Copyright (원본 그대로 유지) -->
+<div class="copyright">
+  &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<script>
+/* ============================================================
+   HIMEC Steam/Water Header Performance (Tool-201 디자인 틀 유지)
+   유속(물)=(Q/3600)/A · 유속(증기)=(m·vg/3600)/A · A=π(D/1000)^2/4
+   증기 포화물성(vg, Tsat)은 포화증기표(ASME/IAPWS-IF97) 선형보간
+   ============================================================ */
+const $=id=>document.getElementById(id);
+let selectedFan='ST';   /* ST=증기, WT=물, BOTH */
+
+/* ---- 포화증기표 [절대압 kPa, 포화온도 Tsat ℃, 건포화증기 비체적 vg m³/kg] ---- */
+const STEAM_SAT=[
+ [101.325,100.0,1.6730],[150,111.4,1.1593],[200,120.2,0.8857],[250,127.4,0.7187],
+ [300,133.5,0.6058],[350,138.9,0.5243],[400,143.6,0.4625],[450,147.9,0.4140],
+ [500,151.8,0.3749],[550,155.5,0.3427],[600,158.8,0.3157],[700,165.0,0.2729],
+ [800,170.4,0.2404],[900,175.4,0.2150],[1000,179.9,0.19440],[1100,184.1,0.17753],
+ [1200,188.0,0.16333],[1300,191.6,0.15125],[1400,195.0,0.14084],[1500,198.3,0.13177],
+ [1600,201.4,0.12380],[1800,207.1,0.11042],[2000,212.4,0.09957]];
+function steamInterp(pabs,col){
+  var t=STEAM_SAT; if(pabs<=t[0][0]) return t[0][col]; if(pabs>=t[t.length-1][0]) return t[t.length-1][col];
+  for(var i=0;i<t.length-1;i++){ if(pabs>=t[i][0]&&pabs<=t[i+1][0]){
+    var f=(pabs-t[i][0])/(t[i+1][0]-t[i][0]); return t[i][col]+(t[i+1][col]-t[i][col])*f; } }
+  return t[t.length-1][col];
+}
+function steamTsat(pg){ return steamInterp(pg+101.325,1); }
+function steamVg(pg){ return steamInterp(pg+101.325,2); }
+
+function selectFan(sys){
+  selectedFan=sys;
+  $('fanBtnSA').classList.toggle('active', sys==='ST');
+  $('fanBtnRA').classList.toggle('active', sys==='WT');
+  $('fanBtnBoth').classList.toggle('active', sys==='BOTH');
+  recalc();
+}
+
+function parseNum(v){ if(typeof v==='number') return v; if(!v) return 0;
+  return parseFloat(String(v).replace(/,/g,''))||0; }
+function formatComma(v,d){ if(v===''||v==null) return '';
+  var n=typeof v==='number'?v:parseFloat(String(v).replace(/,/g,'')); if(isNaN(n)) return String(v);
+  if(typeof d==='number') n=parseFloat(n.toFixed(d));
+  var p=String(n).split('.'); p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,','); return p.join('.'); }
+function applyCommaFormat(el){ if(!el) return; var raw=el.value.replace(/,/g,'');
+  if(raw===''||isNaN(parseFloat(raw))) return; el.value=formatComma(parseFloat(raw)); }
+function fmt(n,d){ if(n===''||n==null||isNaN(n)) return '-'; return formatComma(+n,d); }
+
+var NUMERIC_IDS=[
+ 'inp-st-design-flow','inp-st-design-press','inp-st-design-temp','inp-st-design-dia','inp-st-design-allow',
+ 'inp-wt-design-flow','inp-wt-design-press','inp-wt-design-temp','inp-wt-design-dia','inp-wt-design-allow',
+ 'inp-st-meas-flow','inp-st-meas-press','inp-st-meas-temp','inp-st-meas-surf',
+ 'inp-wt-meas-flow','inp-wt-meas-press','inp-wt-meas-temp','inp-wt-meas-surf'];
+function formatAllNumericFields(){ NUMERIC_IDS.forEach(function(id){ applyCommaFormat($(id)); }); }
+
+/* 단면적 A = π(D/1000)^2/4 [m²] */
+function area(dia){ var d=dia/1000; return Math.PI*d*d/4; }
+
+function applyType(){ recalc(); }
+function currentType(){ var el=$('inp-use'); return (el && el.value==='WT') ? 'WT' : 'ST'; }
+function measIn(pfx,f){ var el=$('inp-'+pfx+'-meas-'+f); return !!(el && String(el.value).trim()!==''); }
+function nodataBox(msg){ return '<div style="padding:14px;color:#9aa4ad;font-size:12px;text-align:center;border:1px dashed #d6dde2;border-radius:8px">'+msg+'</div>'; }
+function applyRowVisibility(t){
+  var isST = (t!=='WT');
+  ['row-st-design','row-st-meas'].forEach(function(id){ var r=$(id); if(r) r.style.display = isST?'':'none'; });
+  ['row-wt-design','row-wt-meas'].forEach(function(id){ var r=$(id); if(r) r.style.display = isST?'none':''; });
+}
+function recalc(){
+  var AMB=20; /* 기준 실온(표면온도 판정용) */
+  selectedFan = currentType();     /* Type(증기/물)이 분석 대상 결정 */
+  applyRowVisibility(selectedFan);
+  function sysV(pfx,isSteam){
+    var dFlow=parseNum($('inp-'+pfx+'-design-flow').value), dPress=parseNum($('inp-'+pfx+'-design-press').value);
+    var dTemp=parseNum($('inp-'+pfx+'-design-temp').value), dDia=parseNum($('inp-'+pfx+'-design-dia').value);
+    var dAllow=parseNum($('inp-'+pfx+'-design-allow').value);
+    var mFlow=parseNum($('inp-'+pfx+'-meas-flow').value), mPress=parseNum($('inp-'+pfx+'-meas-press').value);
+    var mTemp=parseNum($('inp-'+pfx+'-meas-temp').value), mSurf=parseNum($('inp-'+pfx+'-meas-surf').value);
+    var A=dDia>0?area(dDia):0;
+    var dVel=0,mVel=0,tSatD=0,tSatM=0;
+    if(isSteam){
+      var vgD=steamVg(dPress), vgM=steamVg(mPress);
+      dVel=A>0?(dFlow*vgD/3600)/A:0; mVel=A>0?(mFlow*vgM/3600)/A:0;
+      tSatD=steamTsat(dPress); tSatM=steamTsat(mPress);
+    } else {
+      dVel=A>0?(dFlow/3600)/A:0; mVel=A>0?(mFlow/3600)/A:0;
+    }
+    var velR=dAllow>0?mVel/dAllow*100:0;             /* 유속적정(허용대비) */
+    var flowR=dFlow>0?mFlow/dFlow*100:0, pressR=dPress>0?mPress/dPress*100:0;
+    var tempR=dTemp>0?mTemp/dTemp*100:0, velDR=dVel>0?mVel/dVel*100:0;
+    var superheat=isSteam?(mTemp-tSatM):(mTemp-dTemp); /* 증기:과열도, 물:공급온도편차 */
+    return {dFlow,dPress,dTemp,dDia,dAllow,dVel,tSatD,
+            mFlow,mPress,mTemp,mSurf,mVel,tSatM,
+            flowR,pressR,tempR,velDR,velR,superheat,isSteam};
+  }
+  var ST=sysV('st',true), WT=sysV('wt',false);
+
+  $('calc-st-dvel').textContent=fmt(ST.dVel,1); $('calc-wt-dvel').textContent=fmt(WT.dVel,2);
+  $('calc-st-vel').textContent=fmt(ST.mVel,1);  $('calc-wt-vel').textContent=fmt(WT.mVel,2);
+  $('calc-st-velr').textContent=fmt(ST.velR,1);  $('calc-wt-velr').textContent=fmt(WT.velR,1);
+
+  var V={ST,WT,AMB};
+  renderPerf(V); renderMetrics(V); renderGauge(V); renderDiag(V); renderDiagram(V);
+  drawRadarChart(V);
+  formatAllNumericFields();
+}
+
+/* ===== 중앙 : 운전 성능 분석표 ===== */
+function renderPerf(V){
+  function r(lead,n,d,m,rt){ return '<tr>'+lead+'<td>'+n+'</td><td class="num" style="text-align:right">'+d+'</td><td class="num" style="text-align:right">'+m+'</td><td class="num" style="text-align:right">'+rt+'</td></tr>'; }
+  function eff(n,d,m,rt){ return '<tr class="eff"><td>'+n+'</td><td class="num" style="text-align:right">'+d+'</td><td class="num" style="text-align:right">'+m+'</td><td class="num" style="text-align:right">'+rt+'</td></tr>'; }
+  function block(S,label){
+    var lead = label ? '<td class="fanlbl" rowspan="5">'+label+'</td>' : '';
+    var fu = S.isSteam?'kg/h':'m³/h';
+    return r(lead,'유량 ['+fu+']',fmt(S.dFlow,0),fmt(S.mFlow,0),fmt(S.flowR,1))
+      + r('','압력 [kPa·g]',fmt(S.dPress,0),fmt(S.mPress,0),fmt(S.pressR,1))
+      + r('','온도 [℃]',fmt(S.dTemp,0),fmt(S.mTemp,0),fmt(S.tempR,1))
+      + r('','유속 [m/s]',fmt(S.dVel,S.isSteam?1:2),fmt(S.mVel,S.isSteam?1:2),fmt(S.velDR,1))
+      + eff('유속적정 [%]',fmt(S.dAllow,S.isSteam?0:1),fmt(S.mVel,S.isSteam?1:2),fmt(S.velR,1));
+  }
+  var h='';
+  if(selectedFan==='BOTH'){
+    h='<tr><th style="width:7%"></th><th style="width:30%">항목</th><th style="text-align:right">설계</th><th style="text-align:right">측정</th><th style="text-align:right">달성[%]</th></tr>';
+    h+=block(V.ST,'증기')+block(V.WT,'물');
+  } else {
+    h='<tr><th style="width:34%">항목</th><th style="text-align:right">설계</th><th style="text-align:right">측정</th><th style="text-align:right">달성[%]</th></tr>';
+    h+=block(selectedFan==='WT'?V.WT:V.ST, null);
+  }
+  $('perfTable').innerHTML=h;
+  var lbl=$('curveFanLbl'); if(lbl) lbl.textContent=(selectedFan==='BOTH')?'증기 + 물':(selectedFan==='WT'?'물 헤더':'증기 헤더');
+  var cap=$('curveCap').querySelector('.tbl-cap'); /* eff행 라벨: 설계열은 허용유속 */
+}
+
+/* ===== 우측 : 결과 카드 (증기/물 2값) ===== */
+function renderMetrics(V){
+  var isST = (selectedFan!=='WT');
+  var S = isST ? V.ST : V.WT;
+  var pfx = isST ? 'st' : 'wt';
+  var tag = isST ? '증기' : '물';
+  var cls = isST ? 'sa' : 'ra';
+  var dp = isST ? 1 : 2;
+  function mc(lbl,val,u,sub){
+    return '<div class="metric-card"><div class="ml"><div class="metric-label">&#10003; '+lbl+'</div><div class="metric-sub">'+sub+'</div></div>'+
+      '<div class="mvg">'+
+      '<div class="mv '+cls+'"><span class="mtag">'+tag+'</span><span class="metric-value">'+val+'</span><span class="metric-unit">'+u+'</span></div>'+
+      '</div></div>'; }
+  var c='';
+  if(measIn(pfx,'flow')) c+=mc('측정 유속',fmt(S.mVel,dp),'m/s','허용 '+fmt(S.dAllow,isST?0:1)+' m/s');
+  if(measIn(pfx,'flow')) c+=mc('유속 적정률',fmt(S.velR,1),'%','허용유속 대비 (100% 초과 주의)');
+  if(measIn(pfx,'press')) c+=mc('압력 유지율',fmt(S.pressR,1),'%','측정/설계 압력비');
+  if(measIn(pfx,'temp')) c+=mc('온도 편차',fmt(S.superheat,1),'℃',isST?'측정−포화(과열도)':'측정−설계');
+  if(measIn(pfx,'surf')) c+=mc('보온 표면온도',fmt(S.mSurf,0),'℃','열손실·화상방지 (실온 '+V.AMB+'℃ 기준)');
+  $('metricsArea').innerHTML = c || nodataBox('측정값 입력 시 분석 결과가 표시됩니다.');
+}
+
+
+/* ===== 우측 : 유속 비교 막대 (허용 vs 측정) ===== */
+function renderGauge(V){
+  var isST = (selectedFan!=='WT');
+  var pfx = isST ? 'st' : 'wt';
+  var secD = $('sec-donut');
+  if(!measIn(pfx,'flow')){ if(secD) secD.style.display='none'; $('donut').innerHTML=''; return; }
+  if(secD) secD.style.display='';
+  var g = isST ? {t:'증기 유속', d:V.ST.dAllow, m:V.ST.mVel, dpd:0, dpm:1}
+               : {t:'물 유속',   d:V.WT.dAllow, m:V.WT.mVel, dpd:1, dpm:2};
+  var base=132, top=44, maxH=base-top, bw=34, colD='#9fb4c9', colM='#00838f';
+  var cx=160, mx=Math.max(g.d,g.m,1e-6), xd=cx-44, xm=cx+10;
+  var hd=Math.max(2,g.d>0?g.d/mx*maxH:0), hm=Math.max(2,g.m>0?g.m/mx*maxH:0);
+  var over=g.m>g.d; var colMe=over?'#ED7458':colM;
+  var svg='';
+  svg+='<text x="'+cx+'" y="22" text-anchor="middle" font-size="10" font-weight="500" fill="#2f6f86">'+g.t+'</text>';
+  svg+='<line x1="'+(cx-60)+'" y1="'+base+'" x2="'+(cx+60)+'" y2="'+base+'" stroke="#cfd6dc" stroke-width="1"/>';
+  svg+='<rect x="'+xd+'" y="'+(base-hd)+'" width="'+bw+'" height="'+hd+'" fill="'+colD+'"/>';
+  svg+='<text x="'+(xd+bw/2)+'" y="'+(base-hd-6)+'" text-anchor="middle" font-size="10" fill="#666">'+fmt(g.d,g.dpd)+'</text>';
+  svg+='<text x="'+(xd+bw/2)+'" y="'+(base+15)+'" text-anchor="middle" font-size="9" fill="#888">허용</text>';
+  svg+='<rect x="'+xm+'" y="'+(base-hm)+'" width="'+bw+'" height="'+hm+'" fill="'+colMe+'"/>';
+  svg+='<text x="'+(xm+bw/2)+'" y="'+(base-hm-6)+'" text-anchor="middle" font-size="10" fill="'+colMe+'">'+fmt(g.m,g.dpm)+'</text>';
+  svg+='<text x="'+(xm+bw/2)+'" y="'+(base+15)+'" text-anchor="middle" font-size="9" fill="#888">측정</text>';
+  $('donut').innerHTML=svg;
+}
+
+/* ===== 좌측 : 헤더 계통 모식도 (인라인 SVG) ===== */
+function renderDiagram(V){
+  var S=V.ST, W=V.WT;
+  function hdr(y,cap,color,p,t,q,qu){
+    return '<rect x="60" y="'+y+'" width="300" height="34" rx="17" fill="#fff" stroke="'+color+'" stroke-width="2"/>'
+      +'<rect x="34" y="'+(y+7)+'" width="30" height="20" fill="'+color+'" opacity="0.85"/>'
+      +'<line x1="120" y1="'+(y+34)+'" x2="120" y2="'+(y+52)+'" stroke="'+color+'" stroke-width="4"/>'
+      +'<line x1="210" y1="'+(y+34)+'" x2="210" y2="'+(y+52)+'" stroke="'+color+'" stroke-width="4"/>'
+      +'<line x1="300" y1="'+(y+34)+'" x2="300" y2="'+(y+52)+'" stroke="'+color+'" stroke-width="4"/>'
+      +'<text x="45" y="'+(y-6)+'" font-size="12" font-weight="700" fill="'+color+'">'+cap+'</text>'
+      +'<text x="210" y="'+(y+22)+'" text-anchor="middle" font-size="12" font-weight="700" fill="'+color+'">'
+        +'P '+fmt(p,0)+' kPa · T '+fmt(t,0)+'℃</text>'
+      +'<text x="210" y="'+(y+66)+'" text-anchor="middle" font-size="10.5" fill="#555">유량 '+fmt(q,0)+' '+qu+'</text>';
+  }
+  var isST = (selectedFan!=='WT');
+  var svg='<svg viewBox="0 0 400 130" width="100%" style="display:block">'
+    + ( isST ? hdr(60,'증기 헤더','#c2691c',S.mPress,S.mTemp,S.mFlow,'kg/h')
+             : hdr(60,'물 헤더','#1769aa',W.mPress,W.mTemp,W.mFlow,'m³/h') )
+    + '</svg>';
+  $('hdrDiagram').innerHTML=svg;
+}
+
+
+/* ===== 우측 : 진단 ===== */
+function renderDiag(V){
+  var isST = (selectedFan!=='WT');
+  var X = isST ? V.ST : V.WT;
+  var pfx = isST ? 'st' : 'wt';
+  var nm = isST ? '증기' : '물';
+  function lvBal(r){ var d=Math.abs(r-100); return d<=15?'ok':(d<=30?'warn':'bad'); }
+  function worst2(a,b){ var o=['ok','warn','bad']; return o[Math.max(o.indexOf(a),o.indexOf(b))]; }
+  var STT={ok:'양호',warn:'점검 필요',bad:'불량'};
+  var D=[];
+
+  /* 1) 유량 (설계 대비) */
+  if(measIn(pfx,'flow')){ var lv=lvBal(X.flowR);
+    var msg={ok:'설계 유량 확보.',warn:'분배 불균형·부분폐색 점검.',bad:'공급부족·과다 — 밸브/배관 점검.'}[lv];
+    D.push([lv,'유량',STT[lv],nm+' '+fmt(X.flowR,1)+'% (설계대비) &mdash; '+msg,'출처: 설계유량 · ASHRAE Handbook · ISO 5167']); }
+
+  /* 2) 압력 유지 (설계 대비) */
+  if(measIn(pfx,'press')){ var lv=lvBal(X.pressR);
+    var msg={ok:'헤더 압력 정상 유지.',warn:'압력손실·감압변 점검.',bad:'압력저하·과압 — 배관저항/공급원 점검.'}[lv];
+    D.push([lv,'압력',STT[lv],nm+' '+fmt(X.pressR,1)+'% (설계대비) &mdash; '+msg,'출처: 설계압력 · ASME B31.1/B31.9 · KGS']); }
+
+  /* 3) 온도 — 증기: 포화온도 대비 습증기 / 물: 공급온도 편차 */
+  if(measIn(pfx,'temp')){ if(isST){
+    var stSh=X.superheat, lv=(stSh>=-2)?'ok':(stSh>=-8?'warn':'bad');
+    var msg={ok:'건포화 상태 정상.',warn:'습증기 경계 — 트랩·드레인 점검.',bad:'습증기·응축수 캐리오버 — 트랩 불량 의심.'}[lv];
+    D.push([lv,'온도',STT[lv],'증기 과열도 '+fmt(stSh,1)+'℃(포화 '+fmt(X.tSatM,0)+'℃) &mdash; '+msg,'출처: 포화증기표(ASME/IAPWS-IF97) · 설계공급온도']);
+  } else {
+    var wtDv=Math.abs(X.superheat), lv=(wtDv<=3)?'ok':(wtDv<=6?'warn':'bad');
+    var msg={ok:'공급온도 정상.',warn:'온도편차 발생 — 보온·혼합 점검.',bad:'온도편차 과대 — 보온손상·바이패스 의심.'}[lv];
+    D.push([lv,'온도',STT[lv],'물 편차 '+fmt(X.superheat,1)+'℃ &mdash; '+msg,'출처: 설계공급온도 · 대한설비공학회 설비공학편람']);
+  } }
+
+  /* 4) 유속 (허용유속 대비 — 에로전·소음·워터해머) */
+  if(measIn(pfx,'flow')){ function lvVel(r){ return r<=90?'ok':(r<=110?'warn':'bad'); }
+    var lv=lvVel(X.velR);
+    var msg={ok:'허용유속 이내 — 정상.',warn:'허용유속 근접 — 소음·마모 주의.',bad:'허용유속 초과 — 에로전·소음·워터해머 위험.'}[lv];
+    D.push([lv,'유속',STT[lv],nm+' '+fmt(X.velR,1)+'% (허용대비) &mdash; '+msg,'출처: ASHRAE Handbook · 설비공학편람 · ASME B31.9']); }
+
+  /* 5) 보온 표면온도 (열손실·화상방지) */
+  if(measIn(pfx,'surf')){ function lvSurf(sf){ if(sf<=0)return 'ok'; return sf<=40?'ok':(sf<=60?'warn':'bad'); }
+    var lv=lvSurf(X.mSurf);
+    var msg={ok:'보온 양호 — 열손실 적음.',warn:'표면온도 상승 — 보온두께 부족·열화.',bad:'보온손상 — 열손실 과다·화상 위험(>60℃).'}[lv];
+    D.push([lv,'보온 표면온도',STT[lv],nm+' '+fmt(X.mSurf,0)+'℃ &mdash; '+msg,'출처: KS/KCS 보온기준 · ISO 12241 · 화상방지 ISO 13732-1']); }
+
+  /* 6) 종합 */
+  if(D.length){ var worst='ok'; D.forEach(function(d){ worst=worst2(worst,d[0]); });
+    var msg={ok:'전반적 헤더 성능 양호.',warn:'일부 항목 저하 — 정밀 점검 권고.',bad:'성능 저하 — 정비·개선 필요.'}[worst];
+    D.push([worst,'종합 평가',STT[worst],nm+' 헤더 유량·압력·온도·유속·보온 종합 &mdash; '+msg,'출처: 종합 진단']); }
+
+  $('diag').innerHTML = D.length ? D.map(function(d){ return '<div class="d '+d[0]+'"><div class="dhead">'+d[1]+' : <span class="dstat">'+d[2]+'</span></div><div class="dbody">'+d[3]+'<span class="dsrc" onclick="showSrcPopup(\''+d[1]+'\',\''+d[0]+'\')" title="클릭하면 판정 기준 요약 보기">'+d[4]+'</span></div></div>'; }).join('') : nodataBox('측정값 입력 시 진단 결과가 표시됩니다.');
+}
+</script>
 
 <script>
 /* ===== 진단 출처 팝업 ===== */
