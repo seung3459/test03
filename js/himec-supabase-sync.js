@@ -50,6 +50,8 @@
     log('hydrated → mirroring enabled, event fired');
     // 복원 전 보류 구간에 쌓였을 수 있는 로컬 변경을 한 번 밀어올림
     try { w.HIMEC_SYNC.syncNow(); } catch (e) {}
+    // 자동 백업 시작(복원 완료 후부터)
+    try { startBackups(); } catch (e) {}
   }
 
   /* --- Supabase 클라이언트 비동기 로드 --- */
@@ -166,7 +168,21 @@
       _origSet(key, value);
       try { scheduleMirror(key, value); } catch (e) { warn('mirror sched fail', e); }
     };
-    _ls.removeItem = function (key) { _origRemove(key); };
+    _ls.removeItem = function (key) {
+      _origRemove(key);
+      try {
+        if (!isTracked(key)) return;
+        _origRemove(key + '__cts');              // 기준선 메타키도 제거
+        if (!hydrated) return;                    // 복원 전엔 클라우드 미조작(사고 방지)
+        var stateKey = toStateKey(key);
+        withClient(function (client) {
+          return client.from(TABLE).delete().eq('key', stateKey).then(function (r) {
+            if (r && r.error) warn('cloud delete err', stateKey, r.error.message || r.error);
+            else log('cloud delete ←', key, '⇒', stateKey);
+          });
+        });
+      } catch (e) { warn('remove propagate fail', e); }
+    };
   } catch (e) { warn('hook install fail', e); }
 
   /* ---------------------------------------------------------------
@@ -223,6 +239,63 @@
   }
 
   /* ---------------------------------------------------------------
+   * 자동 백업: app_state 스냅샷을 Storage(<회사ID>/_backups/<시각>.json)로 저장
+   *   · CFG.BACKUP_INTERVAL_MS 주기(기본 10분), 최근 CFG.BACKUP_KEEP 개만 유지
+   *   · 내용 변화 없으면 업로드 skip(동일 백업 낭비 방지)
+   *   · 사진은 어차피 경로만 저장되므로 백업 JSON 은 가벼움
+   * --------------------------------------------------------------- */
+  var _backupTimer = null, _lastBackupSig = null;
+  function backupCompanyId() {
+    try { return (typeof w.himecCompanyId === 'function') ? w.himecCompanyId() : (CFG.DEFAULT_COMPANY_ID || 'default'); }
+    catch (e) { return CFG.DEFAULT_COMPANY_ID || 'default'; }
+  }
+  function backupBucket()   { return CFG.BACKUP_BUCKET || 'project-docs'; }
+  function backupPrefix()   { return backupCompanyId() + '/' + (CFG.BACKUP_PREFIX || '_backups'); }
+  function backupFilename() { return nowIso().replace(/[:.]/g, '-') + '.json'; }  // 파일명 안전 + 이름순=시간순
+
+  function pruneBackups(client) {
+    var keep = CFG.BACKUP_KEEP || 24;
+    var prefix = backupPrefix();
+    return client.storage.from(backupBucket()).list(prefix, { limit: 1000 }).then(function (r) {
+      if (!r || r.error || !r.data) return;
+      var names = r.data.filter(function (f) { return f && f.name && /\.json$/.test(f.name); })
+                        .map(function (f) { return f.name; }).sort();   // 오래된 것부터
+      if (names.length <= keep) return;
+      var old = names.slice(0, names.length - keep).map(function (n) { return prefix + '/' + n; });
+      return client.storage.from(backupBucket()).remove(old).then(function (rm) {
+        if (rm && rm.error) warn('backup prune err', rm.error.message || rm.error);
+        else log('backup pruned', old.length);
+      });
+    });
+  }
+  function doBackup() {
+    return withClient(function (client) {
+      return client.from(TABLE).select('key,data,updated_at').then(function (r) {
+        if (!r || r.error || !r.data) { if (r && r.error) warn('backup select err', r.error.message || r.error); return; }
+        var sig = JSON.stringify(r.data);
+        if (sig === _lastBackupSig) { log('backup skip (변화 없음)'); return; }   // 지난 백업과 동일 → 생략
+        var payload = JSON.stringify({ createdAt: nowIso(), table: TABLE, rows: r.data });
+        var body; try { body = new Blob([payload], { type: 'application/json' }); } catch (e) { body = payload; }
+        var path = backupPrefix() + '/' + backupFilename();
+        return client.storage.from(backupBucket()).upload(path, body, { contentType: 'application/json', upsert: true })
+          .then(function (up) {
+            if (up && up.error) { warn('backup upload err', up.error.message || up.error); return; }
+            _lastBackupSig = sig; log('backup saved', path);
+            return pruneBackups(client);
+          });
+      });
+    });
+  }
+  function startBackups() {
+    if (!ENABLED) return;
+    if (CFG.BACKUP_INTERVAL_MS === 0) return;              // 0 이면 자동백업 끔
+    var iv = CFG.BACKUP_INTERVAL_MS || (10 * 60 * 1000);
+    try { clearInterval(_backupTimer); } catch (e) {}
+    _backupTimer = setInterval(function () { try { doBackup(); } catch (e) { warn('backup tick', e); } }, iv);
+    log('auto-backup on, interval(ms)=', iv);
+  }
+
+  /* ---------------------------------------------------------------
    * 부팅 + 외부 핸들
    * --------------------------------------------------------------- */
   function boot() {
@@ -247,6 +320,6 @@
       } catch (e) { warn('syncNow fail', e); }
     },
     loadToolRegistry: function () { return Promise.resolve(null); },
-    backupNow: function () {}
+    backupNow: doBackup
   };
 })(window, document);
