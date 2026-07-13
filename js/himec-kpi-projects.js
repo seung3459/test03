@@ -101,6 +101,16 @@
   }
 
   var _lastSig = null, _running = false;
+  // KPI 데이터를 신뢰할 수 있을 때만 삭제(prune) 허용 → "통째 삭제" 사고 방지.
+  //  · KPI blob 자체가 없으면(로딩 전/새 기기) 삭제 금지
+  //  · 동기화(hydrate) 완료 전이면 삭제 금지 (클라우드 복원 전 빈 상태 오판 방지)
+  function pruneAllowed() {
+    var present = false;
+    try { present = (localStorage.getItem(LS_KEY) != null); } catch (e) {}
+    if (!present) return false;
+    if (w.HIMEC_SYNC && typeof w.HIMEC_SYNC.isHydrated === 'function' && !w.HIMEC_SYNC.isHydrated()) return false;
+    return true;
+  }
   async function reconcile() {
     if (_running) return;
     var rows = readContracted();
@@ -111,9 +121,15 @@
       var c = await client(); if (!c) return;
       var cid = companyId();
       for (var i = 0; i < rows.length; i++) { await upsertOne(c, cid, rows[i]); }
-      var keep = rows.map(function (x) { return x.kpi_sync_id; });   // 지금 계약된 것들
-      await prune(c, cid, keep);                                     // 나머지(계약 빠진 것) 삭제
-      _lastSig = sig;
+      var pruned = false;
+      if (pruneAllowed()) {
+        var keep = rows.map(function (x) { return x.kpi_sync_id; });   // 지금 계약된 것들
+        await prune(c, cid, keep);                                     // 나머지(계약 빠진 것) 삭제
+        pruned = true;
+      } else {
+        warn('prune 보류 — KPI 데이터 미로딩/미동기화 상태라 안전상 삭제 안 함');
+      }
+      if (pruned) _lastSig = sig;   // 삭제까지 정상 수행했을 때만 캐시 → 미수행 시 다음 트리거에서 재시도
     } catch (e) { warn('reconcile', e); }
     finally { _running = false; }
   }
